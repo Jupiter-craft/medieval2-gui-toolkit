@@ -2169,8 +2169,24 @@ settlement, added, removed and changed there.
 user's word: "analyze this github and see what sort of features does he
 have that we could port over. And once again give me a checklist."
 [MasterOogwayHomebrew/RTW-M2TW-Campaign-Editor](https://github.com/MasterOogwayHomebrew/RTW-M2TW-Campaign-Editor),
-cloned 2026-10-06 into `Reference/oogway-campaign-editor/` (untracked). The
-checklist and the user's answers are recorded below once they are in.
+cloned 2026-10-06 into `Reference/oogway-campaign-editor/` (untracked).
+**Licence GPLv3**: port behaviour only, never code, as with Mylae's editor.
+Most of its core is already here (cloning, unit and building editors,
+painting, moving towns and ports, placing armies, terrain, events, victory
+conditions, diplomacy, imports, 3x scaling). The eighteen things it has that
+this toolkit lacks or half has went to the user as a checklist on 2026-10-06:
+<https://claude.ai/artifact/WX5ZcGdjgdqinBbgjmwX1q>, answers in its database,
+collection `answers` (`verdict`, `note`, `title`), read with `ArtifactData`.
+The items: a no-code WHEN/IF/DO script builder (against the out-of-scope line
+for a block script editor), ready-made add-ons, the game log explained, a deep
+check that rehearses pending edits, a mod contents report, a drawn family
+tree, custom portraits, a portrait library, a new region wizard, settlement
+names by culture (check M2TW reads it), many towns at once with
+auto-garrison, replacing a unit's model from another mod, voice preview and a
+custom name call, an emblem set from one picture, a banner maker, recolouring
+a faction's pictures, vanilla values with a reset on every rule, and a new
+mod folder of hard links. **Read the answers and write each `port` into this
+phase before building 96e.**
 
 # What else is open
 
