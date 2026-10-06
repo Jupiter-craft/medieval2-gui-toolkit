@@ -415,7 +415,7 @@ Portuguese. The order is now:
 
 | # | Feature | Pieces | Line |
 |---|---|---|---|
-| **95** | **The kitbash workbench: a port of Armory Studio 3D** (next) | 95a-95f | both |
+| **95** | **The Models Editor rebuilt around Armory Studio 3D**: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker (next) | 95a-95m | both |
 | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
 | 90 | A layout that fits the window at every interface size | 90a-90c | both |
 | 91c | A cloned faction's three campaign files | one | both |
@@ -1818,7 +1818,7 @@ cannot run for now: the M2EX EUR the user installed has a hand edit in its
 `battle_models.modeldb` (a stray `v` after a `0` in entry #88,
 `cardolan_sharpshooters`), which the modeldb reader refuses.
 
-# Phase 95 - the kitbash workbench, a port of Armory Studio 3D, scheduled 2026-10-06
+# Phase 95 - the Models Editor rebuilt around Armory Studio 3D, scheduled 2026-10-06
 
 **Asked for by the user on 2026-10-06**: "the next major feature i want you to
 implement is a port of the armorystudio3d ... It will be a tool that will be
@@ -1877,56 +1877,225 @@ author's own files.
   `soldier` line handed to this toolkit's own writers rather than to snippets
   the user pastes.
 
-**Dropped**: three.js (`viewer3d.js` is plain WebGL and stays that way), the
+**Dropped**, unless the checklist below brings one back: three.js (`viewer3d.js` is plain WebGL and stays that way), the
 procedural rig and poses (`v3anim.js` already plays a unit's real `.cas`
 animations on its real skeleton), the squad and cavalry previews, the
 generated normal map (copy the source model's own instead), numpy (the locked
 decision is Pillow only), the bundled art and sample exports, the hard-coded
 catalogues, and the second server.
 
-## The pieces, in order
+## The user's spec, 2026-10-06
 
-**95a - write a `.mesh`.** The gap `modelexport.py`'s docstring names: no
-writer exists. `mesh.write_mesh(model)` produces the boost archive from a
-`MeshFile`, with the class bookkeeping derived from what is written rather
-than copied from a template. **Done when** reading and writing every `.mesh`
-in the installed mods gives back the same bytes, or a difference that is
-explained and measured, and the game loads a written model.
+The user widened the phase the same day, after running the tool: "port over
+the armory tool under a new menu inside our models editor. I want it to be
+optimized and fit to fit our current tool in the models editor", and "If the
+existing armory tool does exactly what i say then you can enhance and
+optimize it". The spec covers the whole Models Editor, not only the
+workbench, and it is written down below piece by piece in the user's order.
+**The user's own words win over anything in this write-up**; where a piece
+says "measured" or "found", that is this session's reading of the code.
 
-**95b - the parts index.** Every group of every battle model in the active
-mod, with its type, mesh name, triangle count, sheet, faction textures out of
-the modeldb, and a slot guessed from the group type (Body, Head, shield0,
-primaryactive0...). Cached the way the model browser caches, reused by the
-picker. Bone tables are recorded, so a part whose skeleton differs from the
-figure's is flagged rather than mis-skinned.
+**What the tool does better than the spec** went to the user as a checklist
+on 2026-10-06, with a Port / Later / Skip choice and a note per item:
+<https://claude.ai/artifact/Vj4KWogKza8pcVBRFtXhNj>. The answers are in that
+artifact's database, collection `answers`, one document per item
+(`verdict`, `note`, `title`), readable with the `ArtifactData` tool
+(`action: "list"`, `collection: "answers"`). **Read them before starting
+95d**, and fold every `port` into the piece it belongs to. The seventeen
+items: material channels inside one object, metal never tinted, pure white
+kept, the pattern detector, blend modes (one keeps cloth creases), the coat
+of arms stamper, a normal map made from the texture, live dye preview, head
+parts moving as one, a triangle budget badge, a squad preview, a rider on a
+horse with matched livery, unit role templates, texture matching, duplicate
+detection, named pose presets, install notes.
 
-**95c - the assembler.** A mode on the Models Editor: one figure in
-`viewer3d.js`, a slot list, a part picker filtered by slot with a 3D thumbnail,
-variants per slot, move and scale per slot. Previewed on the real skeleton with
-`v3anim.js`'s animations.
+**Where the Models Editor stands** (measured 2026-10-06): the mode is
+`MODES` id `bmdb` (`web/js/core.js:696`), its tabs `BMDB_TABS`
+(`core.js:1260`): Model entries (`bmdb.js`, `renderBmdb`), Sprites
+(`sprites.js`), Strat map (`stratmap.js`, `renderStratmap`) and Unit cards
+(`cards.js`, the cleanup: `cards.plan_cleanup`/`apply_cleanup`). Model
+entries filters on a search box and an unused-only box, and nothing else
+(`bmdb.js:48-52`); `used_by` comes from `edu` `model_names()` (soldier,
+officers, mount) in `bmdb.overview`. The viewer is plain WebGL with one
+context per canvas (`viewer3d.js`), docked beside the list
+(`bmPrevAttach`). Strat map's 3D button calls `v3OpenCas`
+(`viewer3d.js:336`), which is the full-screen viewer the user does not want.
+`.glb`/`.obj` export and `.texture`/`.dds` exist (`modelexport.py`,
+`sprites.py`); **no `.mesh` writer exists** (`modelexport.py:19-22`).
 
-**95d - the textures.** One figure sheet and one attachment sheet built from
-the parts' own sheets: each part's UV island copied from its source texture
-onto the new pair, so parts from different models can share one entry; then
-the dyes, with metal kept, and the coat of arms. Pillow only. The `.texture`
-written through `sprites.py`, with the mips the game expects.
+**The Blender kit** the spec keeps pointing at is the user's own,
+[WK-313/Medieval-2-Blender-Toolkit](https://github.com/WK-313/Medieval-2-Blender-Toolkit);
+a copy is in `Reference/Medieval-2-Toolkit/Medieval-2-Toolkit-main/`, which
+may be older than GitHub, so check upstream first. What it does, read on
+2026-10-06, with the file each fact is in:
 
-**95e - export into the mod.** The model, the textures, the modeldb entry with
-its LODs (the same mesh for each unless the sources ship LODs), and the EDU
-line, through the plan/apply door every other writer uses, so the change shows
-in My Changes and can be undone.
+- **Names**: every object is `prefix__part`. Its fixes: `name` becomes
+  `name__name`, `a_b` becomes `a__b`, `hair1`/`hair_1`/`hair__1` become
+  `hair__hair_1`, and a trailing `.001` is removed. The known prefixes
+  (`panels/qol_panel.py:13-33`): weapon0/1, primaryactive0/1,
+  primarypassive0/1, secondaryactive0/1, shield0/1, shieldactive0/1,
+  shieldpassive0/1, ramrod0, `cannon ball0` (with the space), `ballista
+  arrow0`.
+- **Toggle opt** (`qol_panel.py:258-282`): adds or removes `__opt`, placed
+  before any trailing `.001`. **Apply prefix** (`qol_panel.py:209-251`): add
+  mode makes `x` into `prefix__x`; swap mode replaces what is before the
+  first underscore; a `__` inside the kept part collapses to `_`.
+- **Transfer weights** (`qol_panel.py:38-103`): Blender's data transfer of
+  vertex-group weights, nearest-face interpolated by default (nearest vertex
+  and nearest edge offered), then five smoothing passes.
+- **Bone names** (`qol_panel.py:141-206`): `_R`/`_L` to `_r`/`_l` and back,
+  with `_RThigh`/`_rthigh` handled on their own. The ranged skeletons use
+  the lower case, the melee ones the upper.
+- **Export checks** (`tasks/export_checks.py:260-416`): trailing numbers
+  removed (a clash is an error); `x_y` converted to `x__y`, anything still
+  not `x__y` a warning; a ranged skeleton with no `primaryactive0__` or no
+  `secondaryactive0__` a warning; duplicate material slots and identical
+  materials merged; 0 or more than 2 materials an error; **an object with no
+  vertex weights an error**; UVs outside their tile a warning; a texture
+  not square or not a power of two an error.
+- **Normal maps**: **none are generated.** It copies a blank `512.dds`,
+  `1024.dds` or `2048.dds` from `normals/` (`tasks/unit_exporter.py:182-185`),
+  named `<texture>_norm`, when a material has none.
+- **Unit cards** (`tasks/card_renderer.py`, `panels/unit_info_panel.py:220-300`):
+  sizes 48x64, 68x90 (large) and 180x230 (info), or custom; rendered at 10x
+  and scaled down (480x640 for 48x64), 64 EEVEE samples; an orthographic
+  camera at a fixed place, ortho scale 1.2 adjustable; a sun at strength 4.0,
+  or a point lamp at 500 from the camera; a compositor of a bilateral blur
+  and rescale to card size, then colour (brightness, contrast, gamma,
+  exposure, curves), then a 0.2 sharpen and hue/saturation; a black line-art
+  outline, 0.30 card pixels; an optional HD render at 10x to 40x without the
+  blur. Output `units/<dir>/#<unit>.tga` and `unit_info/<dir>/<unit>_info.tga`.
+- **UV tiles**: main-texture objects in u 0..1, attachment objects in u 1..2
+  (`export_checks.py:501-519`), the convention `mesh.py` already speaks.
 
-**95f - kitbash automatically.** What the user asked for in the name: from a
-unit and a set of rules (a faction, a slot list, a part pool), produce N
-variant models, or one model with N variant groups per slot, without picking
-part by part.
+**UVPackmaster** (in `Reference/` as a `.rar`) is a paid Blender add-on
+whose packer is a compiled engine. Take its options and behaviour as the
+reference (margins, rotation steps, island grouping, heuristic search) and
+write the packer here; none of its code is ported.
 
-**Open questions for the user before 95c**, from the 2026-10-06 overview:
-whether the procedural cavalry preview (a rider on a horse in the workbench) is
-wanted at all or whether the export writing the horse is the point; how
-automatic 95f should be (random within rules, or matched to a unit's existing
-look); and whether the workbench should be able to borrow parts from a second
-installed mod, the way the transfer does, or only the active one.
+## The pieces
+
+Each piece is one feature, built start to finish, committed as it lands.
+The order puts what the rest stands on first.
+
+**95a - galleries and filters in Model entries.** A gallery mode beside the
+list: every entry at once as a tile with the model drawn and its name under
+it, with **auto spin** and **auto variation** toggles (a new random pick of
+each part's variant every few seconds). One WebGL context draws all the
+tiles (render each model into its own region or to an image), because a
+canvas per tile runs out of contexts, and both WebGL traps in this UI apply
+(no `requestAnimationFrame` in a hidden tab, `loseContext` is final). New
+filters: owned by a faction (its textures), not used by any unit, unit type
+(the EDU category and class of the units using it), animation type, and
+skeleton type (both off the entry's skeleton lines).
+
+**95b - Unit entries.** A second mode: the models grouped by EDU unit, one
+row per unit, the soldier model and each officer model side by side with
+enough space between them never to overlap, and the row scrolling sideways
+when it is wider than the screen. Same gallery tiles and toggles as 95a.
+
+**95c - Strat map split in two.** **Strat models**: the agents and
+characters out of `descr_model_strat.txt`, whose 3D button shows **that
+agent's model** in the docked viewer, not full screen. **CAS models**: the
+buildings and settlement models, moved there from where the 3D button opens
+them today.
+
+**95d - write a `.mesh`.** `mesh.write_mesh(model)` produces the boost
+archive from a `MeshFile`, its class bookkeeping derived from what is
+written rather than copied from a template. **Done when** every `.mesh` in
+the installed mods reads and writes back to the same bytes (or a difference
+that is explained), and the game loads a written model. Everything from 95e
+on exports through it.
+
+**95e - Armory Studio, the assets panel.** A new tab in the Models Editor.
+To start: pick units or model entries to import (with a unit, choose which
+of its models), then pick one as the base to work on, or start from scratch.
+Imports land in a collapsible **Loaded assets** panel on the left; each
+asset expands into its objects as a gallery or a list, and any object can be
+pulled into the model being edited. **External meshes**: `.glb`, `.dae` and
+`.obj`, with their textures found in the same folder and attached on their
+own, else asked for. Assets can also come from the asset library (95l).
+
+**95f - the objects panel.** On the right, every object of the model being
+edited, grouped automatically by class name into collapsible groups that
+hide and show at once, plus **custom collections** to hide, show, export or
+delete together. Per object: recolour from generic presets (metal, rusted
+metal, leather and the like, never named factions) or a custom preset of the
+user's own; a **material** dropdown (metal, fabric, leather...) that drives
+the normal maps in 95i; the Blender kit's rename fix, prefix change and opt
+toggle exactly as listed above; transfer weights; duplicate, merge, and a
+blank object for an empty variant. **Detail view and split**: open one
+object on its own, select its connected parts the way Blender's L does, or
+pick vertices by hand with an X-ray mode, and split the selection off into
+a new object, asking its name.
+
+**95g - the viewport.** In the middle, behaving like Blender: the object
+under the cursor highlights, and navigation and selection use Blender's
+mouse and keys (middle drag orbit, shift pan, wheel zoom, numpad views,
+click and shift-click select, box select, G R S with an axis and a typed
+value, H hide, alt-H show). Move, rotate and scale also from sliders at the
+bottom left. **Every shortcut is editable.** Toggles for face orientation
+and a statistics overlay. **Bone remapping**: an object brought in from a
+skeleton with other bone names, the archer `_r` against the melee `_R`
+above all, has its weights renamed to the skeleton in use, on import.
+
+**95h - the animation previewer.** A collapsible window at the bottom right:
+choose the skeleton, play its animations on the model being edited
+(`v3anim.js`), to check the rigging.
+
+**95i - check, UV packing and the bake.** *Check model for export* runs the
+Blender kit's checks above that still apply (names, opt, weights, materials,
+the ranged objects), offers the rename fix, and drops the UV and texture
+checks, since the textures are baked new. Export only what is visible, or
+only chosen collections. Then the **UV menu**: the area of every object's
+UVs measured, and the texture size it needs (512, 1024, 2048 or 4096). A
+list on the side sets which sheet each object goes on, main or attachment,
+starting from where it came from; an object left unset goes where there is
+more room. **Packing**: keep each object's original texel size wherever
+possible; islands that overlap in their source texture are packed as one so
+the same art never takes space twice; a margin, as a percentage, bleeds the
+bake past each island's edge; move and rotate freely while packing but
+**never scale** at this step. When a sheet runs out of room, offer: an
+automatic choice (said plainly to cost quality); moving chosen islands to
+the other sheet, listing each with the share of the sheet it takes; scaling
+islands down with a margin and a recommended margin; or lowering the bleed.
+Only then bake, **losing no quality** (copy the source texels, resample only
+what was scaled on request). Dyes can be applied here.
+
+**95j - normal maps.** A new normal map for each sheet from the material
+choices in 95f, with a preview of the unit wearing it. Measure the normal
+maps the installed mods ship first, to set the baseline strength. Three
+choices: **Skip** (a flat map, which is what the Blender kit ships),
+**Generic** (one setting for everything) and **Specialized** (per material:
+metal, fabric, leather...). In Specialized, each object's part of the map can
+be edited and updates live in the side panel. Note for the user: the spec
+said Generic uses "the default settings from our blenderkit", and the kit's
+default is the flat map, so Generic needs its own settings.
+
+**95k - the import unit menu.** Three choices: **Skip** (a new modeldb entry
+for this model only, choosing the folder and the mesh name); **Add to a
+unit** (this model joins an existing unit as a soldier model); **New unit**
+(duplicate a chosen unit, with this entry as its soldier model). All through
+the plan/apply door, so My Changes shows it and it can be undone. A button
+here opens the unit card generator (95m) on this model.
+
+**95l - the asset library.** Existing models sorted into categories for
+later, each with a name and notes of the user's own beside its code name,
+and custom collections and categories. By default the categories are unit
+class, unit type, faction and tier.
+
+**95m - Unit cards in two.** The Unit cards tab splits into **Generate**,
+the card maker as a system of its own, and **Clean up**, the menu that is
+there today. The maker follows the Blender kit's procedure above: pose the
+unit with preset poses, or play an animation and pause it; light it (level,
+direction, amount, type, ambient); render at 10x and scale down with the
+blur, colour and sharpen steps and the outline. A live preview of the card
+in HD at the top right and the finished pixel card at the bottom right.
+
+**Still open for the user**, from the first overview: whether the rider on
+a horse preview is wanted (it is in the checklist); how automatic "automatic
+kitbashing" should be (random within rules, or matched to a unit's look);
+and whether parts can come from a second installed mod, as the transfer does.
 
 # What else is open
 
