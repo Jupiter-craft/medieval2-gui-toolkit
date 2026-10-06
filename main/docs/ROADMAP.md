@@ -416,7 +416,7 @@ Portuguese. The order is now:
 | # | Feature | Pieces | Line |
 |---|---|---|---|
 | **95** | **The Models Editor rebuilt around Armory Studio 3D**: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker (next) | 95a-95m | both |
-| 96 | Five suggestions from the user: `can_homeless` on M2EX mods, two campaign map layout faults, ports and the capital by icon, the garrison in the settlement editor, and what another campaign editor does | 96a-96e | 96a both; b-d beta; e by item |
+| 96 | Five suggestions from the user: `can_homeless` on M2EX mods, two campaign map layout faults, ports and the capital by icon, the garrison in the settlement editor, and what another campaign editor does | 96a-96e (96e in seven areas) | 96a both; b-d beta; e by item |
 | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
 | 90 | A layout that fits the window at every interface size | 90a-90c | both |
 | 91c | A cloned faction's three campaign files | one | both |
@@ -2185,8 +2185,41 @@ names by culture (check M2TW reads it), many towns at once with
 auto-garrison, replacing a unit's model from another mod, voice preview and a
 custom name call, an emblem set from one picture, a banner maker, recolouring
 a faction's pictures, vanilla values with a reset on every rule, and a new
-mod folder of hard links. **Read the answers and write each `port` into this
-phase before building 96e.**
+mod folder of hard links.
+
+**The answers, read 2026-10-06: Port on 17 of the 18.** 96e is therefore
+split by area, each built from the behaviour described in the checklist:
+
+- **96e1 scripting**: the no-code WHEN / IF / DO script builder (dropdowns,
+  searchable engine conditions and commands, player-tickable settings,
+  worked examples, the script read back in plain words, shareable as a zip),
+  and the ready-made add-ons on it (sack a settlement, avoid growth, player
+  diplomacy). This **moves the out-of-scope line** for a block script editor
+  (see *Explicitly out of scope*).
+- **96e2 checking**: the game's `system.log.txt` explained (crash first,
+  errors grouped, meaning and fix each); a deep check that rehearses every
+  pending edit on an in-memory copy and writes nothing; a mod contents report
+  by category.
+- **96e3 characters**: a family tree drawn like the game's (couples side by
+  side, children below, leader and heir marked, add any relation, off-map
+  family); a custom portrait per character imported from PNG, JPG or TGA; a
+  portrait library per culture with bulk add.
+- **96e4 campaign map**: a new region wizard (every field of the record in one
+  form, added to the owner's towns); many towns at once with auto-garrison to
+  a cost limit, beside 96d.
+- **96e5 units**: replace a unit's model from this or another mod (files
+  carried, a texture for every owning faction, a warning when the mount type
+  differs); voice preview by accent and a custom `.wav` name call.
+- **96e6 art**: an emblem set from one picture (every size and button state);
+  a banner maker (patterns, a symbol on a grid, M2TW's banner sheet recoloured
+  per banner); recolouring a faction's pictures from donor to new colours,
+  keeping light and shade, with before and after (shares its dye code with
+  95).
+- **96e7 rules and mods**: the vanilla value and a Reset beside every rule;
+  a new mod folder whose unchanged files are hard links.
+
+**Later**: settlement names by the owner's culture (under *Deferred to a
+later version*; check first whether M2TW reads such a table at all).
 
 # What else is open
 
@@ -2208,6 +2241,10 @@ result is several models or one model with many variants per slot. The user:
 once we finish setting up everything." So 95 builds the workbench by hand
 and leaves the one-button kitbash for a later version; ask this question
 again when it comes up.
+
+**Settlement names by the owner's culture** (96e, marked Later by the user on
+2026-10-06): a per-culture table of town names, shown when ownership changes.
+Check first whether M2TW reads such a table or whether it is a Rome feature.
 
 ## Unrated, and the rating is not the reason
 
@@ -2250,7 +2287,9 @@ Köppen / land-cover fetchers move to **Phase 27**. Re-triage them in
 the AI/autogenerate rule and stay a permanent no.
 
 **Reclassified again.** *Animations* became Phases 77-86 (2026-09-23), and the
-*New Map Editor* became Phase 87 (2026-09-25, done).
+*New Map Editor* became Phase 87 (2026-09-25, done). The *Script editor*
+became 96e1 (2026-10-06, the user ported the Oogway editor's WHEN / IF / DO
+builder).
 
 ---
 ## The four documents, and what goes where
