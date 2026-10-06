@@ -413,17 +413,30 @@ workbench first ("the next major feature i want you to implement is a port
 of armorystudio3d") and brought back Japanese, Korean, Turkish and
 Portuguese. The order is now:
 
-| # | Feature | Pieces | Line |
-|---|---|---|---|
-| **95** | **The Models Editor rebuilt around Armory Studio 3D**: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker (next) | 95a-95m | both |
-| 96 | Five suggestions from the user: `can_homeless` on M2EX mods, two campaign map layout faults, ports and the capital by icon, the garrison in the settlement editor, and what another campaign editor does | 96a-96e (96e in seven areas) | 96a both; b-d beta; e by item |
-| 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
-| 90 | A layout that fits the window at every interface size | 90a-90c | both |
-| 91c | A cloned faction's three campaign files | one | both |
-| 92 | Four things another import tool does that Unit Transfer does not | 92a-92d | both |
-| 93 | Two reports on getting around | 93a-93b | both |
-| 94 | A recruitment screen that lags, and its turns | 94a-94b | both |
-| 88 | The remaining translations, one catalogue per language through 88d's workflow: 88e French, 88h Portuguese (Brazil), 88i Polish, 88l Turkish, 88m Russian, 88o Simplified Chinese with the CJK fonts and line breaking, 88p Traditional Chinese, 88q Japanese, 88r Korean | nine catalogues | both |
+**Grouped into five major phases on 2026-10-06** (the user: "group all the
+existing phases into major phases"). A major phase is the unit of work on the
+new machine; the numbered phases inside it keep their numbers and write-ups,
+and their lettered pieces are commits. Build the majors in this order.
+
+| Major | Phase | Feature | Pieces | Line |
+|---|---|---|---|---|
+| **I. Models Editor and Armory Studio** (next) | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
+| **II. Campaign map** | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
+| | 96b-96d | Two layout faults (the green box, the bottom gap), ports and the capital by icon with one port per region, the garrison in the settlement editor | 96b, 96c, 96d | beta |
+| | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
+| | 96e4 | A new region wizard; many towns at once with auto-garrison | one | beta |
+| **III. Factions, units and mod data** | 96a | `can_homeless` on M2EX mods | one | both |
+| | 91c | A cloned faction's three campaign files | one | both |
+| | 92 | Four things another import tool does that Unit Transfer does not | 92a-92d | both |
+| | 94 | A recruitment screen that lags, and its turns | 94a-94b | both |
+| | 96e1-3, 96e5-7 | From the Oogway editor: the script builder and add-ons, checking (log, deep check, report), characters (family tree, portraits), units (model swap, voices), art (emblem, banners, recolouring), rules and mods (vanilla values, hard-link mod folders) | six areas | both |
+| **IV. Interface** | 90 | A layout that fits the window at every interface size | 90a-90c | both |
+| | 93 | Two reports on getting around | 93a-93b | both |
+| **V. Translations** | 88 | The remaining catalogues through 88d's workflow: 88e French, 88h Portuguese (Brazil), 88i Polish, 88l Turkish, 88m Russian, 88o Simplified Chinese with the CJK fonts and line breaking, 88p Traditional Chinese, 88q Japanese, 88r Korean | nine catalogues | both |
+
+Translations stay last on the user's 2026-09-30 word, so every string the
+other majors add is translated once. Interface (IV) comes after the feature
+work so the layout pass sees the new screens.
 
 Done so far in 88: 88a-88c (the plumbing, every string externalised, the
 termbase), 88d German and the per-language workflow (2026-10-01), 88f
@@ -2220,6 +2233,53 @@ split by area, each built from the behaviour described in the checklist:
 
 **Later**: settlement names by the owner's culture (under *Deferred to a
 later version*; check first whether M2TW reads such a table at all).
+
+# Phase 97 - the map viewer, 2D and 3D, scheduled 2026-10-06
+
+Asked for by the user on 2026-10-06 with a reference picture (a Middle-earth
+campaign map with faction names lettered large over their lands: ROHAN in
+carved wood, GONDOR in white stone, MORDOR in black rock, each curved along
+its territory and standing off the terrain with a shadow): "improve our 3d
+viewer ... right now its only view only but i also want it to be editable with
+selectable regions. Also if its possible can you make it so that we can have
+such types of dynamic floating faction names as the default look of our map
+viewer both 2d and 3d. Also add a button to turn on and off the icons. And in
+the 3d viewer i want you to be able to also place in the agents and their 3d
+models as well as the settlement 3d models in the respective tiles."
+
+Where it starts: the 3D view is M18, a mode of the campaign map (`web/js/map3d.js`,
+the `D` key), drawing the flat map's own composed colour map on one vertex
+per tile; markers, labels and the tooltip stay on the flat map today. Labels
+are 20c's (`web/js/maplabels.js`). Both WebGL traps apply (no
+`requestAnimationFrame` in a hidden tab; `loseContext` is final).
+
+**97a - select and edit in 3D.** A click in the 3D view picks the tile under
+the cursor (a ray against the height field) and selects its region exactly as
+a click on the flat map does, so every panel, the tooltip and the tools work
+on it; hover highlights the region. The paint tools and the edits that take a
+tile (moving a settlement, a port, an army) work in 3D through the same code
+the flat map uses, never a second copy.
+
+**97b - floating faction names, the default look.** Each faction's name
+lettered over its territory: laid along the main axis of its largest
+connected block of land (fitted to the shape, curving with it), sized to the
+territory, coloured from the faction's colours, and drawn with depth and a
+shadow. In 2D on the canvas; in 3D standing off the terrain, readable from the
+camera's side. The name is the faction's display name from the mod's text.
+Recomputed when ownership changes. **On by default** in both views, with a
+toggle. Fallbacks: a faction too small or too scattered for a curve gets a
+straight label; overlapping names give way by size.
+
+**97c - an icons toggle.** One button that shows or hides every map icon
+(settlements, armies, agents, resources, forts and the other marker kinds),
+in 2D and 3D, remembered with the view.
+
+**97d - agents and settlements as 3D models.** In the 3D view, each
+character and agent drawn as its strat model (`descr_model_strat.txt` and the
+`.cas` reader behind the Strat models tab, 95c) and each settlement as its
+level's and culture's strat model (`settlemodel.py`), on its tile. Placing an
+agent and moving one work in 3D (97a). Many models at once, so share one
+loaded model per kind and drop detail with distance.
 
 # What else is open
 
