@@ -2111,9 +2111,12 @@ direction, amount, type, ambient); render at 10x and scale down with the
 blur, colour and sharpen steps and the outline. A live preview of the card
 in HD at the top right and the finished pixel card at the bottom right.
 
-**Still open for the user**, from the first overview: how automatic
-"automatic kitbashing" should be (random within rules, or matched to a unit's look);
-and whether parts can come from a second installed mod, as the transfer does.
+**Answered 2026-10-06**: parts may come from any installed mod, not only the
+active one (the user: "yes it can from from different mods too"), the way the
+transfer reads a second mod; 95e's import lists models from every installed
+mod, and the export carries each part's textures across. **Still open**: how
+automatic "automatic kitbashing" should be (random within rules the user
+sets, or matched to an existing unit's look), asked again with examples.
 
 # What else is open
 
