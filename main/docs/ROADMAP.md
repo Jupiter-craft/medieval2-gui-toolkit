@@ -416,6 +416,7 @@ Portuguese. The order is now:
 | # | Feature | Pieces | Line |
 |---|---|---|---|
 | **95** | **The Models Editor rebuilt around Armory Studio 3D**: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker (next) | 95a-95m | both |
+| 96 | Five suggestions from the user: `can_homeless` on M2EX mods, two campaign map layout faults, ports and the capital by icon, the garrison in the settlement editor, and what another campaign editor does | 96a-96e | 96a both; b-d beta; e by item |
 | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
 | 90 | A layout that fits the window at every interface size | 90a-90c | both |
 | 91c | A cloned faction's three campaign files | one | both |
@@ -2114,9 +2115,62 @@ in HD at the top right and the finished pixel card at the bottom right.
 **Answered 2026-10-06**: parts may come from any installed mod, not only the
 active one (the user: "yes it can from from different mods too"), the way the
 transfer reads a second mod; 95e's import lists models from every installed
-mod, and the export carries each part's textures across. **Still open**: how
-automatic "automatic kitbashing" should be (random within rules the user
-sets, or matched to an existing unit's look), asked again with examples.
+mod, and the export carries each part's textures across. How automatic
+"automatic kitbashing" should be is **deferred to a later version** by the
+user (see *Deferred to a later version* under *What else is open*).
+
+# Phase 96 - five suggestions from the user, scheduled 2026-10-06
+
+Sent by the user on 2026-10-06 with screenshots, to be stored and not acted
+on yet ("Store all changes in roadmap dont act rn"). After 95 in the schedule.
+
+**96a - `can_homeless` on a mod that runs on M2EX.** The user: "make this
+available to the user when the checkbox for 'Runs on M2EX no Engine Limits'
+is checked ... Just be mindful to not allow it to be available to Papal
+states and Rebels." A `yes`/`no` line in a `descr_sm_factions.txt` record,
+**placed before `can_sap`**, as the user's example shows:
+
+```
+custom_battle_availability   yes
+can_homeless                 yes
+can_sap                      no
+prefers_naval_invasions      yes
+```
+
+What it does, from the user's reference: a faction with no settlements but a
+leader and an army tries to take the nearest settlement, horde-like (Rome 2
+style), with no horde units and no sacking, and shows on the minimap as a
+horde with a star; it works for any faction except the Senate and the slave
+and papal factions. In the faction form it is offered only when
+`modflags.is_m2ex(mod)` is true (the Home card's flag), and never for
+`papal_states` or `slave`. Where the field order and the yes/no fields live:
+`factions.py:85`, `:93` and `YES_NO` at `:103`. A record that already has the
+line on a mod not marked M2EX is shown and kept, never removed.
+
+**96b - two layout faults on the campaign map.** A stray green box at the
+top middle of the screen, above the `+487 · 403 of 612 named` count in the
+user's screenshot (an empty element drawn with a fill; find it, don't
+restyle around it); and an unused gap along the bottom of the screen under
+the map. Check 90 (the layout at every interface size) before fixing, in case
+it already covers the gap.
+
+**96c - ports and the capital, by icon.** In the region editor: add, remove
+and move the region's port, and move its capital (the settlement), each as
+one easy-to-click icon rather than a form. **A region has at most one port**:
+adding a second is refused, and a move replaces the old one. The existing
+writers do the saving (`campfiles`, `campaint`, 19a's move); this piece is
+the controls and the one-port rule.
+
+**96d - the garrison in the settlement editor.** The settlement-editing
+options gain the garrison: the units `descr_strat.txt` places in or with the
+settlement, added, removed and changed there.
+
+**96e - what another campaign editor does that this one does not.** The
+user's word: "analyze this github and see what sort of features does he
+have that we could port over. And once again give me a checklist."
+[MasterOogwayHomebrew/RTW-M2TW-Campaign-Editor](https://github.com/MasterOogwayHomebrew/RTW-M2TW-Campaign-Editor),
+cloned 2026-10-06 into `Reference/oogway-campaign-editor/` (untracked). The
+checklist and the user's answers are recorded below once they are in.
 
 # What else is open
 
@@ -2124,6 +2178,20 @@ Every rated item is built: the five- and four-star rows, and the three-star
 rows, which became Phases 56-73 and 25-27. Their write-ups are in
 `ROADMAP_ARCHIVE.md`, with how the ratings were reconciled with the 2026-09-05
 triage board.
+
+## Deferred to a later version, by the user
+
+**How automatic "automatic kitbashing" is** (Phase 95). Asked on 2026-10-06
+with three answers offered: (A) random within rules the user sets (a recipe
+of allowed parts, colours and a count, rolled into variants), (B) matched to
+an existing unit's look (find parts of the same kind across every installed
+mod and build variants that still read as that unit), or (C) both, B's
+match as the default recipe that A then loosens or tightens; and whether the
+result is several models or one model with many variants per slot. The user:
+"I think this should be something for later versions store this question for
+once we finish setting up everything." So 95 builds the workbench by hand
+and leaves the one-button kitbash for a later version; ask this question
+again when it comes up.
 
 ## Unrated, and the rating is not the reason
 
