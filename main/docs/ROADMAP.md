@@ -1877,12 +1877,13 @@ author's own files.
   `soldier` line handed to this toolkit's own writers rather than to snippets
   the user pastes.
 
-**Dropped**, unless the checklist below brings one back: three.js (`viewer3d.js` is plain WebGL and stays that way), the
-procedural rig and poses (`v3anim.js` already plays a unit's real `.cas`
-animations on its real skeleton), the squad and cavalry previews, the
-generated normal map (copy the source model's own instead), numpy (the locked
-decision is Pillow only), the bundled art and sample exports, the hard-coded
-catalogues, and the second server.
+**Dropped**: three.js (`viewer3d.js` is plain WebGL and stays that way), the
+procedural rig (`v3anim.js` already plays a unit's real `.cas` animations on
+its real skeleton), numpy (the locked decision is Pillow only), the bundled
+art and sample exports, the hard-coded catalogues, the install readme, and
+the second server. The squad and cavalry previews, the pose presets and the
+generated normal map were on this list until the user's checklist answers
+brought them back (below).
 
 ## The user's spec, 2026-10-06
 
@@ -1900,14 +1901,32 @@ on 2026-10-06, with a Port / Later / Skip choice and a note per item:
 <https://claude.ai/artifact/Vj4KWogKza8pcVBRFtXhNj>. The answers are in that
 artifact's database, collection `answers`, one document per item
 (`verdict`, `note`, `title`), readable with the `ArtifactData` tool
-(`action: "list"`, `collection: "answers"`). **Read them before starting
-95d**, and fold every `port` into the piece it belongs to. The seventeen
-items: material channels inside one object, metal never tinted, pure white
-kept, the pattern detector, blend modes (one keeps cloth creases), the coat
-of arms stamper, a normal map made from the texture, live dye preview, head
-parts moving as one, a triangle budget badge, a squad preview, a rider on a
-horse with matched livery, unit role templates, texture matching, duplicate
-detection, named pose presets, install notes.
+(`action: "list"`, `collection: "answers"`).
+
+**The answers, read 2026-10-06: Port on 16 of the 17**, and each is now a
+requirement of the piece it sits in:
+
+| Item | Piece |
+|---|---|
+| Material channels inside one object (metal, leather, cloth, trim split per pixel, each dyed on its own; the 95f material dropdown sets the default, the channels refine it) | 95f, baked in 95i |
+| Metal never tinted (low-chroma pixels skipped by every dye, no mask) | 95f, 95i |
+| Pure white kept white | 95f, 95i |
+| Pattern detector (a part's colours clustered into layers with swatch and area share, each recoloured live) | 95f |
+| Blend modes: multiply, overlay, soft light, screen, hard light, and one that keeps the cloth's creases and shadows | 95f, 95i |
+| Coat of arms and emblem stamper (position, rotation, blend, baked in) | 95i |
+| Live dye preview on the model, before any bake | 95f, 95g |
+| A real normal map made from the texture: this is **Generic** in 95j, and Specialized tunes it per material | 95j |
+| Head parts (helmet, coif, face, hair, beard) moving and scaling as one | 95g |
+| Triangle budget badge, the threshold measured from real units rather than his 3,500 | 95g (statistics) |
+| Squad preview. **The user's note: "Add an option to do either autovariation or the three sample. do the cycle by default"**: one toggle between the auto-variation cycle (default) and a three-rank block | 95a, 95b, 95g |
+| Rider on a horse with the caparison matched to the rider's livery (this answers the first open question: the preview is wanted) | 95g, 95k |
+| Unit role templates (heavy infantry, spear, pike, archer, crossbow, javelin, cavalry fill the modeldb skeletons and weapons, EDU class, formation, attributes, mount), offered beside duplicating a unit | 95k |
+| Texture matching for parts, and a model's own textures read from the modeldb | 95e |
+| Duplicate detection on import | 95e, 95l |
+| Named pose presets (T-pose, guard, spear brace, archer draw, riding, march), built as frames of the real animations | 95h, 95m |
+
+Left unanswered and so not done: install notes beside the export (My
+Changes already says what was written).
 
 **Where the Models Editor stands** (measured 2026-10-06): the mode is
 `MODES` id `bmdb` (`web/js/core.js:696`), its tabs `BMDB_TABS`
@@ -2092,9 +2111,8 @@ direction, amount, type, ambient); render at 10x and scale down with the
 blur, colour and sharpen steps and the outline. A live preview of the card
 in HD at the top right and the finished pixel card at the bottom right.
 
-**Still open for the user**, from the first overview: whether the rider on
-a horse preview is wanted (it is in the checklist); how automatic "automatic
-kitbashing" should be (random within rules, or matched to a unit's look);
+**Still open for the user**, from the first overview: how automatic
+"automatic kitbashing" should be (random within rules, or matched to a unit's look);
 and whether parts can come from a second installed mod, as the transfer does.
 
 # What else is open
