@@ -27,7 +27,8 @@ author's permission). We port **behaviour and format knowledge**, never JSX.
 `Reference/TWCenter/` (indexed in Phase 1), then the Blender M2TW addon in
 `Reference/Medieval-2-Toolkit/` for 3D formats.
 
-Every phase is session-sized or explicitly split. A session doing roadmap work
+Since 2026-10-06 a phase is one major feature, built start to finish (see the
+schedule); its lettered pieces are commits, not stopping points. A session doing roadmap work
 **must** end by updating `STATE.md` (contract at the bottom of this file),
 running the test suite, and running `graphify update .`.
 
@@ -399,37 +400,48 @@ phases for now and group them move it to later and do the other stages
 first"): 88a-88c are done, and the catalogues themselves (several million
 tokens of output) wait until 89-94 are built. On 2026-10-01 the user had them
 split one language per phase, 88d-88t, so each can be done and stopped after
-on its own. The order is now:
+on its own.
 
-| # | Phase | Stars | Size | Line |
-|---|---|---|---|---|
-| 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | - | M, split 89a-89d | a, b both; c, d beta |
-| 90 | A layout that fits the window at every interface size | - | M, split 90a-90c | both |
-| 91c | A cloned faction's three campaign files | - | S | both |
-| 92 | Four things another import tool does that Unit Transfer does not | - | M, split 92a-92d | both |
-| 93 | Two reports on getting around | - | S, split 93a-93b | both |
-| 94 | A recruitment screen that lags, and its turns | - | M, split 94a-94b | both |
-| 88d | German, and the per-language workflow (done 2026-10-01) | - | M | both |
-| 88e | French | - | M | both |
-| 88f | Spanish (done 2026-10-02) | - | M | both |
-| 88i | Polish | - | M | both |
-| 88m | Russian | - | M | both |
-| 88o | Simplified Chinese, and the CJK fonts and line breaking | - | M | both |
-| 88p | Traditional Chinese | - | M | both |
+**Regrouped by major feature on 2026-10-06**, when the work moved to a new
+machine on a larger plan (the user: "no need to partition based on 5 hour
+basis but rather partition based on major features"). A row below is one
+feature, built start to finish in one go. The old letter splits (89a-89d,
+90a-90c, 92a-92d, 93a-93b, 94a-94b) stay in each write-up as the **pieces**
+of the feature and the order to build them in, not as places to stop; each
+piece is still its own commit. The same day the user put the kitbash
+workbench first ("the next major feature i want you to implement is a port
+of armorystudio3d") and brought back Japanese, Korean, Turkish and
+Portuguese. The order is now:
 
-**Postponed indefinitely** on 2026-10-01 (the user: "Postpone italian,
-portugese, polish, czech, hungarian, turkish, arabic indefinitely for now"):
-88g Italian, 88h Portuguese (Brazil), 88j Czech, 88k Hungarian, 88l Turkish,
-and 88t Arabic with 88s, the right-to-left layout, which only
+| # | Feature | Pieces | Line |
+|---|---|---|---|
+| **95** | **The kitbash workbench: a port of Armory Studio 3D** (next) | 95a-95f | both |
+| 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
+| 90 | A layout that fits the window at every interface size | 90a-90c | both |
+| 91c | A cloned faction's three campaign files | one | both |
+| 92 | Four things another import tool does that Unit Transfer does not | 92a-92d | both |
+| 93 | Two reports on getting around | 93a-93b | both |
+| 94 | A recruitment screen that lags, and its turns | 94a-94b | both |
+| 88 | The remaining translations, one catalogue per language through 88d's workflow: 88e French, 88h Portuguese (Brazil), 88i Polish, 88l Turkish, 88m Russian, 88o Simplified Chinese with the CJK fonts and line breaking, 88p Traditional Chinese, 88q Japanese, 88r Korean | nine catalogues | both |
+
+Done so far in 88: 88a-88c (the plumbing, every string externalised, the
+termbase), 88d German and the per-language workflow (2026-10-01), 88f
+Spanish (2026-10-02). In 88, 88o comes before 88p, 88q and 88r because it
+lays the CJK groundwork the other three use; the European ones can go in any
+order.
+
+**Still postponed indefinitely:** 88g Italian, 88j Czech, 88k Hungarian, 88n
+Ukrainian, and 88t Arabic with 88s, the right-to-left layout, which only
 Arabic needs. Their write-ups below stay as the plan for when they come back;
 their termbase columns stay, and nothing offers them while they have no
-catalogue.
-Polish (88i) was brought back the same day ("bring back polish to
-roadmap"), and 88n Ukrainian postponed with the rest ("postpone ukranian
-too"), then 88q Japanese and 88r Korean ("postpone japanese and korean
-too").
+catalogue. The history: all of these plus Portuguese, Polish and Turkish were
+postponed on 2026-10-01 ("Postpone italian, portugese, polish, czech,
+hungarian, turkish, arabic indefinitely for now"), Polish was brought back the
+same day, Ukrainian, Japanese and Korean were postponed after it, and on
+2026-10-06 Japanese, Korean, Turkish and Portuguese came back ("bring back
+Japanese, Korean, Turkish, Portugese").
 
-Releasing stays on request: each phase is committed to master as it lands.
+Releasing stays on request: each piece is committed to master as it lands.
 
 # Phases 77-86 - animations that travel with a unit, scheduled 2026-09-23
 
@@ -891,8 +903,9 @@ syntax (field orders, keyword values) as the file spells it.
 **88e to 88n - the other European and Cyrillic languages, one each:** 88e
 French `fr`, 88f Spanish `es`, 88g Italian `it`, 88h Portuguese (Brazil)
 `pt-BR`, 88i Polish `pl`, 88j Czech `cs`, 88k Hungarian `hu`, 88l Turkish
-`tr`, 88m Russian `ru`, 88n Ukrainian `uk`. **88g, 88h, 88j to 88l and 88n
-are postponed indefinitely** (2026-10-01, see the schedule). Each is the catalogue only,
+`tr`, 88m Russian `ru`, 88n Ukrainian `uk`. **88g, 88j, 88k and 88n are
+postponed indefinitely** (2026-10-01; 88h and 88l came back on 2026-10-06,
+see the schedule). Each is the catalogue only,
 through 88d's workflow. Polish, Czech, Russian and Ukrainian carry three or
 four plural forms each, and the checker holds every `ttN` string to them.
 Done when, for each: the checker passes, the report is empty, and Home,
@@ -934,8 +947,8 @@ italics or letter spacing on CJK text. Done when: the checker passes, and
 every screen renders with no missing-glyph boxes and no line broken inside a
 word.
 
-**88p to 88r - the other CJK languages, one each** (*88q and 88r postponed
-indefinitely, 2026-10-01*): 88p Chinese
+**88p to 88r - the other CJK languages, one each** (88q and 88r were
+postponed on 2026-10-01 and brought back on 2026-10-06): 88p Chinese
 (Traditional) `zh-Hant`, 88q Japanese `ja` (with `line-break: strict`), 88r
 Korean `ko`. Done when, for each: the checker passes, the report is empty,
 and the screens show no missing-glyph boxes.
@@ -1804,6 +1817,116 @@ Reforged's Arnor Militia: six rows, "= 5 turns" going to "= 4 turns" on a ▲.
 cannot run for now: the M2EX EUR the user installed has a hand edit in its
 `battle_models.modeldb` (a stray `v` after a `0` in entry #88,
 `cardolan_sharpshooters`), which the modeldb reader refuses.
+
+# Phase 95 - the kitbash workbench, a port of Armory Studio 3D, scheduled 2026-10-06
+
+**Asked for by the user on 2026-10-06**: "the next major feature i want you to
+implement is a port of the armorystudio3d ... It will be a tool that will be
+used for automatic kitbashing. His version seems to be quiet bloated so make
+sure to optimize it when importing it." First in the schedule.
+
+**The source.** [muhamadridhomm/armorystudio3d](https://github.com/muhamadridhomm/armorystudio3d),
+MIT licence, no releases, cloned on 2026-10-06 into `Reference/armorystudio3d/`
+(untracked, its `.git` removed). A browser kitbash workbench with a Python
+`http.server` backend: 4,294 lines of `index.html`, a 2,471-line
+`ArmoryStudioEngine.js` on vendored three.js, `server.py` (1,130), a mesh
+compiler, a texture compositor and a parts-manifest builder. It is 351 MB, and
+**346 MB of that is data**: 140 MB of PNG textures, 54 MB of sample exports,
+6 MB of geometry JSON, 6 MB of emblems. **Its backend imports this toolkit**:
+`armory_mesh_compiler.py` puts `Medieval2-GUI-Toolkit-2.1.8` on `sys.path` and
+reads every source model with `unittransfer.mesh`, so the port is largely
+coming home. Code may be ported with credit under MIT; **the bundled art may
+not**. The textures and the sliced parts are other mods' work (SSHIM Expanded
+with Sandy's units, the GoT mod, Marka's barding), so the port ships no art
+and builds its parts list out of the mods the user has installed.
+
+## What it does, checked against the code
+
+| Area | What it claims | What the code does |
+|---|---|---|
+| Assembler | 8 slots (torso, helmet, arms, legs, hands, cape, primary, shield), plus face, hair, beard, belt and coif | Picks one group per slot out of any source `.mesh` and draws them on one figure. Real. |
+| Variants | several choices per slot, with weights | The first choice is written with group flag 0 and the rest flag 1. **The weights are never written**, because the format has none: the game picks among flag-1 groups itself. |
+| Micro-nudge | XYZ move, yaw/pitch/roll, scale per slot | **Move and uniform scale only** reach the exported mesh, about the part's own centroid. Rotation is preview-only. |
+| Squad mode | a single figure, or a three-rank block | Preview only. |
+| Cavalry | four mounts, saddle offset, caparison matching the rider's livery | Preview only: the export writes the rider and a `mount` line, never a horse model. |
+| Animation | 24-bone rig, 6 poses, idle and canter loops | **Procedural** poses in three.js, not the game's `.cas` animations. |
+| Library | a searchable parts catalogue, a scanner that slices a mod's `.mesh` into parts | The scanner lists a model's groups and adds the chosen ones to `parts_manifest.json`, by source file and group index. |
+| Texture | dyes per part, "metal protection", a pattern detector, a coat of arms stamped on | Pillow plus numpy. A dye is a multiply over each part's UV triangles, skipping low-chroma pixels so metal keeps its colour. The arms are pasted at a UV spot with a blend mode. A normal map is made out of the diffuse. |
+| Export | `.mesh` LOD0 to LOD3, DXT5 `.texture` with mips, modeldb and EDU snippets | **LOD0 only.** It writes the mesh by copying a 47-byte header and the bone table tail out of one template model (`northern_general_lod0.mesh.orig_bak`) and splicing the parts' vertex streams between them, then checks the result with `unittransfer.mesh.read_mesh`. The textures are a pure-Python DXT5. The modeldb entry is printed with counted strings, and its animation block names `fs_test_shield` for every role. |
+
+**Where it breaks**: every path is the author's Linux machine
+(`/media/muhamadridhomm/...`), with environment variables as the only way
+round them. The compiler assumes every source model has exactly the streams
+and strides of its template (0, 1, 2, 3, 4, 10 and 11) and copies bone indices
+unchanged, so a part from a model with another bone table comes out wrongly
+skinned. The hand-built boost class bookkeeping is right only for the stream
+order it writes. The texture catalogue is a hard-coded dictionary of the
+author's own files.
+
+## What the port keeps, and what it drops
+
+**Kept**, as behaviour, on this toolkit's own code:
+
+- parts out of any installed mod's battle models: model, group and texture,
+  indexed like the model browser and never copied into the toolkit;
+- slots with variants written as flag 0 and flag 1, said plainly as "the game
+  picks one", with no weights the game would never read;
+- move and scale per slot, applied to the exported vertices;
+- dyes that leave metal alone, and a coat of arms stamped on;
+- a written `.mesh`, the two `.texture` sheets, and the modeldb entry and EDU
+  `soldier` line handed to this toolkit's own writers rather than to snippets
+  the user pastes.
+
+**Dropped**: three.js (`viewer3d.js` is plain WebGL and stays that way), the
+procedural rig and poses (`v3anim.js` already plays a unit's real `.cas`
+animations on its real skeleton), the squad and cavalry previews, the
+generated normal map (copy the source model's own instead), numpy (the locked
+decision is Pillow only), the bundled art and sample exports, the hard-coded
+catalogues, and the second server.
+
+## The pieces, in order
+
+**95a - write a `.mesh`.** The gap `modelexport.py`'s docstring names: no
+writer exists. `mesh.write_mesh(model)` produces the boost archive from a
+`MeshFile`, with the class bookkeeping derived from what is written rather
+than copied from a template. **Done when** reading and writing every `.mesh`
+in the installed mods gives back the same bytes, or a difference that is
+explained and measured, and the game loads a written model.
+
+**95b - the parts index.** Every group of every battle model in the active
+mod, with its type, mesh name, triangle count, sheet, faction textures out of
+the modeldb, and a slot guessed from the group type (Body, Head, shield0,
+primaryactive0...). Cached the way the model browser caches, reused by the
+picker. Bone tables are recorded, so a part whose skeleton differs from the
+figure's is flagged rather than mis-skinned.
+
+**95c - the assembler.** A mode on the Models Editor: one figure in
+`viewer3d.js`, a slot list, a part picker filtered by slot with a 3D thumbnail,
+variants per slot, move and scale per slot. Previewed on the real skeleton with
+`v3anim.js`'s animations.
+
+**95d - the textures.** One figure sheet and one attachment sheet built from
+the parts' own sheets: each part's UV island copied from its source texture
+onto the new pair, so parts from different models can share one entry; then
+the dyes, with metal kept, and the coat of arms. Pillow only. The `.texture`
+written through `sprites.py`, with the mips the game expects.
+
+**95e - export into the mod.** The model, the textures, the modeldb entry with
+its LODs (the same mesh for each unless the sources ship LODs), and the EDU
+line, through the plan/apply door every other writer uses, so the change shows
+in My Changes and can be undone.
+
+**95f - kitbash automatically.** What the user asked for in the name: from a
+unit and a set of rules (a faction, a slot list, a part pool), produce N
+variant models, or one model with N variant groups per slot, without picking
+part by part.
+
+**Open questions for the user before 95c**, from the 2026-10-06 overview:
+whether the procedural cavalry preview (a rider on a horse in the workbench) is
+wanted at all or whether the export writing the horse is the point; how
+automatic 95f should be (random within rules, or matched to a unit's existing
+look); and whether the workbench should be able to borrow parts from a second
+installed mod, the way the transfer does, or only the active one.
 
 # What else is open
 
