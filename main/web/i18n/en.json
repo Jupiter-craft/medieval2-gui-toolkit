@@ -2319,6 +2319,11 @@
 "core.added_by_you": "added by you",
 "core.agents_and_generals": "Agents and generals",
 "core.ahead_of_here": " (ahead of here)",
+"core.repair_close": "Close",
+"core.repair_done": "Repaired - {summary}. Open what failed again. Undo it from the Log if the result looks wrong:",
+"core.repair_go": "Repair it",
+"core.repair_not_now": "Not now",
+"core.repair_offer": "{file} in {mod} has hand-edit damage the toolkit recognises and can mend. The file is backed up first and the mend can be undone from the Log.",
 "core.all_units": "All units",
 "core.an_eop_unit_file": "an EOP unit file",
 "core.animals_standards_advice": "Animals, standards, advice",
@@ -4341,6 +4346,11 @@
 "eng.mod.no_data_folder_under": "no data/ folder under {root}",
 "eng.modeldb.characters_left_over_after_the_entry": "{x} characters left over after the entry",
 "eng.modeldb.not_a_modeldb_archive_magic": "not a modeldb archive (magic={magic})",
+"eng.modeldb.repair_gave_up": "battle_models.modeldb still does not read after {n} repairs, so none of them were saved.",
+"eng.modeldb.repaired_summary": {
+"one": "battle_models.modeldb of {mod}: {count} repair",
+"other": "battle_models.modeldb of {mod}: {count} repairs"
+},
 "eng.modeldb.this_does_not_start_like_a": "this does not start like a battle_models.modeldb: its first token should be the length of 'serialization::archive', and it is {split}. A file re-saved by a text editor in the wrong encoding usually looks like this.",
 "eng.modelexport.bones_is_more_than_a_byte": "{tracks_n} bones is more than a byte can index",
 "eng.modelexport.has_no_lod": "{name} has no LOD {lod}",

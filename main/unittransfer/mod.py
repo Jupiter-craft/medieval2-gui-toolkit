@@ -188,8 +188,13 @@ class Mod:
         try:
             return parse(path)
         except (ValueError, UnicodeError) as e:
-            raise ModDataError(
-                _i18n.msg("eng.mod.could_not_be_read", "{name}: {rel} could not be read. {e}", name=self.name, rel=self._rel(path), e=e)) from e
+            err = ModDataError(
+                _i18n.msg("eng.mod.could_not_be_read", "{name}: {rel} could not be read. {e}", name=self.name, rel=self._rel(path), e=e))
+            if getattr(e, "fix", None) is not None:
+                # the parser recognised the damage and knows the mend; the
+                # server offers it as a button (POST /api/repair_file)
+                err.repair = {"mod": self.name, "file": self._rel(path)}
+            raise err from e
         except OSError as e:
             raise ModDataError(
                 _i18n.msg("eng.mod.could_not_be_opened", "{name}: {rel} could not be opened - {e}", name=self.name, rel=self._rel(path), e=e)) from e

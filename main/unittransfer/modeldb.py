@@ -159,6 +159,10 @@ class _Desync(ValueError):
         #: sentence that just named the exact character reads like the tool does
         #: not know what it found.
         self.exact = exact
+        #: the one edit that mends the file at this spot, when the damage is a
+        #: shape this module recognises for certain: ``(start, end, replacement,
+        #: note)``. :func:`repair_text` applies it; the reader never does.
+        self.fix: Optional[Tuple[int, int, str, str]] = None
         super().__init__(what)
 
 
@@ -277,9 +281,14 @@ class _Reader:
         except ValueError:
             lead = len(tok) - len(tok.lstrip("0123456789"))
             if lead and tok[:lead] == "0" * lead:
-                raise _Desync(at + lead, f"a stray {tok[lead:]!r} is glued to the {tok[:lead]} "
-                              f"that says this attachment has no sprite, most likely left by a "
-                              f"hand edit. Delete it and the file reads", exact=True)
+                e = _Desync(at + lead, f"a stray {tok[lead:]!r} is glued to the {tok[:lead]} "
+                            f"that says this attachment has no sprite, most likely left by a "
+                            f"hand edit. Delete it and the file reads", exact=True)
+                line, col = _line_col(self.s, at + lead)
+                e.fix = (at + lead, at + len(tok), "",
+                         f"line {line}, column {col}: deleted a stray {tok[lead:]!r} "
+                         f"glued to the 0 after an attachment texture")
+                raise e
             raise _Desync(
                 at, f"expected the length of a name here and found {tok!r}") from None
         if length == 0:
@@ -296,12 +305,20 @@ class _Reader:
             del self.trail[:-6]
             return val
         self.i = before
-        raise _Desync(at, f"an attachment texture's sprite length is written as {tok!r} "
-                          f"here, and it is neither the 0 that says this attachment has "
-                          f"no sprite nor the length of a sprite path written after it. "
-                          f"A digit left glued to the 0 by a hand edit reads exactly like "
-                          f"this. Delete what follows the 0 at this spot and the file "
-                          f"reads", exact=True)
+        e = _Desync(at, f"an attachment texture's sprite length is written as {tok!r} "
+                        f"here, and it is neither the 0 that says this attachment has "
+                        f"no sprite nor the length of a sprite path written after it. "
+                        f"A digit left glued to the 0 by a hand edit reads exactly like "
+                        f"this. Delete what follows the 0 at this spot and the file "
+                        f"reads", exact=True)
+        if len(tok) > 1 and tok[0] == "0":
+            # ``01``: the 0 is there and something is glued to it - certain
+            # enough to mend. A bare ``1`` might be anything, so it is not.
+            line, col = _line_col(self.s, at)
+            e.fix = (at + 1, at + len(tok), "",
+                     f"line {line}, column {col}: deleted a stray {tok[1:]!r} "
+                     f"glued to the 0 after an attachment texture")
+        raise e
 
     def get_string(self) -> str:
         self._skip_ws()
@@ -366,6 +383,124 @@ class ModelDb:
         Path(path).write_text(self.to_text(), encoding=ENCODING)
 
 
+def _whole_name(g: _Reader) -> Optional[Tuple[int, str]]:
+    """The next name and where it starts, if its length ends it on whitespace."""
+    g._skip_ws()
+    at = g.i
+    try:
+        val = g.get_string()
+    except _Desync:
+        return None
+    if not val or (g.i < g.n and not g.s[g.i].isspace()):
+        return None
+    return at, val
+
+
+def _is_word(v: str) -> bool:
+    return bool(v) and all(c.isalnum() or c in "_-" for c in v)
+
+
+def _is_path(v: str) -> bool:
+    return any(c in v for c in "/\\.")
+
+
+def _files_end(g: _Reader, what: str) -> Optional[int]:
+    """Where a skin's texture, normal map and sprite end, if they start here."""
+    tex = _whole_name(g)
+    nrm = _whole_name(g) if tex else None
+    if not (tex and nrm and _is_path(tex[1]) and _is_path(nrm[1])):
+        return None
+    try:
+        g.get_attach_sprite() if what == "attachment" else g.get_string()
+    except _Desync:
+        return None
+    return g.i
+
+
+def _whole_group(text: str, start: int, what: str) -> Optional[Tuple[int, int, str]]:
+    """``(faction end, group end, faction)`` if a sound texture group starts here."""
+    g = _Reader(text)
+    g.i = start
+    fac = _whole_name(g)
+    if not fac or not _is_word(fac[1]):
+        return None
+    fac_end = g.i
+    end = _files_end(g, what)
+    return (fac_end, end, fac[1]) if end is not None else None
+
+
+def _skin_without_files(r: _Reader, g_at: int, clean: List[Tuple[str, int, int]],
+                        what: str, e: _Desync) -> bool:
+    """Name the commonest hand-edit in a texture list exactly, and how to mend it.
+
+    A faction's skin is four lines, and deleting a skin by hand tends to take
+    the three file lines and leave the faction behind - Wars_of_Arda's
+    ``datower_guards5`` names ``aztecs`` in its attachment list and goes straight
+    on to ``denmark``. The reader then takes ``denmark`` as aztecs' texture, and
+    the read dies a line later on a sprite length that is not one, blaming a
+    stray digit that is not there.
+
+    Seen from the faction it is plain: a faction name followed by another name
+    that is not a path. Two hand edits leave that, and they mend differently.
+    In Wars_of_Arda's case nothing was lost: below the ``denmark`` skin sits a
+    second texture and normal map with no faction in front of them, so the
+    ``denmark`` line has only slipped up one skin, and moving it back down
+    gives every faction its own files again. Otherwise the files really are
+    gone, and if the next name opens a whole, sound skin, or there
+    is a skin before this one to copy, ``e`` is rewritten to point at the bare
+    faction and carries the fix - the neighbour's files, given to it. Copied
+    rather than the faction deleted, because the other list in the entry
+    usually still names that faction, and a borrowed look is something to check
+    in game where a faction gone from one list is a change nobody asked for.
+    """
+    g = _Reader(r.s)
+    g.i = g_at
+    fac = _whole_name(g)
+    if not fac or not _is_word(fac[1]):
+        return False
+    fac_end = g.i
+    nxt = _whole_name(g)
+    if not nxt or _is_path(nxt[1]):
+        return False
+    donor = _whole_group(r.s, nxt[0], what)
+    line = _line_col(r.s, g_at)[0]
+    e.at, e.exact, e.note = g_at, True, ""
+    if donor:
+        # the files after that skin: a second set with no faction in front of
+        # them means nothing was lost - the next faction's line has slipped up
+        # above this one's files, and moving it back down mends the list
+        g = _Reader(r.s)
+        g.i = donor[1]
+        stray_end = _files_end(g, what)
+        if stray_end is not None:
+            n_end = donor[0]
+            e.what = (f"the faction lines in this {what} texture list have slipped: "
+                      f"{fac[1]!r} is followed straight by {nxt[1]!r}, and below that a "
+                      f"second texture and normal map stand with no faction in front of "
+                      f"them. Move the {nxt[1]!r} line down one skin, past the first "
+                      f"texture and normal map, and the list reads")
+            e.fix = (fac_end, donor[1], r.s[n_end:donor[1]] + r.s[fac_end:n_end],
+                     f"line {line}: in the {what} textures of {r.entry!r} the {nxt[1]!r} line "
+                     f"had slipped above the files of {fac[1]!r}; moved it back down")
+            return True
+    follows = f"the {nxt[1]!r} skin" if donor else "whatever comes after the list"
+    if donor is None:
+        if not clean:
+            return False
+        d_fac, d_fac_end, d_end = clean[-1]
+        donor = (d_fac_end, d_end, d_fac)
+    d_fac_end, d_end, d_fac = donor
+    e.what = (f"the {what} texture list names the faction {fac[1]!r} and gives it no texture "
+              f"or normal map - straight after it comes {follows}. A skin's three file lines "
+              f"deleted by hand, with its faction line left behind, reads exactly like this. "
+              f"Give {fac[1]!r} its texture and normal map back, or delete its line and lower "
+              f"the count above the list by one")
+    e.fix = (fac_end, fac_end, r.s[d_fac_end:d_end],
+             f"line {line}: in the {what} textures of {r.entry!r}, {fac[1]!r} had no texture or "
+             f"normal map, so it was given the ones {d_fac!r} has")
+    return True
+
+
 def _read_entry(r: _Reader, pad: bool = False) -> ModelEntry:
     """Read one entry. ``pad`` reproduces a vanilla M2TW quirk: when a
     modeldb has no leading ``blank`` sentinel entry, the game pads the very
@@ -396,9 +531,13 @@ def _read_entry(r: _Reader, pad: bool = False) -> ModelEntry:
         if pad_after_count:
             firstpad()
         out = []
+        clean: List[Tuple[str, int, int]] = []      # (faction, faction end, end) per group
         for k in range(cnt):
+            r._skip_ws()
+            g_at = r.i
             try:
                 fac = r.get_string().lower()
+                fac_end = r.i
                 tex, nrm = r.get_string(), r.get_string()
                 # the sprite: always a name on a main texture, and on an
                 # attachment usually - not always - the 0 that means there is
@@ -406,6 +545,8 @@ def _read_entry(r: _Reader, pad: bool = False) -> ModelEntry:
                 spr = (r.get_attach_sprite() if what == "attachment"
                        else r.get_string())
             except _Desync as e:
+                if e.fix is None and _skin_without_files(r, g_at, clean, what, e):
+                    raise
                 # A list that says 2 and holds 1 - what deleting a faction's
                 # skin without touching the number above it leaves behind - puts
                 # the reader into the NEXT field entirely, and everything it
@@ -417,6 +558,7 @@ def _read_entry(r: _Reader, pad: bool = False) -> ModelEntry:
                           f" removed without lowering it reads exactly like this.")
                 raise
             out.append(Texture(fac, tex, nrm, spr))
+            clean.append((fac, fac_end, r.i))
         return out
 
     main_tex = read_textures(pad_after_count=True, what="main")
@@ -555,7 +697,9 @@ def parse_text(text: str) -> ModelDb:
             # caller (:meth:`unittransfer.mod.Mod.modeldb`) puts the file's name
             # in front of it and the UI shows the sentence, which is the only
             # form of this failure anyone can act on.
-            raise ValueError(_desync_message(text, r, e, n)) from None
+            err = ValueError(_desync_message(text, r, e, n))
+            err.at, err.fix = e.at, e.fix      # for repair_text
+            raise err from None
         entry.raw = text[prev_end:r.i]
         entries.append(entry)
         prev_end = r.i
@@ -567,6 +711,93 @@ def parse_text(text: str) -> ModelDb:
 
 def parse_file(path: str | Path) -> ModelDb:
     return parse_text(Path(path).read_text(encoding=ENCODING))
+
+
+#: More mends than any hand-edited file has needed; a file past this is not
+#: damaged in a way this knows, whatever the next error says.
+REPAIR_MAX = 200
+
+
+def repairable(err: BaseException) -> bool:
+    """True when the error :func:`parse_text` raised carries a mend."""
+    return getattr(err, "fix", None) is not None
+
+
+def repair_text(text: str) -> Tuple[str, List[str]]:
+    """Mend the hand-edit damage the reader can name for certain, until it reads.
+
+    Each read that fails on a shape the reader recognises - a stray digit glued
+    to an attachment's ``0``, a skin left with its faction and none of its files
+    - comes back with the one edit that mends it, and that edit is made and the
+    file read again, so a file broken in six places is mended in one go. Only a
+    mend that moves the read past the place it failed is kept; anything else is
+    reported as the error it was, untouched, with the file left exactly as
+    given. Returns the mended text and one line per edit, for the person to
+    check: a borrowed skin is a guess at the look the modder meant.
+    """
+    notes: List[str] = []
+    try:
+        parse_text(text)
+        return text, notes
+    except ValueError as e:
+        err = e
+    for _ in range(REPAIR_MAX):
+        if not repairable(err):
+            raise err
+        start, end, new, note = err.fix
+        mended = text[:start] + new + text[end:]
+        notes.append(note)
+        try:
+            parse_text(mended)
+            return mended, notes
+        except ValueError as nxt:
+            if getattr(nxt, "at", -1) < start + len(new):
+                raise err from None
+            text, err = mended, nxt
+    raise ValueError(_i18n.msg("eng.modeldb.repair_gave_up", "battle_models.modeldb still does not read after {n} repairs, so none of them were saved.", n=REPAIR_MAX))
+
+
+def apply_repair(mod) -> dict:
+    """Mend ``mod``'s battle_models.modeldb on disk, as one job the Undo list holds.
+
+    The file is kept in the job's backup first, exactly like a transfer's, so
+    the mend is undone from the same place as everything else this tool writes.
+    Nothing is written unless the whole file reads afterwards.
+    """
+    import shutil
+    import time
+    from . import config
+    from .logutil import file_op, log
+
+    path = Path(mod.modeldb_path)
+    raw = path.read_bytes()
+    fixed, notes = repair_text(raw.decode(ENCODING))
+    if not notes:
+        return {"id": "", "notes": [], "summary": ""}
+    data = Path(mod.data)
+    rel = path.relative_to(data).as_posix()
+    tid = config.new_transfer_id()
+    backup_root = config.backup_root_for(tid)
+    keep = backup_root / "data" / rel
+    keep.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(path, keep)
+    path.write_bytes(fixed.encode(ENCODING))
+    file_op("WRITE", path, f"repaired: {len(notes)} edit(s)")
+    summary = _i18n.msgN("eng.modeldb.repaired_summary", len(notes),
+                         "battle_models.modeldb of {mod}: {count} repair",
+                         "battle_models.modeldb of {mod}: {count} repairs", mod=mod.name)
+    config.append_log({
+        "id": tid, "when": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "mode": "models", "action": "modeldb repair",
+        "source": mod.name, "source_root": str(mod.root),
+        "dest": mod.name, "dest_root": str(mod.root),
+        "unit_type": "", "resolved_type": "", "options": {},
+        "applied": True, "undone": False, "note": "", "summary": summary,
+        "warnings": list(notes), "manifest": {"backed_up": [rel], "created": []},
+        "backup_root": str(backup_root),
+    })
+    log.info("REPAIR %s, id=%s: %s", summary, tid, "; ".join(notes))
+    return {"id": tid, "notes": notes, "summary": summary}
 
 
 import re as _re

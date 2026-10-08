@@ -51,6 +51,7 @@ Unit packs (see :mod:`unittransfer.pack`)
   POST /api/apply                -> {source,dest,unit,options} -> apply + record
   GET  /api/log[?mode=&limit=&offset=]  -> a PAGE of the log, newest first
   POST /api/undo                 -> {id} -> undo a transfer
+  POST /api/repair_file          -> {mod} -> make the mend a 409 offered (the modeldb's)
 
 Unit-editor mode (edits inside ONE mod, see :mod:`unittransfer.edit`)
   GET  /api/edit/unit?mod=&type= -> fields + localisation + modeldb entries
@@ -702,7 +703,7 @@ from typing import Dict, List, Optional
 from . import (bmdb, buildings, cards, cleaner, codeview, config, dupes, edit,
                modflags, modfiles, sounds, stratmap)
 from . import mapgen, mapnew, mapresize
-from . import modeltext
+from . import modeldb, modeltext
 from . import ancillaries, areaeffects, campimport, edbimport, mapbundle, osmmap, osmsites, settlemodel, heroabilities, hordestart, walls, characters, projectzip, campaint, campdb, campevents, campfiles, campmap, campnew, campstrat, cas, casanim, animedit, animpack, animslot, animview, modelexport, launchcheck, packhouse, settlemech, fileswap, factionsites, sidefiles, banners, changesets, health, climatenew, guilds, mapcheck, mapfe, mapquery, mapterrain, mercpools, regiondel, edusort, factionaudit, factionclone, factions, images, mesh, minorfiles, namekeys, portrecords, rawtext, rebelpools, renames, soundbanks, soundscripts, spawns, sprites, stratcamp, stratchar, stratedit, stratobj, strings, traits, triggers, winconds
 from . import eop as _eop
 from . import logutil
@@ -1788,8 +1789,14 @@ class Handler(BaseHTTPRequestHandler):
                 obj = dict(obj, _i18n=marks)
         self._send(code, json.dumps(obj).encode("utf-8"), "application/json")
 
-    def _err(self, code, msg):
-        self._json({"error": msg}, code)
+    def _err(self, code, msg, **extra):
+        self._json({"error": msg, **extra}, code)
+
+    def _mod_data_err(self, e: ModDataError):
+        """409 with the sentence - and, when the parser knows the mend, the offer
+        of it, which the page turns into a Repair button (core.js)."""
+        repair = getattr(e, "repair", None)
+        return self._err(409, str(e), **({"repair": repair} if repair else {}))
 
     #: One batch of UI events may not turn into a thousand log lines.
     ACTIVITY_MAX = 60
@@ -2574,7 +2581,7 @@ class Handler(BaseHTTPRequestHandler):
             # the reply rather than into a traceback nobody reads, and the log
             # keeps one line instead of twenty.
             log.warning("GET %s: %s", u.path, e)
-            return self._err(409, str(e))
+            return self._mod_data_err(e)
         except KeyError as e:
             # an unknown mod / unit / model entry is a 404, not a server fault
             log.warning("GET %s: not found: %s", u.path, e)
@@ -3046,6 +3053,13 @@ class Handler(BaseHTTPRequestHandler):
                 # run on this handler's thread.
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
                 return self._json({"ok": True, "message": _i18n.msg("eng.server.server_stopping", "server stopping")})
+            if u.path == "/api/repair_file":
+                # the mend a 409 offered (Mod._read_required): only the modeldb
+                # knows one so far
+                m = self.registry.get(body["mod"])
+                res = modeldb.apply_repair(m)
+                self.registry.invalidate(body["mod"])
+                return self._json(res)
             if u.path == "/api/revert":
                 log.info("REVERT to id=%s", body.get("id"))
                 res = revert_to(body["id"])
@@ -3059,7 +3073,7 @@ class Handler(BaseHTTPRequestHandler):
             # see the same handler in do_GET: a mod's own broken or absent file
             # is answered with the sentence, not a stack trace
             log.warning("POST %s: %s", u.path, e)
-            return self._err(409, str(e))
+            return self._mod_data_err(e)
         except KeyError as e:
             log.warning("POST %s: not found: %s", u.path, e)
             return self._err(404, str(e))

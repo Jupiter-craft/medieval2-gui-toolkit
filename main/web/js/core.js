@@ -171,8 +171,10 @@ const api={
     const o=opts||{};
     loadbar.opened(u,o.label);
     try{
-      return i18nFromServer(await (await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},
+      const out=i18nFromServer(await (await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify(b||{}),signal:o.signal})).json());
+      if(out&&out.repair)repairOffer(out.repair);
+      return out;
     }catch(e){ if(isAborted(e))throw ABORTED; throw apiFailed(e,u); }
     finally{loadbar.closed(u);}}};
 
@@ -197,7 +199,7 @@ const api={
    up. */
 async function httpAnswer(r){
   let said='';
-  try{ const b=i18nFromServer(await r.json()); said=(b&&b.error)||''; }catch(e){}
+  try{ const b=i18nFromServer(await r.json()); said=(b&&b.error)||''; if(b&&b.repair)repairOffer(b.repair); }catch(e){}
   const err=new Error(said||('HTTP '+r.status));
   err.status=r.status;
   err.serverSaid=said;
@@ -335,6 +337,36 @@ const q1=v=>v.replace(/'/g,"\\'");
 const docPoints=(lead,points)=>{const ps=points.filter(Boolean);
   return ps.length?lead+'<ul>'+ps.map(p=>'<li>'+p+'</li>').join('')+'</ul>':lead;};
 function toast(m,ms=2800){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms);}
+/* The mend a refused read offered.
+
+   A modeldb a hand edit has knocked out of step stops every screen that needs
+   it, and when the reader recognises the damage it also knows the one edit that
+   mends it (modeldb.repair_text). The server sends that offer with its 409, and
+   it is put here, in one bar, whichever of the forty places that print an error
+   asked - rather than a button in each of them. The mend is kept in the Undo
+   list like any other write, so saying yes is not a leap. */
+let _repairAsked='';
+function repairOffer(rep){
+  if(!rep||!rep.mod)return;
+  const key=rep.mod+'|'+rep.file;
+  if(_repairAsked===key)return;          // one offer per file, not one per request
+  _repairAsked=key;
+  let bar=document.getElementById('repairbar');
+  if(!bar){bar=document.createElement('div');bar.id='repairbar';bar.className='repairbar';document.body.appendChild(bar);}
+  const close=()=>{bar.classList.remove('on');_repairAsked='';};
+  bar.innerHTML=`<span class="rbtext">${esc(tt('core.repair_offer',{file:rep.file,mod:rep.mod}))}</span>
+    <button class="primary" id="repairgo">${esc(tt('core.repair_go'))}</button>
+    <button id="repairno">${esc(tt('core.repair_not_now'))}</button>`;
+  bar.classList.add('on');
+  document.getElementById('repairno').onclick=close;
+  document.getElementById('repairgo').onclick=async()=>{
+    const r=await api.post('/api/repair_file',{mod:rep.mod}).catch(e=>({error:errText(e)}));
+    const notes=(r.notes||[]).map(n=>'<li>'+esc(n)+'</li>').join('');
+    bar.innerHTML=`<span class="rbtext">${esc(r.error||tt('core.repair_done',{summary:r.summary||rep.file}))}${notes?'<ul>'+notes+'</ul>':''}</span>
+      <button id="repairno">${esc(tt('core.repair_close'))}</button>`;
+    document.getElementById('repairno').onclick=close;
+  };
+}
 // A faction has two names - the EDU's code ("teutonic_order") and the in-game one
 // ("Clans of Enedwaith") - and which one you look for depends on what you are
 // doing. Whichever is picked leads and sorts; the other rides along in brackets so
