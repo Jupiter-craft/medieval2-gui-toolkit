@@ -166,6 +166,14 @@ class _Desync(ValueError):
         super().__init__(what)
 
 
+def _is_number(v: str) -> bool:
+    try:
+        float(v)
+    except ValueError:
+        return False
+    return v[-1:].isdigit()             # not "inf", "nan" or "1e"
+
+
 def _line_col(text: str, i: int) -> Tuple[int, int]:
     return text.count("\n", 0, i) + 1, i - text.rfind("\n", 0, i)
 
@@ -208,7 +216,30 @@ class _Reader:
         try:
             return int(tok)
         except ValueError:
-            raise _Desync(at, f"expected a number here and found {tok!r}") from None
+            raise self._not_a_number(at, tok) from None
+
+    def _not_a_number(self, at: int, tok: str) -> _Desync:
+        """The refusal for a token that should be a number, with the mend when it
+        is two numbers that lost the space between them.
+
+        Silmarillion_Total_War's ``baneling_mount`` ends ``0 0-1 0 0 0 0 0 0``
+        where every other entry has ``0 0 -1 ...``: a minus sign cannot sit
+        inside a number, so ``0-1`` is ``0`` and ``-1`` and nothing else. Read
+        as one field it shifts the torch line by one and the next entry's name
+        is eaten as a number.
+        """
+        cut = next((k for k in range(1, len(tok)) if tok[k] == "-"
+                    and _is_number(tok[:k]) and _is_number(tok[k:])), 0)
+        if not cut:
+            return _Desync(at, f"expected a number here and found {tok!r}")
+        e = _Desync(at, f"{tok!r} is two numbers, {tok[:cut]} and {tok[cut:]}, with the "
+                        f"space between them lost - a field short here shifts everything "
+                        f"after it. Put the space back and the file reads", exact=True)
+        line, col = _line_col(self.s, at)
+        e.fix = (at + cut, at + cut, " ",
+                 f"line {line}, column {col}: {tok!r} split back into "
+                 f"{tok[:cut]} and {tok[cut:]}, the space between them lost")
+        return e
 
     def skip_blank_fields(self, fields: int) -> None:
         """Read the ``blank`` entry's fields: numbers, plus a name where one sits.
@@ -225,7 +256,7 @@ class _Reader:
             try:
                 int(tok)
             except ValueError:
-                raise _Desync(at, f"expected a number here and found {tok!r}") from None
+                raise self._not_a_number(at, tok) from None
             save = self.i
             nxt = self.token()
             self.i = save
@@ -244,7 +275,7 @@ class _Reader:
         try:
             return float(tok)
         except ValueError:
-            raise _Desync(at, f"expected a number here and found {tok!r}") from None
+            raise self._not_a_number(at, tok) from None
 
     def get_attach_sprite(self) -> str:
         """The fourth field of an ATTACHMENT texture group: a ``0``, or a sprite.

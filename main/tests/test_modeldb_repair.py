@@ -126,6 +126,20 @@ fixed, notes = modeldb.repair_text(glued)
 check("both mended in one call", factions(fixed) == ["aztecs", "denmark", "slave"]
       and len(notes) == 2)
 
+print("\n== two numbers that lost the space between them (Silmarillion_Total_War) ==")
+#: ``0 0-1 0 ...`` where the file means ``0 0 -1 ...``: the weapon count and
+#: the torch index run together, and a float pair the same way
+lost = GOOD.replace("\n0\n16 -0.09", "\n0-1 -0.09", 1).replace("0.8 0.6", "0.8-0.6", 1)
+e = refused(lost)
+check("refused on the glued token itself, naming both halves",
+      e is not None and "'0-1' is two numbers, 0 and -1" in str(e) and modeldb.repairable(e))
+fixed, notes = modeldb.repair_text(lost)
+ent = modeldb.parse_text(fixed).entries[0]
+check("both spaces put back, and the torch line reads as meant",
+      len(notes) == 2 and ent.torch_index == -1 and ent.torch[-2:] == [0.8, -0.6])
+check("a minus that is not between two numbers is not split",
+      not modeldb.repairable(refused(GOOD.replace("\n0\n16 -0.09", "\n0-x -0.09", 1))))
+
 print("\n== damage it does not know is raised, untouched ==")
 #: a count one too high - the existing sentence about the count stands, and no
 #: guess is made at which skin went missing
