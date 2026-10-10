@@ -1340,9 +1340,9 @@ def entry_spans(raw: str, pad: bool = False) -> Dict[str, List[List[int]]]:
             put(f"fac:{slot['faction']}:{kind}", start, end)
 
     for i, a in enumerate(animation_spans(raw, pad=pad)):
-        lo = min(v[0] for v in a.values())
-        hi = max(v[1] for v in a.values())
-        put(f"anim#{i}", lo, hi)
+        # The three names only: "weapons" is a list of spans, not one span.
+        names = [a[k] for k in ("mount_type", "primary", "secondary")]
+        put(f"anim#{i}", min(v[0] for v in names), max(v[1] for v in names))
     return spans
 
 
