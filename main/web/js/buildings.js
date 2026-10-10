@@ -695,7 +695,7 @@ function renderBuildingEditor(){
       <label class="chk" style="margin-right:auto" title="${ttA('buildings.a_recruit_pool_can_name_a')}">
         <input type="checkbox" id="bldFixOwn" ${b.fixOwnership!==false?'checked':''}
           onchange="state.bld.fixOwnership=this.checked;bldDirtyNote()">
-        ${tt('buildings.fix_unit_ownership_to_match')}</label>
+        <span>${tt('buildings.fix_unit_ownership_to_match')}</span></label>
       ${cleanerBoxHtml('building')}
       <button onclick="bldClose()">${tt('common.close')}</button>
       <button onclick="bldPreview()">${tt('common.probe')}</button>
@@ -805,6 +805,7 @@ function bldRenderBody(lv,orig){
         <button style="margin-left:0" class="${bldBulkOn()?'on':''}" onclick="bldBulkToggle()"
           title="${ttA('buildings.tick_several_units_and_give_them')}"
           >${tt('buildings.bulk_edit')}</button>
+        ${bldCapPasteHtml()}
         <button class="primary" onclick="bldAddPoolDialog()">${tt('buildings.add_unit')}</button></h4>
       ${bldBulkBar(shown)}
       ${bldPressureHtml(lv)}
@@ -1135,6 +1136,7 @@ function bldPoolRow(c){
       </div>
       <div class="acts">
         <button title="${ttA('buildings.add_units_directly_under_this_one')}" onclick="bldInsertBelow(${i})">＋</button>
+        ${bldPoolClipBtn(i)}
         ${bldPoolActs(c,i)}
         ${missing?'':`<button title="${ttA('buildings.open_this_unit_in_the_unit')}"
           onclick="openUnitFromBuilding('${q1(esc(c.pool.unit))}')">${tt('buildings.edit')}</button>`}
@@ -1183,6 +1185,7 @@ function bldPoolCard(c){
     <div class="clausebar"><div class="sum">${bldClauseSummary(c.conds)}</div>${bldCopyBtn(i)}</div>
     <div class="acts">
       <button onclick="bldEditClause('cap',${i})">${tt('buildings.requires_3')}</button>
+      ${bldPoolClipBtn(i)}
       ${bldPoolActs(c,i)}
       ${missing?'':`<button onclick="openUnitFromBuilding('${q1(esc(c.pool.unit))}')">${tt('buildings.unit_2')}</button>`}
       <button class="${c.del?'':'danger'}" onclick="bldToggleDel(${i})">${c.del?'↺':'🗑'}</button>
@@ -1269,6 +1272,48 @@ function bldCopyCond(i){
   if(!bu.on){bu.on=true;}                     // there is nowhere to paste it otherwise
   bldRenderBodyNow();
   toast(tt('buildings.copied_s_requirements_tick_the_units',{name,x:state.condClip.text?': '+state.condClip.text:tt('buildings.none_so_always')}),4200);
+}
+/* A whole recruit pool on a clipboard: the unit, its four numbers and its
+   `requires`, carried from one building to another. ⧉ beside the clause copies
+   the clause alone, for pasting onto rows that already exist; this copies the
+   row, for a building that has not got it - the case it was asked for is one
+   pool that has to go into every landmark, opened one after another. The
+   clipboard is `state.capClip`, so it outlives the building it came from and
+   stays until something else is copied or it is cleared. */
+function bldPoolClipBtn(i){
+  return `<button title="${ttA('buildings.copy_this_whole_recruit_pool')}" onclick="bldPoolClip(${i})">📋</button>`;
+}
+function bldPoolClip(i){
+  const b=state.bld,c=bldCapList()[+i]; if(!c||!c.pool)return;
+  const info=b.d.units[(c.pool.unit||'').toLowerCase()];
+  state.capClip={unit:c.pool.unit, from:(b.d.label||b.d.name)+' · '+bldLevelLabel(b.lvl),
+    // the clause as it would be written now: retyped, or the file's own text
+    pool:Object.assign({},c.pool,{requires:c.condEdited?bldClauseText(c.conds):(c.requires||'')}),
+    conds:JSON.parse(JSON.stringify(c.conds||[])),
+    info:info&&!info.missing?JSON.parse(JSON.stringify(info)):null};
+  bldRenderBodyNow();
+  toast(tt('buildings.copied_pool_open_another_building',{unit:c.pool.unit}),4200);
+}
+function bldCapPasteHtml(){
+  const k=state.capClip; if(!k)return '';
+  return `<span class="cappaste"><button onclick="bldCapPaste()"
+      title="${ttA('buildings.paste_the_copied_pool_from',{from:esc(k.from)})}">${tt('buildings.paste_unit',{unit:esc(k.unit)})}</button
+    ><button title="${ttA('buildings.forget_the_copied_pool')}" onclick="state.capClip=null;bldRenderBodyNow()">✕</button></span>`;
+}
+function bldCapPaste(){
+  const b=state.bld,k=state.capClip; if(!b||!k)return;
+  if(bldHasUnit(b.lvl,k.unit))
+    return toast(tt('buildings.this_tier_already_trains',{unit:k.unit}));
+  // the line's own unit index only knows what it already trains (see bldAddPoolRow)
+  const key=k.unit.toLowerCase();
+  if(k.info&&b.d.units&&!b.d.units[key])b.d.units[key]=JSON.parse(JSON.stringify(k.info));
+  const conds=JSON.parse(JSON.stringify(k.conds||[]));
+  const row=bldAddPoolRow(k.unit,b.lvl,Object.assign({},k.pool),null);
+  // the clause goes in as text, written as it stands, but the row still has to
+  // SHOW its terms - without them the summary said "Always"
+  if(row)row.conds=conds;
+  bldTouched(); renderBuildingEditor();
+  toast(tt('buildings.pasted_pool_into',{unit:k.unit,level:bldLevelLabel(b.lvl)}),3500);
 }
 /* Put a clause onto one row. `replace` swaps it outright; `add` joins the new
    terms onto what is already there. M2TW evaluates a clause left to right with

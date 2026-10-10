@@ -65,8 +65,12 @@ function renderTraits(){
         <button class="trnew" onclick="portOpen('traits')" title="${ttA('traits.copy_traits_out_of_another_mod')}">${tt('traits.port_from_another_mod')}</button>
       </div>
       ${findingsHtml('traits', t.finding_list, 'trOpen')}
-      <div class="trrows">${rows.map(trRowHtml).join('')
-        || `<div class="count" style="padding:8px">${tt('traits.no_trait_matches')}</div>`}</div>
+      <div class="trgrep">
+        <input id="trGrep" value="${esc(t.grep||'')}" placeholder="${ttA('traits.find_text_inside_a_trait')}"
+          title="${ttA('traits.matches_any_line_of_the_traits')}" oninput="trGrepInput(this.value)">
+        <div class="count" id="trGrepNote">${trGrepNote()}</div>
+      </div>
+      <div class="trrows" id="trRows">${trRowsHtml(rows)}</div>
     </div>
     <div class="trmain" id="trMain">${trDetailHtml()}</div>
   </div>`;
@@ -77,10 +81,49 @@ function renderTraits(){
 // which is why Strings pages server-side and this does not).
 function trRows(){
   const q = search.value.trim().toLowerCase();
-  const rows = state.tr.traits || [];
+  const t = state.tr, hits = t.grep && t.grepHits;
+  let rows = t.traits || [];
+  if(hits) rows = rows.filter(r => hits.has(r.name));
   if(!q) return rows;
   return rows.filter(r => r.name.toLowerCase().includes(q)
     || (r.label||'').toLowerCase().includes(q));
+}
+const trRowsHtml = rows => rows.map(trRowHtml).join('')
+  || `<div class="count" style="padding:8px">${tt('traits.no_trait_matches')}</div>`;
+
+/* The second box: text INSIDE a trait - a line of its block or the words the
+   player reads - asked of the server (traits.grep), since the list is held
+   light. Only the rows and the count repaint, so the caret stays in the box. */
+let trGrepTimer = 0;
+function trGrepInput(v){
+  const t = state.tr; if(!t) return;
+  t.grep = v; t.grepHits = null;
+  clearTimeout(trGrepTimer);
+  if(!v.trim()){ trRepaintRows(); return; }
+  trGrepNoteSet();
+  trGrepTimer = setTimeout(async () => {
+    let r;
+    try{ r = await api.get(`/api/traits/grep?mod=${enc(t.mod)}&q=${enc(v)}`); }
+    catch(e){ r = {names: []}; }
+    if(state.tr !== t || t.grep !== v) return;      // typed on, or left the screen
+    t.grepHits = new Set(r.names || []);
+    trRepaintRows();
+  }, 250);
+}
+function trGrepNote(){
+  const t = state.tr;
+  if(!t || !(t.grep||'').trim()) return '';
+  return t.grepHits ? ttN('traits.traits_contain_it', t.grepHits.size) : tt('traits.searching');
+}
+function trGrepNoteSet(){
+  const n = document.getElementById('trGrepNote');
+  if(n) n.textContent = trGrepNote();
+}
+function trRepaintRows(){
+  const box = document.getElementById('trRows'), rows = trRows();
+  if(box) box.innerHTML = trRowsHtml(rows);
+  count.textContent = `${rows.length}/${state.tr.count}`;
+  trGrepNoteSet();
 }
 
 function trRowHtml(r){
@@ -255,6 +298,7 @@ function trLevelHtml(lv, i, d){
                            : tt('traits.name_the_key_on_the_left')}"
         title="${ttA('traits.what_the_player_reads_saved_into')}"
         oninput="trSetLocAt(${i},'${k}',this.value)">
+      ${txtEyeBtn()}
     </div>`;
   };
   return `<div class="trlevel" data-card="${key}">

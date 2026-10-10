@@ -12,6 +12,8 @@ doesn't carry Tcl/Tk, but ctypes is always part of the stdlib.
 from __future__ import annotations
 
 import ctypes
+import os
+import subprocess
 import sys
 import threading
 from ctypes import wintypes
@@ -366,3 +368,82 @@ def reveal(path: str) -> bool:
     except OSError:
         return False
     return True
+
+
+#: Editors that can be told which line to open at, by executable name, and how.
+#: The OS association picks the editor; this only adds the line when the editor
+#: it picked is one that takes one. Notepad takes none, and gets the file alone.
+_LINE_ARGS = {
+    "code": lambda p, n: ["-g", f"{p}:{n}"],
+    "code - insiders": lambda p, n: ["-g", f"{p}:{n}"],
+    "cursor": lambda p, n: ["-g", f"{p}:{n}"],
+    "codium": lambda p, n: ["-g", f"{p}:{n}"],
+    "vscodium": lambda p, n: ["-g", f"{p}:{n}"],
+    "windsurf": lambda p, n: ["-g", f"{p}:{n}"],
+    "notepad++": lambda p, n: [f"-n{n}", p],
+    "sublime_text": lambda p, n: [f"{p}:{n}"],
+    "subl": lambda p, n: [f"{p}:{n}"],
+    "zed": lambda p, n: [f"{p}:{n}"],
+    "atom": lambda p, n: [f"{p}:{n}"],
+    "notepad2": lambda p, n: ["/g", str(n), p],
+    "notepad3": lambda p, n: ["/g", str(n), p],
+    "emeditor": lambda p, n: ["/l", str(n), p],
+    "gvim": lambda p, n: [f"+{n}", p],
+    "kate": lambda p, n: ["-l", str(n), p],
+    "gedit": lambda p, n: [f"+{n}", p],
+}
+
+
+def _assoc_exe(ext: str) -> str:
+    """The executable Windows opens ``ext`` files with, or '' when it has none."""
+    import ctypes
+    from ctypes import wintypes
+    try:
+        fn = ctypes.windll.shlwapi.AssocQueryStringW
+    except (AttributeError, OSError):
+        return ""
+    fn.argtypes = [ctypes.c_uint, ctypes.c_uint, wintypes.LPCWSTR, wintypes.LPCWSTR,
+                   wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+    size = wintypes.DWORD(1024)
+    buf = ctypes.create_unicode_buffer(size.value)
+    # ASSOCF_INIT_IGNOREUNKNOWN (0x400): no "pick an app" answer for an unknown
+    # type; ASSOCSTR_EXECUTABLE (2)
+    if fn(0x400, 2, ext, "open", buf, ctypes.byref(size)) != 0:
+        return ""
+    exe = buf.value
+    # the "how do you want to open this?" stub is not an editor
+    if not exe or os.path.basename(exe).lower() in ("openwith.exe", "rundll32.exe"):
+        return ""
+    return exe
+
+
+def open_at_line(path: str, line: int = 0) -> dict:
+    """Open ``path`` in the OS's own editor for it, at ``line`` when it can.
+
+    The editor is whatever the OS opens that file type with - for a ``.lua``
+    with nothing set, whatever opens a ``.txt`` - so it is the user's choice,
+    never ours. Whether the line was honoured depends on that editor; the answer
+    says so (``line``), and the page tells the user to go to it by hand when not.
+    """
+    target = os.path.normpath(os.path.abspath(path))
+    if not os.path.isfile(target):
+        return {"ok": False, "line": False}
+    line = max(0, int(line or 0))
+    try:
+        if sys.platform == "win32":
+            ext = os.path.splitext(target)[1] or ".txt"
+            exe = _assoc_exe(ext) or _assoc_exe(".txt")
+            if not exe:
+                os.startfile(target)                     # noqa: S606
+                return {"ok": True, "line": False}
+            key = os.path.splitext(os.path.basename(exe))[0].lower()
+            how = _LINE_ARGS.get(key)
+            subprocess.Popen([exe] + (how(target, line) if how and line else [target]))
+            return {"ok": True, "line": bool(how and line), "editor": key}
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", "-t", target])
+            return {"ok": True, "line": False}
+        subprocess.Popen(["xdg-open", target])
+        return {"ok": True, "line": False}
+    except OSError:
+        return {"ok": False, "line": False}

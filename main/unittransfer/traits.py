@@ -594,6 +594,30 @@ def overview(mod) -> Dict:
     return out
 
 
+def grep(mod, query: str) -> Dict:
+    """The traits whose block, or the words the player reads for it, contain ``query``.
+
+    The list's own search matches names; this is the other question - "which
+    trait says Faramir", "which one gives +2 PersonalSecurity" - asked of the
+    block exactly as the file has it plus its ``export_VnVs.txt`` text, without
+    a case. Server-side because the page holds the list light: shipping every
+    block and its text to filter 1 457 traits in the browser would weigh down
+    every visit to the screen for a box most visits leave empty.
+    """
+    q = (query or "").strip().lower()
+    path = Path(mod.edct_path)
+    if not q or not path.exists():
+        return {"query": query or "", "names": []}
+    tf = parse_file(path)
+    names = loc(mod)
+    hits = []
+    for t in tf.traits:
+        if q in tf.block_text(t).lower() or any(
+                q in (names.get(tag) or "").lower() for tag in text_tags(t)):
+            hits.append(t.name)
+    return {"query": query, "names": hits}
+
+
 def _lua_hits(mod, kind: str, name: str) -> list:
     from . import luascan
     return luascan.record_mentions(mod, kind, [name]).get(name, [])[:40]

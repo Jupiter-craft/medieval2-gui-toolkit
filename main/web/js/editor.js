@@ -2312,6 +2312,8 @@ async function edSave(){
       state.bld.work=null; state.bld.plan=null; state.bld.checks=null; state.bld.cmp=null;
     }else{ state.bld=null; _bldFiltersFor=''; }
   }
+  // the stack holds edits that are on disk now: closing must not log them as lost
+  undoReset();
   closeModal();
   const saved=[one?(bm?what:res.plan.resolved_type):null,two?e.cmp.unit:null].filter(Boolean);
   const note=saved.length
@@ -2325,4 +2327,18 @@ async function edSave(){
   // for again or the grid goes on showing the picture that was just overwritten
   imgBust();
   loadSource();
+  /* A save keeps you where you were: the same unit (under its new name, if the
+     save renamed it), on the tab you saved from, re-read from disk so what is
+     on screen is what was written. It used to drop back to the faction's list,
+     and the next edit to the same unit started with finding it again. */
+  if(e.mod!==state.src) return;
+  if(bm){ if(one){ await openBmdbEntry(what); edKeepTab(e.tab); } return; }
+  const again=(one&&res&&res.plan&&res.plan.resolved_type)||e.unit;
+  if(again){ await openEditor(again); edKeepTab(e.tab); }
+}
+// After a reopen: back on the tab the save was made from, if it is still there.
+function edKeepTab(tab){
+  const n=state.ed;
+  if(!n||!tab||n.tab===tab||!document.getElementById('edTab_'+tab)) return;
+  n.tab=tab; n.bmdb?renderBmdbEditor():renderEditor();
 }

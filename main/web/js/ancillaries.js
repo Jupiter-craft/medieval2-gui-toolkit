@@ -200,6 +200,7 @@ function anFormHtml(w, d){
                              : tt('ancillaries.name_the_key_on_the_left')}"
           title="${ttA('ancillaries.what_the_player_reads_saved_into')}"
           oninput="anSetLocAt('${k}',this.value)">
+        ${txtEyeBtn()}
       </div>`;
   };
   return `<section class="trsec">

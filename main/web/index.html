@@ -94,6 +94,8 @@
     background:var(--bg);border:1px solid var(--edge);border-radius:5px;white-space:pre}
   button:disabled{opacity:.4;cursor:not-allowed}
   label.chk{display:inline-flex;gap:5px;align-items:center;color:var(--dim);font-size:12px;cursor:pointer}
+  /* a label's words go in ONE <span>: bare text either side of a <b> is three
+     flex items, and in a crowded footer they wrapped as three narrow columns */
   .count{color:var(--dim);font-size:12px}
   /* Which build this is, in the one place every screenshot already includes.
      It is here because of the support question that has no answer without it:
@@ -2388,6 +2390,10 @@
      265,000 elements), and every value typed made the browser lay out all of
      them. Rows off screen are skipped until they scroll into view. */
   #bldBody [data-cap]{content-visibility:auto;contain-intrinsic-size:auto 90px}
+  /* ...which also clips whatever leaves the row: the "📍 regions pass" card was
+     cut to the row's edge and showed as a sliver. The row under the pointer
+     paints normally while its card is open. */
+  #bldBody [data-cap]:has(.where:hover){content-visibility:visible}
   .caprow:last-child{border-bottom:none}
   .caprow.gone{opacity:.4;text-decoration:line-through}
   .caprow select.kw{flex:0 0 190px;font-size:12px;padding:3px 6px}
@@ -2431,6 +2437,11 @@
     font-family:ui-monospace,Consolas,monospace}
   .poolrow .acts{display:flex;gap:4px;flex:0 0 auto;margin-left:auto}
   .poolrow .acts button{padding:3px 7px;font-size:11.5px}
+  /* the copied pool, ready to drop into whichever building is open next */
+  .cappaste{display:inline-flex;gap:0;margin-left:0}
+  .cappaste button:first-child{border-top-right-radius:0;border-bottom-right-radius:0;
+    border-color:var(--accent2);color:var(--accent2)}
+  .cappaste button:last-child{border-top-left-radius:0;border-bottom-left-radius:0;border-left:none;padding:3px 7px}
   .poolrow.missing .who .un{color:var(--bad)}
   .bsec{margin-bottom:14px}
   .bsec>h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);
@@ -2513,13 +2524,19 @@
      could not hold all of it beside that without a sideways scrollbar. */
   .erpool{padding:6px 8px;border-bottom:1px solid var(--edge)}
   .erpool:last-child{border-bottom:none}
-  .ertop{display:flex;gap:8px;align-items:center}
+  /* wraps rather than squeezes: at a large interface size or beside the 3D
+     column the name used to collapse to nothing under its own icon and push the
+     delete button out of the box. Now the numbers and the button drop to a
+     second line, still at the right, and the name keeps room to be read. */
+  .ertop{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
   /* right-aligned, and `.prk`'s auto margin is what pushes the pair over: the
      clause answers the numbers above it, not the name at the far left */
   .erbot{display:flex;gap:8px;align-items:center;margin-top:4px;justify-content:flex-end}
   .erbot .prk{flex:0 0 auto;margin-left:auto;font-size:9px;text-transform:uppercase;
     letter-spacing:.5px;color:var(--dim)}
-  .erhd{display:flex;gap:8px;padding:5px 8px;border-bottom:1px solid var(--edge);
+  /* wraps at the same point as the rows under it, so the labels stay over
+     their boxes when the numbers drop to a second line */
+  .erhd{display:flex;flex-wrap:wrap;gap:2px 8px;padding:5px 8px;border-bottom:1px solid var(--edge);
     font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim)}
   .erhd .ern{white-space:normal;line-height:1.15}
   /* the header carries no buttons, so it has to reserve their column by hand:
@@ -2528,7 +2545,7 @@
   .erhd .eract{flex:0 0 25px}
   /* a fixed basis, not `1 1`: the tier sits against the name rather than at the
      far end of whatever slack the row has */
-  .erb{flex:0 1 210px;min-width:0;font-size:12px;display:flex;gap:6px;align-items:center}
+  .erb{flex:0 1 210px;min-width:150px;font-size:12px;display:flex;gap:6px;align-items:center}
   .erb>a,.erb>b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .erb .badge{flex:0 0 auto}
   /* the tier's own art, at the shape `/building_icon` serves it in */
@@ -2978,6 +2995,15 @@
     position:sticky;top:12px;max-height:calc(calc(100vh / var(--uiz)) - 90px)}
   .trnew{flex:0 0 auto}
   .trrows{display:flex;flex-direction:column;gap:3px;overflow:auto;min-height:0}
+  .trgrep{display:flex;flex-direction:column;gap:2px}
+  .trgrep input{width:100%;box-sizing:border-box}
+  .trgrep .count:empty{display:none}
+  /* 👁 beside a one-line text box, and the box it opens */
+  .trkey .txteyebtn{flex:0 0 auto;padding:3px 7px;font-size:12px}
+  .modal.txteye{width:760px}
+  .modal.txteye textarea{width:100%;box-sizing:border-box;min-height:calc(46vh / var(--uiz));
+    resize:vertical;font-size:13.5px;line-height:1.5;white-space:pre-wrap}
+  .trluarow .trluaopen{margin-left:auto;padding:1px 7px;font-size:11px}
   .trrow{text-align:left;padding:6px 9px;line-height:1.3}
   .trrow.on{border-color:var(--accent);background:var(--panel2)}
   .trrow .nm{font-size:13px} .trrow .sub{font-size:11px;color:var(--dim)}
@@ -3153,9 +3179,11 @@
     .trlist{position:static;flex:0 0 auto;max-height:calc(45vh / var(--uiz))}
     .trmain{width:100%}
   }
-  .mftabs{display:flex;gap:6px;align-items:center;padding:10px 0 0;
+  /* the strip's own scrollbar sits UNDER the tabs, in padding of its own: on
+     Windows it drew across their lower edge and cut the labels in half */
+  .mftabs{display:flex;gap:6px;align-items:center;padding:10px 0 9px;
     border-bottom:1px solid var(--edge)}
-  .mftab{padding:6px 12px;border-bottom-left-radius:0;border-bottom-right-radius:0}
+  .mftab{padding:6px 12px}
   .mftab.on{border-color:var(--accent);background:var(--panel2);color:var(--fg)}
   .mflvl{display:flex;gap:10px;align-items:flex-start;padding:6px 0;
     border-top:1px solid var(--edge)}

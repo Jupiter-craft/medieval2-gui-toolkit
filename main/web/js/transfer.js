@@ -1003,7 +1003,7 @@ function cleanerBoxHtml(what){
   const kind=what||'unit';
   return `<label class="chk cleanerbox" style="margin-right:auto" title="${ttA('transfer.deletes_data_text_export_s_txt',{kind,kind2:kind,kind3:kind})}">
     <input type="checkbox" ${clearBinOn()?'checked':''} onchange="setClearBin(this.checked)">
-    ${tt('transfer.clear_the_text_cache_afterwards_a',{kind})}</label>`;
+    <span>${tt('transfer.clear_the_text_cache_afterwards_a',{kind})}</span></label>`;
 }
 async function setClearBin(on){
   state.settings=await api.post('/api/settings',{clear_strings_bin:on});

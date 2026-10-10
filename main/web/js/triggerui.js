@@ -299,6 +299,21 @@ function luaHitsHtml(hits, noun){
   return `<div class="trlua"><div class="count">${tt('triggerui.from_the_mods_lua_scripts_what',{noun:esc(noun)})}</div>
     ${rows.map(h => `<div class="trluarow"><span class="${h.how === 'gives' ? 'w-good' : 'count'}">${
       esc(LUA_HOW[h.how] || h.how)}</span>
-      <code>${esc(h.file)}:${h.line}</code>${h.call ? ` <span class="count">${esc(h.call)}()</span>` : ''}</div>`
+      <code>${esc(h.file)}:${h.line}</code>${h.call ? ` <span class="count">${esc(h.call)}()</span>` : ''}
+      <button class="trluaopen" title="${ttA('triggerui.open_this_script_in_your_editor')}"
+        onclick="luaOpenAt('${q1(esc(h.file))}',${+h.line||0})">${tt('triggerui.open_at_line')}</button></div>`
     ).join('')}</div>`;
+}
+/* The OS's own editor for the file, at the line when that editor takes one
+   (VS Code, Notepad++, Sublime and the like); Notepad opens at the top, and
+   the toast says which line to go to. The path is the mod-root-relative one the
+   scan reported, so the server can refuse anything outside the mod. */
+async function luaOpenAt(file, line){
+  let r;
+  try{ r = await api.post('/api/open_at', {mod: state.src, rel: file, line}); }
+  catch(e){ r = {ok: false, error: errText(e)}; }
+  if(!r.ok) return toast(tt('triggerui.couldnt_open', {file, error: r.error || ''}), 5000);
+  activity(tt('triggerui.opened_script'), `${file}:${line}`);
+  toast(r.line ? tt('triggerui.opened_at_line', {file, line})
+               : tt('triggerui.opened_go_to_line', {file, line}), 4500);
 }

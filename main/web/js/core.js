@@ -2208,6 +2208,82 @@ function uiScaleApply(){
   document.documentElement.style.zoom=pct===100?'':String(pct/100);
   document.documentElement.style.setProperty('--uiz',String(pct/100));
 }
+/* 👁 beside a one-line text box (a trait level's description, its effects
+   line, an ancillary's): the whole text in a box big enough to read, with the
+   game's `\n` shown as real line breaks, edited there and written back through
+   the small box's own oninput - so the screen it sits on needs no code of its
+   own, and Ctrl+Z, the dirty mark and the save see it as typing. */
+let txtEyeFor=null;
+const txtEyeBtn=()=>`<button type="button" class="txteyebtn" title="${ttA('core.read_and_edit_the_whole_text')}"
+  onclick="txtEye(this)">👁</button>`;
+function txtEye(btn){
+  const box=btn.previousElementSibling, row=btn.parentElement;
+  if(!box)return;
+  txtEyeFor=box;
+  const key=(row.querySelector('input')||{}).value||'';
+  const label=((row.previousElementSibling||{}).textContent||'').trim();
+  const modal=document.getElementById('modal');
+  modal.className='modal txteye';
+  modal.innerHTML=`<h2>${esc(label||tt('core.text'))} ${key?`<code class="count">${esc(key)}</code>`:''}</h2>
+    <div class="mbody">
+      <textarea id="txtEyeBox" spellcheck="true">${esc(box.value.replace(/\\n/g,'\n'))}</textarea>
+      <div class="count" style="margin-top:6px">${tt('core.line_breaks_are_saved_as_n')}</div>
+    </div>
+    <div class="foot">
+      <button onclick="txtEyeClose()">${tt('common.cancel')}</button>
+      <button class="primary" onclick="txtEyeApply()">${tt('common.apply')}</button>
+    </div>`;
+  overlay.classList.add('open');
+  const ta=document.getElementById('txtEyeBox');
+  ta.focus(); ta.setSelectionRange(0,0); ta.scrollTop=0;
+  ta.onkeydown=e=>{
+    if(e.key==='Escape'){e.preventDefault();txtEyeClose();}
+    else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();txtEyeApply();}
+  };
+}
+// Not closeModal: that one reports undo steps as a dialog's lost changes, and
+// these belong to the screen underneath, which keeps them.
+function txtEyeClose(){
+  overlay.classList.remove('open');
+  document.getElementById('modal').className='modal';
+  if(txtEyeFor&&document.body.contains(txtEyeFor))txtEyeFor.focus();
+  txtEyeFor=null;
+}
+function txtEyeApply(){
+  const ta=document.getElementById('txtEyeBox'), box=txtEyeFor;
+  if(ta&&box&&document.body.contains(box)){
+    const v=ta.value.replace(/\r?\n/g,'\\n');
+    if(v!==box.value){ box.value=v; box.dispatchEvent(new Event('input',{bubbles:true})); }
+  }
+  txtEyeClose();
+}
+/* "📍 8 settlements" and "📍 1 region passes": the hover card is placed on the
+   page rather than in the row, because the rows sit in lists that scroll in
+   themselves and an absolutely placed card was cut off at the list's edge,
+   leaving a sliver under the chip. Fixed placement is relative to the nearest
+   container-query box (they contain layout) and the page may be zoomed, so the
+   card is measured where it lands and moved by the difference. It flips above
+   the chip when there is no room under it, and touches the chip so the pointer
+   can travel into it to scroll without the hover dropping. */
+document.addEventListener('mouseover',e=>{
+  const host=e.target.closest&&e.target.closest('.where');
+  if(!host||host.contains(e.relatedTarget))return;
+  const pop=host.querySelector(':scope>.wpop');
+  if(pop)wpopPlace(host,pop);
+});
+function wpopPlace(host,pop){
+  Object.assign(pop.style,{position:'fixed',right:'auto',left:'0px',top:'0px'});
+  const a=pop.getBoundingClientRect();
+  if(!a.width)return;                       // not shown: nothing to place
+  pop.style.left='100px'; pop.style.top='100px';
+  const b=pop.getBoundingClientRect();
+  const sx=(b.left-a.left)/100||1, sy=(b.top-a.top)/100||1;
+  const h=host.getBoundingClientRect();
+  let x=h.right-a.width, y=h.bottom-1;
+  if(y+a.height>innerHeight-8&&h.top-a.height+1>8)y=h.top-a.height+1;
+  x=Math.max(8,Math.min(x,innerWidth-a.width-8));
+  pop.style.left=((x-a.left)/sx)+'px'; pop.style.top=((y-a.top)/sy)+'px';
+}
 function uiScaleSet(pct){
   state.settings.ui_scale=+pct;
   api.post('/api/settings',{ui_scale:+pct});

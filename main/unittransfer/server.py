@@ -21,6 +21,8 @@ API
                                     ceilings - so the toolkit stops reporting
                                     them. See :mod:`unittransfer.modflags`
   POST /api/browse_folder        -> {title} -> {path}  (native OS folder dialog)
+  POST /api/open_at              -> {mod, rel, line} -> open a file under the mod's
+                                    root in the OS's editor for it, at that line
   POST /api/reveal               -> {mod, rel} -> show that file in the OS file
                                     manager. Mod-relative only.
   POST /api/image/plan           -> {mod, url, src} -> what the picture behind an
@@ -132,6 +134,7 @@ Traits mode (export_descr_character_traits.txt, see :mod:`unittransfer.traits`)
                                     many triggers feed it, how many findings
   GET  /api/trait?mod=&name=     -> one trait in full: header, levels, effects,
                                     its text keys, and the triggers that give it
+  GET  /api/traits/grep?mod=&q=  -> {names} whose block or player text holds q
   POST /api/traits/plan|/apply   -> add, edit or delete a trait and the triggers
                                     that feed it, adding any missing
                                     export_VnVs.txt keys (backups + undo)
@@ -2265,13 +2268,15 @@ class Handler(BaseHTTPRequestHandler):
                         mod, which, (q.get("name") or [""])[0]))
                 except KeyError as e:
                     return self._err(404, str(e))
-            if u.path in ("/api/traits", "/api/trait"):
+            if u.path in ("/api/traits", "/api/trait", "/api/traits/grep"):
                 name = (q.get("mod") or [None])[0]
                 if not name or name not in self.registry.names():
                     return self._err(404, "unknown mod")
                 mod = self.registry.get(name)
                 if u.path == "/api/traits":
                     return self._json(traits.overview(mod))
+                if u.path == "/api/traits/grep":
+                    return self._json(traits.grep(mod, (q.get("q") or [""])[0]))
                 try:
                     return self._json(traits.detail(mod, (q.get("name") or [""])[0]))
                 except KeyError as e:
@@ -2644,6 +2649,31 @@ class Handler(BaseHTTPRequestHandler):
                 from .folder_dialog import reveal
                 return self._json({"ok": reveal(str(target)),
                                    "path": str(target)})
+            if u.path == "/api/open_at":
+                # "Open in editor" on a Lua line a trait or ancillary screen
+                # lists. Same guard as /api/reveal, but against the mod's ROOT:
+                # the scripts live in eopData/, beside data/ rather than in it.
+                name = body.get("mod") or ""
+                if name not in self.registry.names():
+                    return self._err(404, "unknown mod")
+                mod = self.registry.get(name)
+                root = Path(mod.root).resolve()
+                try:
+                    target = (root / str(body.get("rel") or "")).resolve()
+                    target.relative_to(root)
+                except (ValueError, OSError):
+                    return self._json({"ok": False,
+                                       "error": _i18n.msg("eng.server.that_path_is_not_inside_the", "that path is not inside the mod")})
+                if not target.is_file():
+                    return self._json({"ok": False,
+                                       "error": _i18n.msg("eng.server.that_file_is_not_there_any", "that file is not there any more")})
+                from .folder_dialog import open_at_line
+                try:
+                    line = int(body.get("line") or 0)
+                except (TypeError, ValueError):
+                    line = 0
+                return self._json(dict(open_at_line(str(target), line),
+                                       path=str(target)))
             if u.path in ("/api/image/plan", "/api/image/replace",
                           "/api/image/reveal"):
                 # "Replace this picture" for any art the page shows. The body
