@@ -31,7 +31,7 @@ from unittransfer import buildings, config, localization
 from unittransfer.mod import Mod
 from unittransfer.transfer import undo
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods(required=False)
 #: Every mod installed on this machine - the parser must cope with all of them.
 CANDIDATES = ("Divide_and_Conquer_EUR", "Third_Age_6", "third_age_3")
 #: The one edits are applied to (copied into a temp folder first, never in place).

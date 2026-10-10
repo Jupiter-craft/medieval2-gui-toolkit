@@ -30,14 +30,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp  # noqa: E402
+from tests import _realmod, _tmp  # noqa: E402
 from unittransfer import (campevents, campmap, campstrat, config, factions,  # noqa: E402
                           hordestart as hs, mapquery, modflags, stratcamp,
                           stratchar, transfer)
 from unittransfer.keyblock import read_text  # noqa: E402
 from unittransfer.mod import Mod  # noqa: E402
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 ok = []
 
 

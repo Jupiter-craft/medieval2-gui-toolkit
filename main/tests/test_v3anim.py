@@ -31,12 +31,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tests import _webtext  # noqa: E402
+from tests import _realmod, _webtext  # noqa: E402
 
 from tests import _tmp  # noqa: E402
 from unittransfer import casanim, mesh  # noqa: E402
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 DAC = MODS / "Divide_and_Conquer_EUR" / "data"
 ROCSS = MODS / "ROCSS" / "data"
 JS = ROOT / "web" / "js" / "v3anim.js"

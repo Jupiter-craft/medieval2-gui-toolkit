@@ -31,13 +31,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp  # noqa: E402
+from tests import _realmod, _tmp  # noqa: E402
 from unittransfer import (campfiles, campimport as ci, campmap, campstrat,  # noqa: E402
                           config, minorfiles, modflags, namekeys, transfer)
 from unittransfer.keyblock import read_text  # noqa: E402
 from unittransfer.mod import Mod  # noqa: E402
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 CAMP = "imperial_campaign"
 ok = []
 

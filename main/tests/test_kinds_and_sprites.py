@@ -15,10 +15,11 @@ from pathlib import Path
 # the README says each of these is runnable on its own.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from tests import _realmod
 from unittransfer import edu, transfer
 from unittransfer.mod import Mod
 
-MODS = Path(r"C:\Users\projy\Downloads\Games\Total War MEDIEVAL II Definitive Edition\mods")
+MODS = _realmod.mods()
 TATR = MODS / "Third_Age_Reforged"
 DAC = MODS / "Divide_and_Conquer_EUR"
 

@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp  # noqa: E402
+from tests import _realmod, _tmp  # noqa: E402
 from unittransfer import areaeffects as ae  # noqa: E402
 from unittransfer import transfer  # noqa: E402
 from unittransfer.mod import Mod  # noqa: E402
@@ -41,7 +41,7 @@ if config.SETTINGS_PATH.is_file():
 config.CONFIG_DIR = cfg; config.BACKUP_DIR = cfg / "backups"
 config.SETTINGS_PATH = cfg / "settings.json"; config.LOG_PATH = cfg / "transfers.json"
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 ROC, DAC = MODS / "ROCSS", MODS / "Divide_and_Conquer_EUR"
 ok = []
 

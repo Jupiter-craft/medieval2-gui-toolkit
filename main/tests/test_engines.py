@@ -25,14 +25,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp
+from tests import _realmod, _tmp
 from unittransfer import config, edu, engines
 from unittransfer import keyblock as kb
 from unittransfer.mod import Mod
 from unittransfer.transfer import (TransferOptions, apply_transfer,
                                    plan_transfer, undo)
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 TATR, DAC = MODS / "Third_Age_Reforged", MODS / "Divide_and_Conquer_EUR"
 
 # files a dest copy needs so apply works end-to-end

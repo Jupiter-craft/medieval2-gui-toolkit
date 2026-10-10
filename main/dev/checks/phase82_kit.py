@@ -41,9 +41,10 @@ from pathlib import Path
 MAIN = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(MAIN))
 
+from tests import _realmod  # noqa: E402
 from unittransfer import animpack, casanim, config, skelslots  # noqa: E402
 
-GAME = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition")
+GAME = _realmod.game()
 SKEL = "MTW2_Mace_no_stun"
 IDLE, DIE, WALK, CHEER = "stand_a_idle", "die_forward_2", "walk", "celebrate_1"
 

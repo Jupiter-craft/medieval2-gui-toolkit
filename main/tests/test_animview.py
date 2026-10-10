@@ -23,11 +23,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp  # noqa: E402
+from tests import _realmod, _tmp  # noqa: E402
 from unittransfer import animpack, animview, casanim, skelslots  # noqa: E402
 from unittransfer.mod import Mod  # noqa: E402
 
-GAME = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition")
+GAME = _realmod.game(required=False)
 DAC, ROCSS = GAME / "mods" / "Divide_and_Conquer_EUR", GAME / "mods" / "ROCSS"
 JS = ROOT / "web" / "js" / "v3anim.js"
 ok = []

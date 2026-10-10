@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import shutil  # noqa: E402
-from tests import _tmp  # noqa: E402
+from tests import _realmod, _tmp  # noqa: E402
 from unittransfer import edu, factions, localization, modeldb  # noqa: E402
 from unittransfer import keyblock as kb  # noqa: E402
 
@@ -29,7 +29,7 @@ if config.SETTINGS_PATH.is_file():
 config.CONFIG_DIR = cfg; config.BACKUP_DIR = cfg / "backups"
 config.SETTINGS_PATH = cfg / "settings.json"; config.LOG_PATH = cfg / "transfers.json"
 
-MODS_ROOT = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS_ROOT = _realmod.mods()
 MODS = ["Third_Age_Reforged", "Divide_and_Conquer_EUR"]
 
 

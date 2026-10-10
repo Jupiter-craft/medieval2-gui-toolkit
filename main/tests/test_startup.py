@@ -34,10 +34,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp
+from tests import _realmod, _tmp
 from unittransfer import config, server, startup
 from unittransfer.logutil import setup as setup_logging
 
+#: The real install, or a path that is not one: the launch and preflight checks
+#: below need no game, and the ones that do say so and skip.
+GAME = _realmod.game(required=False)
 ok = []
 
 
@@ -67,21 +70,27 @@ config.BACKUP_DIR = cfg / "backups"
 # ---- healthy install ----------------------------------------------------
 print("== preflight: healthy install ==")
 port = free_port()
-config.save_settings(med2_root=str(
-    Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition")))
+config.save_settings(med2_root=str(GAME))
 checks = startup.preflight(port, ROOT / "web")
 for c in checks:
     print("   ", c.line())
 check("nothing fatal failed", startup.report(checks))
-check("MED2 root check lists both mods",
-      "Divide_and_Conquer_EUR" in by_name(checks, "MED2 root").detail
-      and "Third_Age_Reforged" in by_name(checks, "MED2 root").detail)
+if _realmod.GAME_FOUND:
+    check("MED2 root check lists both mods",
+          "Divide_and_Conquer_EUR" in by_name(checks, "MED2 root").detail
+          and "Third_Age_Reforged" in by_name(checks, "MED2 root").detail)
+else:
+    print("  SKIPPED: no Medieval II install found, so no mods to list")
 check("free port reported free", by_name(checks, f"port {port}").ok)
 
 # ---- MED2 root problems are warnings, not fatal -------------------------
 print("\n== preflight: MED2 root problems are non-fatal ==")
 config.SETTINGS_PATH.unlink(missing_ok=True)
+# Unset means unset everywhere: on a machine whose registry names the game,
+# get_med2_root() would otherwise find it there and the root is not unset.
+real_detect, config.detect_med2_root = config.detect_med2_root, lambda: None
 c = by_name(startup.preflight(port, ROOT / "web"), "MED2 root")
+config.detect_med2_root = real_detect
 check("unset root: reported, not fatal", not c.ok and not c.fatal and "not set" in c.detail)
 config.save_settings(med2_root=r"C:\nope\definitely\gone")
 c = by_name(startup.preflight(port, ROOT / "web"), "MED2 root")
@@ -174,22 +183,24 @@ check("…even when nobody passed --port at all",
 # ---- icon prewarm -------------------------------------------------------
 print("\n== icon prewarm ==")
 icon_cache = Path(_tmp.mkdtemp(prefix="ut_icons_"))
-config.save_settings(med2_root=str(
-    Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition")))
-reg = server.Registry(icon_cache)
-t0 = time.monotonic()
-cold = startup.prewarm_icons(reg, ["Third_Age_Reforged"])
-cold_s = time.monotonic() - t0
-check(f"cold cache converted {cold} cards in {cold_s:.1f}s", cold > 300)
-check("PNGs actually written", len(list(icon_cache.glob("*.png"))) >= cold)
-t0 = time.monotonic()
-warm = startup.prewarm_icons(reg, ["Third_Age_Reforged"])
-warm_s = time.monotonic() - t0
-check(f"warm cache converted nothing ({warm_s:.2f}s)", warm == 0)
-check("warm pass is much faster than cold", warm_s < cold_s / 3)
-check("unknown mod is skipped, not raised",
-      startup.prewarm_icons(reg, ["No_Such_Mod"]) == 0)
-shutil.rmtree(icon_cache, ignore_errors=True)
+if _realmod.GAME_FOUND:
+    config.save_settings(med2_root=str(GAME))
+    reg = server.Registry(icon_cache)
+    t0 = time.monotonic()
+    cold = startup.prewarm_icons(reg, ["Third_Age_Reforged"])
+    cold_s = time.monotonic() - t0
+    check(f"cold cache converted {cold} cards in {cold_s:.1f}s", cold > 300)
+    check("PNGs actually written", len(list(icon_cache.glob("*.png"))) >= cold)
+    t0 = time.monotonic()
+    warm = startup.prewarm_icons(reg, ["Third_Age_Reforged"])
+    warm_s = time.monotonic() - t0
+    check(f"warm cache converted nothing ({warm_s:.2f}s)", warm == 0)
+    check("warm pass is much faster than cold", warm_s < cold_s / 3)
+    check("unknown mod is skipped, not raised",
+          startup.prewarm_icons(reg, ["No_Such_Mod"]) == 0)
+    shutil.rmtree(icon_cache, ignore_errors=True)
+else:
+    print("  SKIPPED: no Medieval II install found, so no cards to convert")
 
 stop = {"v": False}
 icon_cache2 = Path(_tmp.mkdtemp(prefix="ut_icons2_"))

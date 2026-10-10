@@ -14,13 +14,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp
+from tests import _realmod, _tmp
 from unittransfer import config, edu, modeldb, mounts
 from unittransfer import keyblock as kb
 from unittransfer.mod import Mod
 from unittransfer.transfer import TransferOptions, plan_transfer, apply_transfer, undo
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 TATR, DAC = MODS / "Third_Age_Reforged", MODS / "Divide_and_Conquer_EUR"
 
 ok = []

@@ -23,10 +23,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp  # noqa: E402
+from tests import _realmod, _tmp  # noqa: E402
 from unittransfer import animpack, casanim  # noqa: E402
 
-GAME = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition")
+GAME = _realmod.game(required=False)
 INSTALLS = {"vanilla": GAME / "data", "ROCSS": GAME / "mods/ROCSS/data",
             "DaC": GAME / "mods/Divide_and_Conquer_EUR/data"}
 ok = []

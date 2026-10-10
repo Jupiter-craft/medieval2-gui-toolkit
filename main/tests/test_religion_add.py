@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp  # noqa: E402
+from tests import _realmod, _tmp  # noqa: E402
 from unittransfer import campmap  # noqa: E402
 from unittransfer import keyblock as kb  # noqa: E402
 from unittransfer import minorfiles as mf  # noqa: E402
@@ -36,7 +36,7 @@ if config.SETTINGS_PATH.is_file():
 config.CONFIG_DIR = cfg; config.BACKUP_DIR = cfg / "backups"
 config.SETTINGS_PATH = cfg / "settings.json"; config.LOG_PATH = cfg / "transfers.json"
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 REG = "world/maps/base/descr_regions.txt"
 ok = []
 

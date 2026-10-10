@@ -45,9 +45,10 @@ from pathlib import Path
 MAIN = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(MAIN))
 
+from tests import _realmod  # noqa: E402
 from unittransfer import animpack, casanim  # noqa: E402
 
-GAME = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition")
+GAME = _realmod.game()
 OUT = MAIN / "unittransfer" / "data" / "skeleton_slots.json"
 VANILLA_TEXT = MAIN / "Reference" / "UnitEditor11" / "vanilla"
 

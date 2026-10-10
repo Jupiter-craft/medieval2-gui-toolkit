@@ -15,7 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp
+from tests import _realmod, _tmp
 from unittransfer import config, modeldb
 from unittransfer.mod import Mod
 from unittransfer.transfer import (TransferOptions, _canon_rel, _folder_tag,
@@ -26,7 +26,7 @@ _TARGET = f"unit_models/{_folder_tag('Third_Age_Reforged')}"
 def _canon(p):
     return _canon_rel(p, _TARGET)
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 TATR, DAC = MODS / "Third_Age_Reforged", MODS / "Divide_and_Conquer_EUR"
 
 ok = []

@@ -19,10 +19,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from tests import _realmod  # noqa: E402
 from unittransfer import campmap, health  # noqa: E402
 from unittransfer.mod import Mod  # noqa: E402
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods(required=False)
 CANDIDATES = ("Divide_and_Conquer_EUR", "ROCSS", "Third_Age_Reforged")
 
 ok = []

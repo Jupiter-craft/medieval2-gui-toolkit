@@ -9,7 +9,8 @@ the new one. Covered in the three orders the page (or a raw request) can send:
 move set before the import, import made before the move, and a request that
 names the old folder for both the import and the texture box.
 
-Works on a throwaway copy of ROCSS's data files; the real mod is never touched.
+Works on a throwaway copy of a real mod's data files (ROCSS's when it is
+installed); the real mod is never touched.
 """
 import re, shutil, sys
 from pathlib import Path
@@ -17,12 +18,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp
+from tests import _realmod, _tmp
 from unittransfer import config, edit, modeldb
 from unittransfer.mod import Mod
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
-SRC_MOD = MODS / "ROCSS"
+SRC_MOD = _realmod.pick("ROCSS", need="unit_models/battle_models.modeldb")
 
 ok = []
 def check(label, cond):

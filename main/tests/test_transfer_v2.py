@@ -11,13 +11,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from tests import _tmp  # noqa: E402
+from tests import _realmod, _tmp  # noqa: E402
 from unittransfer import config, edu, localization, modeldb  # noqa: E402
 from unittransfer.mod import Mod  # noqa: E402
 import unittransfer.transfer as T  # noqa: E402
 from unittransfer.transfer import TransferOptions, plan_transfer, apply_transfer, undo  # noqa: E402
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 TATR = MODS / "Third_Age_Reforged"
 DAC = MODS / "Divide_and_Conquer_EUR"
 

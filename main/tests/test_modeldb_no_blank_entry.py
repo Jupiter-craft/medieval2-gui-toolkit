@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from tests import _realmod
 from unittransfer import modeldb
 
 ok = []
@@ -93,8 +94,8 @@ check("add_texture_factions keeps the original faction",
       "ever" in db3.entries[0].factions())
 
 print("\n== the real Third Age Total War 3 file, if present ==")
-sample = Path(r"C:\Users\projy\Downloads\Games\Total War MEDIEVAL II Definitive Edition"
-              r"\mods\third_age_3\data\unit_models\battle_models.modeldb")
+sample = (_realmod.mods(required=False) / "third_age_3" / "data" / "unit_models"
+          / "battle_models.modeldb")
 if sample.is_file():
     text = sample.read_text(encoding=modeldb.ENCODING)
     real = modeldb.parse_text(text)

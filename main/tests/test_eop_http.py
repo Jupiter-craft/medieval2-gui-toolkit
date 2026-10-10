@@ -20,13 +20,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp
+from tests import _realmod, _tmp
 from unittransfer import config
 from unittransfer import edu as edu_mod
 from unittransfer.mod import Mod
 from unittransfer.server import Handler, Registry, _Server
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 SRC = next((MODS / n for n in ("third_age_3", "Third_Age_6", "Divide_and_Conquer_EUR",
                                "Third_Age_Reforged")
             if (MODS / n / "data" / "export_descr_unit.txt").is_file()), None)

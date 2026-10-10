@@ -11,11 +11,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests import _tmp
+from tests import _realmod, _tmp
 from unittransfer import config
 from unittransfer.server import Registry, Handler, _Server
 
-MODS = Path(r"C:/Users/projy/Downloads/Games/Total War MEDIEVAL II Definitive Edition/mods")
+MODS = _realmod.mods()
 TATR = MODS / "Third_Age_Reforged"
 BASE = ""          # set once the server has bound (port 0 = let the OS pick a free
                    # one; a fixed port hits Windows' shifting reserved-port ranges)
