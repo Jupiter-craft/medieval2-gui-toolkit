@@ -2,6 +2,7 @@
 
 <p>
   <a href="https://github.com/ProJ-Yeet/Medieval2-GUI-Toolkit/releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/ProJ-Yeet/Medieval2-GUI-Toolkit?style=for-the-badge&label=download&color=e8743b"></a>
+  <a href="https://github.com/ProJ-Yeet/Medieval2-GUI-Toolkit/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/ProJ-Yeet/Medieval2-GUI-Toolkit/total?style=for-the-badge&label=downloads&color=2ea44f"></a>
   <a href="https://www.youtube.com/watch?v=NZl8gCqlTE0"><img alt="Guide: video walkthrough" src="https://img.shields.io/badge/guide-video-2b6cb0?style=for-the-badge"></a>
   <a href="https://ko-fi.com/projyeet"><img alt="Support me on Ko-fi" src="https://ko-fi.com/img/githubbutton_sm.svg" height="28"></a>
 </p>
