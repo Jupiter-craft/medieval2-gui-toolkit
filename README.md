@@ -1,5 +1,15 @@
 # Medieval 2 GUI Toolkit
 
+<p>
+  <a href="https://github.com/ProJ-Yeet/Medieval2-GUI-Toolkit/releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/ProJ-Yeet/Medieval2-GUI-Toolkit?style=for-the-badge&label=download&color=e8743b"></a>
+  <a href="https://www.youtube.com/watch?v=NZl8gCqlTE0"><img alt="Guide: video walkthrough" src="https://img.shields.io/badge/guide-video-2b6cb0?style=for-the-badge"></a>
+  <a href="https://ko-fi.com/projyeet"><img alt="Support me on Ko-fi" src="https://ko-fi.com/img/githubbutton_sm.svg" height="28"></a>
+</p>
+<p>
+  <a href="https://www.youtube.com/@proj-yeet"><img alt="YouTube" src="https://img.shields.io/badge/youtube-ProJ--Yeet-ff0000?style=for-the-badge&logo=youtube&logoColor=white"></a>
+  <a href="https://discord.gg/epic-unity-rework"><img alt="Discord" src="https://img.shields.io/badge/discord-join%20us-5865f2?style=for-the-badge&logo=discord&logoColor=white"></a>
+</p>
+
 Edit Medieval II: Total War mods without hand-editing text files. Move units
 between mods, edit what is already there, and clean out what nothing uses.
 
@@ -11,6 +21,16 @@ except the mod you point it at, and every write is backed up and undoable.
 Video walkthrough: <https://www.youtube.com/watch?v=NZl8gCqlTE0>
 
 Sponsored by FeatherLeaf.
+
+### Why support it
+
+The toolkit is free and will stay free. It is written by one person in spare
+time, and every release is checked against real overhauls (Divide and Conquer,
+Third Age Reforged) before it goes out. If it has saved you an evening of
+hand-editing text files, a coffee on [Ko-fi](https://ko-fi.com/projyeet) pays
+for the hours behind the next feature, the bug reports that get answered and the
+mods that get tested. Never required, always appreciated. Ideas and bug reports
+are just as welcome on [Discord](https://discord.gg/epic-unity-rework).
 
 ![The Unit Editor: every unit in a mod, grouped by the faction that fields it](main/docs/images/unit-editor.png)
 
