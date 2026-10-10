@@ -706,7 +706,7 @@ from typing import Dict, List, Optional
 from . import (bmdb, buildings, cards, cleaner, codeview, config, dupes, edit,
                modflags, modfiles, sounds, stratmap)
 from . import mapgen, mapnew, mapresize
-from . import modeldb, modeltext
+from . import loosemesh, modeldb, modeltext
 from . import ancillaries, areaeffects, campimport, edbimport, mapbundle, osmmap, osmsites, settlemodel, heroabilities, hordestart, walls, characters, projectzip, campaint, campdb, campevents, campfiles, campmap, campnew, campstrat, cas, casanim, animedit, animpack, animslot, animview, modelexport, launchcheck, packhouse, settlemech, fileswap, factionsites, sidefiles, banners, changesets, health, climatenew, guilds, mapcheck, mapfe, mapquery, mapterrain, mercpools, regiondel, edusort, factionaudit, factionclone, factions, images, mesh, minorfiles, namekeys, portrecords, rawtext, rebelpools, renames, soundbanks, soundscripts, spawns, sprites, stratcamp, stratchar, stratedit, stratobj, strings, traits, triggers, winconds
 from . import eop as _eop
 from . import logutil
@@ -2572,7 +2572,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._icon(q)
             if u.path in ("/api/model", "/api/model/geometry", "/model_texture",
                           "/api/model/anims", "/api/model/anim", "/api/model/export",
-                          "/api/model/mounts", "/api/model/compare"):
+                          "/api/model/mounts", "/api/model/compare",
+                          "/api/model/loose", "/api/model/loose/textures"):
                 return self._model_route(u.path, q)
             if u.path == "/api/model/skeleton_names":
                 # 86: the skeletons another mod's pack holds, to port one
@@ -5454,6 +5455,28 @@ class Handler(BaseHTTPRequestHandler):
             anim.weapons = animview.add_weapons(mod.data, anim, weapons, slot) if weapons else []
             # with each key's rotation as Euler degrees too, for the editor (57a)
             return anim_json(anim)
+
+        # A .mesh under unit_models that no entry names. It is drawn the way an
+        # entry is, as an entry of one LOD whose skins are guesses - the file
+        # names no texture, see loosemesh.py.
+        if path == "/api/model/loose":
+            return self._json({"mod": name, "meshes": loosemesh.loose_meshes(mod)})
+        if path == "/api/model/loose/textures":
+            return self._json({"mod": name, "textures": loosemesh.texture_files(mod)})
+        loose = (q.get("loose") or [""])[0]
+        if loose and path in ("/api/model", "/api/model/geometry"):
+            # held under data/ like every `rel` this server takes
+            src = factions.picture_path(mod, loose)
+            if src is None or not src.is_file() or src.suffix.lower() != ".mesh":
+                return self._err(404, f"{loose!r} is not a .mesh in {name}")
+            if path == "/api/model":
+                return self._json(loosemesh.view(mod, src.relative_to(mod.data).as_posix()))
+            try:
+                decoded = mesh.read_mesh(src)
+            except mesh.MeshError as e:
+                return self._err(400, str(e))
+            return self._send(200, mesh.geometry_payload(decoded),
+                              "application/octet-stream")
 
         entry = mod.modeldb.by_name().get((q.get("entry") or [""])[0].lower())
         if entry is None:

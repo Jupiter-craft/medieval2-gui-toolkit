@@ -347,7 +347,8 @@ function v3aMountRow(actions, slot){
 /* Called by v3Load once a model's geometry is in: a skinned .mesh asks which
    actions its skeletons have. A .cas and a static model have none to ask for. */
 async function v3AnimInit(){
-  if(!v3 || !v3.geo || !v3.geo.skinned) return v3AnimPanel();
+  // a loose mesh has no entry, so no skeleton is named for it
+  if(!v3 || !v3.geo || !v3.geo.skinned || v3.loose) return v3AnimPanel();
   if(!v3.anim) v3.anim = {list: null, set: 0, skel: '', find: '', key: '', data: null,
                           playing: true, t: 0, speed: 1, err: '',
                           seq: [], seqData: null, seqOn: false, overlap: true,
@@ -1454,7 +1455,8 @@ async function v3AnimPortApply(){
 function v3ExportPanel(){
   const host = document.getElementById('v3export');
   if(!host) return;
-  if(!v3 || v3.cas || !v3.geo){ host.innerHTML = ''; return; }
+  // the export is built from an entry, and a loose mesh has none
+  if(!v3 || v3.cas || v3.loose || !v3.geo){ host.innerHTML = ''; return; }
   const a = v3.anim, sk = a && a.list ? v3AnimSk() : null;
   const loose = sk ? (sk.actions || []).filter(r => r.rel).length : 0;
   const all = v3.exportAll !== false;

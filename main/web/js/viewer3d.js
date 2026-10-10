@@ -282,13 +282,27 @@ async function v3Open(mod, entry){
    second copy of a 30 MB mesh and a second animation loop, for a second view of
    a model nobody is looking at; mounting somewhere new drops what was there. */
 async function v3Mount(hostId, mod, entry){
-  if(v3 && v3.host === hostId && v3.entry === entry && v3.mod === mod) return;
+  if(v3 && v3.host === hostId && v3.entry === entry && v3.mod === mod && !v3.loose) return;
   v3Stop();
   v3Back = null; v3 = null;
   const host = document.getElementById(hostId);
   if(!host) return;
   host.innerHTML = `<div class="empty">${tt('viewer3d.reading',{entry:esc(entry)})}</div>`;
   await v3Begin(mod, entry, hostId);
+}
+
+/* A .mesh under unit_models that no entry names, docked the same way. It is
+   drawn as an entry of one LOD; the file names no texture, so the skins it is
+   offered are the server's guesses (loosemesh.py) and anything picked by hand. */
+async function v3MountLoose(hostId, mod, rel){
+  if(v3 && v3.host === hostId && v3.loose === rel && v3.mod === mod) return;
+  v3Stop();
+  v3Back = null; v3 = null;
+  const host = document.getElementById(hostId);
+  if(!host) return;
+  const name = rel.split('/').pop();
+  host.innerHTML = `<div class="empty">${tt('viewer3d.reading',{entry:esc(name)})}</div>`;
+  await v3Begin(mod, name, hostId, '', rel);
 }
 
 /* 49: let go of a docked viewer whose host has left the page.
@@ -360,7 +374,7 @@ async function v3MountCas(hostId, mod, rel){
   await v3Begin(mod, rel.split('/').pop(), hostId, rel);
 }
 
-async function v3Begin(mod, entry, host, cas){
+async function v3Begin(mod, entry, host, cas, loose){
   // Whatever was showing goes first. Two WebGL contexts on one page is two
   // copies of a 30 MB mesh and two animation loops, one of them for a view
   // nobody can see any more.
@@ -368,6 +382,7 @@ async function v3Begin(mod, entry, host, cas){
   v3 = null;
   let info;
   const url = cas ? `/api/map/model?mod=${enc(mod)}&rel=${enc(cas)}`
+            : loose ? `/api/model?mod=${enc(mod)}&loose=${enc(loose)}`
                   : `/api/model?mod=${enc(mod)}&entry=${enc(entry)}`;
   try{ info = await api.get(url); }
   catch(e){ return v3Fail(''+e, host); }
@@ -376,7 +391,7 @@ async function v3Begin(mod, entry, host, cas){
   // `skin` indexes info.skins, because a skin is a PAIR of files now - the
   // main sheet and the attachment sheet a faction uses together - and a pair
   // has no one path to name it by
-  v3 = {mod, entry, info, cas: cas || '', host: host || '', lod: 0, skin: 0,
+  v3 = {mod, entry, info, cas: cas || '', loose: loose || '', host: host || '', lod: 0, skin: 0,
         geo: null, tex: null, texAtt: null, hidden: {}, variant: {},
         wire: false, spin: false, uv: false,
         // the UV layout pane: whether it is open, how it is framed (null until
@@ -410,6 +425,14 @@ function v3HostEl(host){
    others share it. A skin used by everyone is named for the file instead -
    there is no one faction it belongs to. */
 function v3SkinLabel(s){
+  // a loose mesh's skins are guesses, and the label says which kind
+  if(s.why){
+    const file = (s.rel || '').split('/').pop();
+    if(s.why === 'copy') return tt('viewer3d.skin_from_copy',{entry:s.entry,file});
+    if(s.why === 'folder') return tt('viewer3d.skin_from_folder',{file});
+    if(s.why === 'elsewhere') return tt('viewer3d.skin_from_elsewhere',{file});
+    return tt('viewer3d.skin_by_hand',{file});
+  }
   const n = (s.factions||[]).length;
   if(n === 0) return (s.rel || tt('viewer3d.no_texture')).split('/').pop();
   if(n === 1) return facLabel(s.factions[0]);
@@ -471,10 +494,7 @@ function v3Render(){
   // one option per PAIR of files: an entry that lists 29 factions against the
   // same main and attachment textures has one skin, and saying so is more use
   // than 29 identical rows
-  const skins = i.skins.length
-    ? i.skins.map((s, n) => `<option value="${n}" ${n===v3.skin?'selected':''}
-        ${s.exists?'':'disabled'}>${esc(v3SkinLabel(s))}${s.exists?'':' - not in this mod'}</option>`).join('')
-    : `<option>${tt('viewer3d.no_skins_on_this_entry')}</option>`;
+  const skins = v3SkinOptions();
 
   const host = v3HostEl();
   if(!host) return;
@@ -512,7 +532,8 @@ function v3Render(){
         <label class="v3f"><span>${tt('viewer3d.level_of_detail')}</span>
           <select onchange="v3SetLod(this.value)">${lods}</select></label>
         <label class="v3f"><span>${tt('viewer3d.skin')}</span>
-          <select onchange="v3SetSkin(this.value)" ${i.skins.length?'':'disabled'}>${skins}</select></label>`}
+          <select id="v3skinsel" onchange="v3SetSkin(this.value)" ${i.skins.length?'':'disabled'}>${skins}</select></label>
+        ${v3.loose ? '<div id="v3pick"></div>' : ''}`}
         <div class="v3btns">
           <button id="v3spin" class="${v3.spin?'on':''}" onclick="v3Toggle('spin')">${tt('viewer3d.rotate')}</button>
           <button id="v3wire" class="${v3.wire?'on':''}" onclick="v3Toggle('wire')">${tt('viewer3d.wireframe')}</button>
@@ -533,6 +554,7 @@ function v3Render(){
   v3Parts();
   v3Facts();
   v3UvKey();
+  v3PickPanel();
   if(typeof v3AnimPanel === 'function') v3AnimPanel();
   if(typeof v3ExportPanel === 'function') v3ExportPanel();
   const c = document.getElementById('v3canvas');
@@ -793,7 +815,9 @@ function v3Facts(){
     tt('viewer3d.in_game_units',{x:size[0],x2:size[1],x3:size[2]}),
     g.bones.length ? tt('viewer3d.rigged_to_bones',{bones_n:g.bones.length}) : 'no skeleton - a static model',
     skin && skin.rel ? tt(skin.exists ? 'viewer3d.main_texture' : 'viewer3d.main_texture_missing',{rel:esc(skin.rel)})
+                     : v3.loose ? tt('viewer3d.loose_no_texture_found')
                      : tt('viewer3d.no_texture_listed_on_this_entry'),
+    v3.loose ? tt('viewer3d.loose_names_no_texture') : '',
     // What is actually on the model right now, which is not always what the
     // file holds: without HD, anything over 1024 arrived halved. Reading it off
     // the loaded image rather than the file means the line cannot claim a size
@@ -832,6 +856,7 @@ async function v3Load(){
   try{
     const r = await fetch(v3.cas
       ? `/api/map/model/geometry?mod=${enc(v3.mod)}&rel=${enc(v3.cas)}`
+      : v3.loose ? `/api/model/geometry?mod=${enc(v3.mod)}&loose=${enc(v3.loose)}`
       : `/api/model/geometry?mod=${enc(v3.mod)}&entry=${enc(v3.entry)}&lod=${v3.lod}`);
     if(!r.ok){
       // the decoder's own sentence is the useful part, so it is shown as-is
@@ -1010,6 +1035,90 @@ function v3Parse(buf){
 
 function v3SetLod(v){ if(!v3) return; v3.lod = +v; v3Stop(); v3.geo = null; v3Load(); }
 function v3SetSkin(v){ if(!v3) return; v3.skin = +v; v3LoadSkin(v3Gen); v3Facts(); }
+
+function v3SkinOptions(){
+  const i = v3.info;
+  return i.skins.length
+    ? i.skins.map((s, n) => `<option value="${n}" ${n===v3.skin?'selected':''}
+        ${s.exists?'':'disabled'}>${esc(v3SkinLabel(s))}${s.exists?'':' - not in this mod'}</option>`).join('')
+    : `<option>${tt(v3.loose ? 'viewer3d.no_texture_suggested' : 'viewer3d.no_skins_on_this_entry')}</option>`;
+}
+
+/* --- a texture picked by hand, for a loose mesh ----------------------------
+   The guesses run out quickly: most of Divide and Conquer's loose meshes sit in
+   en_lmail_hmail, whose sheets are named for factions rather than models. So
+   any sheet under unit_models can be put on as the main and attachment sheet.
+   Two text boxes over one datalist, because a list of 3,000 files is something
+   to type into rather than scroll. The list is fetched once per mod. */
+let v3TexList = null;           // {mod, textures} once fetched
+
+function v3PickPanel(){
+  const host = document.getElementById('v3pick');
+  if(!host || !v3 || !v3.loose) return;
+  if(!v3.pick){
+    host.innerHTML = `<button onclick="v3PickOpen()"
+      title="${ttA('viewer3d.pick_texture_title')}">${tt('viewer3d.pick_texture')}</button>`;
+    return;
+  }
+  const have = v3TexList && v3TexList.mod === v3.mod;
+  const list = have ? v3TexList.textures : [];
+  host.innerHTML = `<datalist id="v3texlist">${list.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
+    <label class="v3f"><span>${tt('viewer3d.main_sheet')}</span>
+      <input id="v3pickMain" type="text" list="v3texlist" value="${esc(v3.pick.main)}"
+        placeholder="${ttA('viewer3d.type_to_search_textures')}"></label>
+    <label class="v3f"><span>${tt('viewer3d.attach_sheet')}</span>
+      <input id="v3pickAtt" type="text" list="v3texlist" value="${esc(v3.pick.att)}"
+        placeholder="${ttA('viewer3d.optional')}"></label>
+    <div class="v3btns">
+      <button class="primary" onclick="v3PickApply()">${tt('viewer3d.put_it_on')}</button>
+      <button onclick="v3PickCancel()">${tt('common.cancel')}</button>
+    </div>
+    ${have ? '' : `<div class="count">${tt('viewer3d.finding_textures')}</div>`}`;
+}
+
+async function v3PickOpen(){
+  if(!v3) return;
+  const skin = v3Skin();
+  v3.pick = {main: skin ? skin.rel || '' : '', att: skin ? skin.attach || '' : ''};
+  v3PickPanel();
+  if(v3TexList && v3TexList.mod === v3.mod) return;
+  const mine = v3, mod = v3.mod;
+  let d;
+  try{ d = await api.get(`/api/model/loose/textures?mod=${enc(mod)}`); }
+  catch(e){ d = {error: errText(e)}; }
+  if(d.error){ toast(d.error, 4000); return; }
+  v3TexList = {mod, textures: d.textures || []};
+  if(v3 === mine && v3.pick){
+    // keep what was typed while the list was on its way
+    const m = document.getElementById('v3pickMain'), a = document.getElementById('v3pickAtt');
+    if(m) v3.pick.main = m.value;
+    if(a) v3.pick.att = a.value;
+    v3PickPanel();
+  }
+}
+
+function v3PickCancel(){ if(!v3) return; v3.pick = null; v3PickPanel(); }
+
+function v3PickApply(){
+  if(!v3) return;
+  const clean = v => (v || '').trim().replace(/\\/g, '/').replace(/^data\//i, '');
+  const main = clean((document.getElementById('v3pickMain') || {}).value);
+  const att = clean((document.getElementById('v3pickAtt') || {}).value);
+  if(!main && !att){ toast(tt('viewer3d.name_a_sheet_first'), 3000); return; }
+  // the server checks each path when it is fetched: one that is not a file under
+  // data/ comes back blank, and the facts panel says the sheet is missing
+  const row = {rel: main || att, exists: true, attach: main ? att : '',
+               attach_exists: !!(main && att), factions: [], why: 'hand'};
+  const skins = v3.info.skins;
+  const at = skins.findIndex(s => s.why === 'hand');
+  if(at >= 0) skins[at] = row; else skins.push(row);
+  v3.skin = at >= 0 ? at : skins.length - 1;
+  v3.pick = null;
+  const sel = document.getElementById('v3skinsel');
+  if(sel){ sel.innerHTML = v3SkinOptions(); sel.disabled = false; }
+  v3PickPanel();
+  v3SetSkin(v3.skin);
+}
 // the 3D view redraws itself every frame; the UV pane draws on demand, so
 // anything that changes WHICH groups are drawn has to say so
 function v3SetVariant(part, idx){ if(!v3) return; v3.variant[part] = +idx; v3UvEdDraw(); }

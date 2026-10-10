@@ -104,6 +104,7 @@ function bmdbRow(e){
    box, and the canvas must not be rebuilt (and the mesh refetched) each time. */
 let bmPrevNode = null;          // the panel, or null when it is closed
 let bmPrevEntry = '';           // which entry it is showing
+let bmPrevLoose = '';           // or which loose .mesh, relative to data/
 const BM_PREV_HOST = 'bmV3Host';
 
 function bmPrevDetach(){
@@ -127,7 +128,7 @@ const bmPrevOn = () => state.settings.bmdb_preview !== false;
 function bmPrevClose(){
   if(v3 && v3.host === BM_PREV_HOST) v3Unmount();
   bmPrevDetach();
-  bmPrevNode = null; bmPrevEntry = '';
+  bmPrevNode = null; bmPrevEntry = ''; bmPrevLoose = '';
   state.settings.bmdb_preview = false;
   api.post('/api/settings', {bmdb_preview: false});
   renderBmdb();
@@ -149,33 +150,116 @@ function bmPrevMake(name){
     bmPrevNode.className = 'bmprev';
     bmPrevNode.id = 'bmPrevCol';
     bmPrevNode.innerHTML = `<div class="edprevbar" id="bmPrevBar"></div>
+      <details class="bmloose" ontoggle="if(this.open)bmLooseLoad()">
+        <summary>${tt('bmdb.loose_meshes')}</summary>
+        <div class="stmbrowse" id="bmLooseBrowse"></div>
+      </details>
       <div class="edprevbody" id="${BM_PREV_HOST}"></div>`;
   }
   bmPrevEntry = name || bmPrevEntry;
 }
 function bmPrevOpen(name){
+  bmPrevLoose = '';
+  bmLoosePaint();
   bmPrevMake(name);
   renderBmdb();               // re-marks the row that is showing, then re-attaches
 }
 function bmPrevBar(){
   const el = document.getElementById('bmPrevBar');
   if(!el) return;
+  const what = bmPrevLoose ? bmPrevLoose.split('/').pop() : bmPrevEntry;
   el.innerHTML = `<b>3D</b>
-    <span class="count" title="${esc(bmPrevEntry)}">${esc(bmPrevEntry || tt('bmdb.pick_an_entry'))}</span>
+    <span class="count" title="${esc(bmPrevLoose || bmPrevEntry)}">${esc(what || tt('bmdb.pick_an_entry'))}</span>
     <span class="sp"></span>
-    ${bmPrevEntry?`<button onclick="openBmdbEntry('${q1(esc(bmPrevEntry))}')"
-      title="${ttA('bmdb.open_this_entrys_editor')}">✎</button>
-    <button onclick="bmPrevFull()" title="${ttA('bmdb.full_screen_esc_comes_back')}">⤢</button>`:''}
+    ${bmPrevEntry && !bmPrevLoose?`<button onclick="openBmdbEntry('${q1(esc(bmPrevEntry))}')"
+      title="${ttA('bmdb.open_this_entrys_editor')}">✎</button>`:''}
+    ${what?`<button onclick="bmPrevFull()" title="${ttA('bmdb.full_screen_esc_comes_back')}">⤢</button>`:''}
     <button onclick="bmPrevClose()" title="${ttA('bmdb.close_the_panel')}">✕</button>`;
 }
 async function bmPrevMount(){
   const host = document.getElementById(BM_PREV_HOST);
   if(!host) return;
+  if(bmPrevLoose) return v3MountLoose(BM_PREV_HOST, state.src, bmPrevLoose);
   if(!bmPrevEntry){
     host.innerHTML = `<div class="empty">${tt('bmdb.press_on_any_row')}</div>`;
     return;
   }
   await v3Mount(BM_PREV_HOST, state.src, bmPrevEntry);
+}
+
+/* ---- the meshes no entry names ------------------------------------------
+   A mod ships more .mesh files under unit_models than its modeldb names - 268
+   in Divide and Conquer. They have no row in the list above, so they get a
+   folded list of their own inside the panel, walked the first time it is
+   opened. A click draws one; the file names no texture, so the viewer offers
+   the server's guesses and a sheet picked by hand (v3MountLoose). A mesh whose
+   name already matches a sheet is marked, because those are the ones that
+   open looking like something. */
+function bmLooseNew(mod){ return {mod, loading: false, err: '', meshes: null, filter: ''}; }
+
+async function bmLooseLoad(){
+  const mod = state.src;
+  const was = state.bmloose;
+  if(was && was.mod === mod && (was.meshes || was.loading)) return bmLoosePaint();
+  const k = state.bmloose = bmLooseNew(mod);
+  k.loading = true;
+  bmLoosePaint();
+  let d;
+  try{ d = await api.get(`/api/model/loose?mod=${enc(mod)}`); }
+  catch(e){ d = {error: errText(e)}; }
+  if(state.bmloose !== k) return;
+  k.loading = false;
+  if(d.error) k.err = d.error; else k.meshes = d.meshes || [];
+  bmLoosePaint();
+}
+
+function bmLooseFilter(text){
+  const k = state.bmloose;
+  if(!k) return;
+  k.filter = text;
+  bmLoosePaint();
+  const el = document.getElementById('bmLooseFilter');
+  if(el){ el.value = text; el.focus(); }
+}
+
+function bmLooseShow(rel){
+  bmPrevLoose = rel;
+  bmPrevEntry = '';
+  bmLoosePaint();
+  bmPrevBar();
+  bmPrevMount();
+  // the list is not re-rendered, so the row that was showing is let go here
+  main.querySelectorAll('.dbrow.showing').forEach(r => r.classList.remove('showing'));
+}
+
+function bmLoosePaint(){
+  const el = document.getElementById('bmLooseBrowse');
+  if(!el) return;
+  const k = state.bmloose;
+  if(!k || k.mod !== state.src){ el.innerHTML = ''; return; }
+  if(k.loading){ el.innerHTML = `<div class="count">${tt('bmdb.finding_loose_meshes')}</div>`; return; }
+  if(k.err){ el.innerHTML = `<div class="w-warn">${esc(k.err)}</div>`; return; }
+  const all = k.meshes || [];
+  if(!all.length){ el.innerHTML = `<div class="count">${tt('bmdb.no_loose_meshes')}</div>`; return; }
+  const want = (k.filter || '').trim().toLowerCase();
+  const shown = want ? all.filter(m => m.rel.toLowerCase().includes(want)) : all;
+  const groups = new Map();
+  for(const m of shown){
+    if(!groups.has(m.group)) groups.set(m.group, []);
+    groups.get(m.group).push(m);
+  }
+  const rows = [...groups.entries()].map(([group, list]) => `
+    <div class="k">${esc(group)} <span class="count">${list.length}</span></div>
+    ${list.map(m => `<button class="cmodrow${bmPrevLoose === m.rel ? ' on' : ''}"
+        onclick="bmLooseShow('${q1(esc(m.rel))}')" title="${esc(m.rel)}"
+        >${tt('bmdb.loose_row',{name:esc(m.name),hint:m.hint?'🎨 ':'',bytes:Math.round(m.bytes/1024)})}</button>`
+      ).join('')}`).join('');
+  el.innerHTML = `<div class="count">${tt('bmdb.loose_meshes_intro',{n:all.length,hinted:all.filter(m=>m.hint).length})}</div>
+    <label class="v3f"><span>${tt('common.find')}</span>
+      <input id="bmLooseFilter" type="text" value="${esc(k.filter)}"
+        oninput="bmLooseFilter(this.value)"></label>
+    ${want ? `<div class="count">${tt('stratview.shown_of_total',{shown:shown.length,total:all.length})}</div>` : ''}
+    <div class="cmodlist">${rows || `<div class="count">${tt('stratview.nothing_by_that_name')}</div>`}</div>`;
 }
 function bmPrevFull(){
   const el = bmPrevNode;
