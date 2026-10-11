@@ -330,7 +330,11 @@ document.addEventListener('change',e=>{
 window.addEventListener('pagehide',flushActivity);
 
 const esc=s=>(s==null?'':''+s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const q1=v=>v.replace(/'/g,"\\'");
+// For a value going into a '…' string inside an inline onclick. Backslashes are
+// escaped first: a Windows path like `D:\mods\data\ui\x.tga` otherwise reaches
+// the parser as `\u`, a broken unicode escape, and the whole handler is a
+// SyntaxError - the button silently does nothing.
+const q1=v=>v.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 // A note is a short lead line and then points. Prose that runs for six lines is
 // unreadable in an 11.5px grey box, so anything carrying more than one fact is
 // written this way. .count, .bnote, .sprnote and .gfdoc all style the list.
