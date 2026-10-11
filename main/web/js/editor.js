@@ -1193,9 +1193,7 @@ function edWireCompare(){
   if(q)q.oninput=()=>{ e.cmpQ=q.value;
     // in the picker the list itself is the thing being filtered; in the table
     // only the rows are, and both want the caret left where it is
-    edRenderTab();
-    const n=document.getElementById('cmpQ');
-    if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}
+    caretKeep('cmpQ',edRenderTab);
   };
   const same=document.getElementById('cmpSame');
   if(same)same.onchange=()=>edCmpToggleSame(same.checked);

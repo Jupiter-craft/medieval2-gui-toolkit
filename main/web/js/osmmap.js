@@ -708,9 +708,7 @@ function osmHistFilter(v){
   state.osm.hq = v;
   clearTimeout(_osmHq);
   _osmHq = setTimeout(() => {
-    osmPaint();
-    const e = document.getElementById('osmHq');
-    if(e){ e.focus(); e.setSelectionRange(e.value.length, e.value.length); }
+    caretKeep('osmHq', osmPaint);
   }, 250);
 }
 

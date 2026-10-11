@@ -264,9 +264,7 @@ function eduTidyClearMarks(){
 function eduTidyFind(v){
   eduTidy.q=v;
   const body=document.getElementById('eduBody');
-  if(body){body.innerHTML=eduTidyOrder(); eduTidyWireOrder();
-    const el=document.getElementById('eduQ');
-    if(el){el.focus(); el.setSelectionRange(el.value.length,el.value.length);}}
+  if(body)caretKeep('eduQ',()=>{body.innerHTML=eduTidyOrder(); eduTidyWireOrder();});
 }
 // One drop-down, with whatever the unit already has kept in the list even when
 // the mod's own vocabulary does not have it.

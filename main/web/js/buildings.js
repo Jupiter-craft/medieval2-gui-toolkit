@@ -2356,8 +2356,7 @@ function renderFacPicker(){
       <button class="primary" onclick="bldFacDone()">${tt('buildings.done')}</button>
     </div>`;
   const qbox=document.getElementById('facQ');
-  qbox.oninput=()=>{c.pick.q=qbox.value;renderFacPicker();
-    const n=document.getElementById('facQ');n.focus();n.setSelectionRange(n.value.length,n.value.length);};
+  qbox.oninput=()=>{c.pick.q=qbox.value;caretKeep('facQ',renderFacPicker);};
   document.querySelectorAll('[data-fac]').forEach(cb=>cb.onchange=()=>{
     const set=new Set(cond.values||[]);
     cb.checked?set.add(cb.dataset.fac):set.delete(cb.dataset.fac);

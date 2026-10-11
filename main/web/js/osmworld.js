@@ -613,9 +613,7 @@ function owpSiteFilter(v){
   state.owp.sq = v;
   clearTimeout(_owpSq);
   _owpSq = setTimeout(() => {
-    owpSide();
-    const e = document.getElementById('owpSq');
-    if(e){ e.focus(); e.setSelectionRange(e.value.length, e.value.length); }
+    caretKeep('owpSq', owpSide);
   }, 250);
 }
 

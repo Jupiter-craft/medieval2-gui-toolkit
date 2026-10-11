@@ -42,7 +42,7 @@ async function renameOpen(mod, subject, old, after){
 function renameSet(value){
   renameUi.next = value;
   renameUi.plan = null;                   // a new name means the old plan is stale
-  renamePaint();
+  caretKeep('renameBox', renamePaint);
 }
 
 function renamePaint(){

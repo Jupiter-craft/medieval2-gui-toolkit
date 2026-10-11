@@ -335,6 +335,19 @@ const esc=s=>(s==null?'':''+s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 // the parser as `\u`, a broken unicode escape, and the whole handler is a
 // SyntaxError - the button silently does nothing.
 const q1=v=>v.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+/* Repaint something that holds the box being typed in, and put the box's
+   caret back exactly where it was. Not at the end: a letter typed mid-word
+   would send it there, and not left to focus(), which puts it at the start.
+   Better still is not to repaint the box at all - only the rows under it. */
+function caretKeep(id, paint){
+  const was=document.getElementById(id);
+  const had=!!was&&document.activeElement===was;
+  const s=had?was.selectionStart:null, e=had?was.selectionEnd:null;
+  const r=paint();
+  const n=document.getElementById(id);
+  if(n&&had){ n.focus(); try{ n.setSelectionRange(s,e); }catch(_){} }
+  return r;
+}
 // A note is a short lead line and then points. Prose that runs for six lines is
 // unreadable in an 11.5px grey box, so anything carrying more than one fact is
 // written this way. .count, .bnote, .sprnote and .gfdoc all style the list.
