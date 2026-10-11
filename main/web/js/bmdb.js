@@ -67,6 +67,8 @@ function renderBmdb(){
       <h2>${tt('bmdb.battle_model_entries',{src:esc(state.src),names:state.bmdb.names})}</h2>
       ${tt('bmdb.referenced_by_nothing',{nUnused,nUnused2:nUnused?tt('bmdb.clean_up_bmdb_moves_them_out'):'',x:dupBlocks?ttN('bmdb.entry_blocks_share_a_name',dupBlocks):'',x2:dupBlocks?`<button onclick="openDupes()"
         title="${ttA('bmdb.m2tw_reads_the_first_entry_with')}">${tt('bmdb.duplicates',{dupBlocks})}</button>`:''})}
+      <button onclick="bmFolderJump()"
+        title="${ttA('bmdb.folder_button_title')}">${tt('bmdb.folder_button')}</button>
       <button class="${bmPrevNode?'on':''}" onclick="bmPrevToggle()"
         title="${ttA('bmdb.draw_a_battle_model_beside_the')}">${tt('bmdb.view_in_3d')}</button>
     </div>
@@ -155,7 +157,7 @@ function bmPrevMake(name){
         <summary>${tt('bmdb.loose_meshes')}</summary>
         <div class="stmbrowse" id="bmLooseBrowse"></div>
       </details>
-      <details class="bmloose" ontoggle="if(this.open)bmFolderPaint()">
+      <details class="bmloose" id="bmFolderBox" ontoggle="if(this.open)bmFolderPaint()">
         <summary>${tt('bmdb.folder_models')}</summary>
         <div class="stmbrowse" id="bmFolderBrowse"></div>
       </details>
@@ -279,6 +281,25 @@ function bmLoosePaint(){
    the list. The folder is not the mod's, so it outlives switching mods, and the
    last few opened are kept in the settings to come back to. */
 const BM_FOLDER_KEEP = 6;
+
+/* The header's 📁 button: the list lives in the 3D panel, folded, and a panel
+   that is shut hides it entirely - so this opens the panel, unfolds the list
+   and puts the cursor in the path box. */
+function bmFolderJump(){
+  if(!bmPrevNode){
+    state.settings.bmdb_preview = true;
+    api.post('/api/settings', {bmdb_preview: true});
+    const first = main.querySelector('.dbrow');
+    bmPrevOpen(first ? first.dataset.name : '');
+  }
+  const box = document.getElementById('bmFolderBox');
+  if(!box) return;
+  box.open = true;
+  bmFolderPaint();
+  box.scrollIntoView({block: 'nearest'});
+  const input = document.getElementById('bmFolderPath');
+  if(input) input.focus();
+}
 
 function bmFolderState(){
   if(!state.bmfolder){

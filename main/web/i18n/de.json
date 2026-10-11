@@ -10082,5 +10082,7 @@
  "viewer3d.swap_sheets": "⇄ Haupt- und Attachment-Textur tauschen",
  "viewer3d.swap_sheets_title": "Die Haupttextur in den Attachment-Slot legen und die Attachment-Textur in den Haupt-Slot, für den Fall, dass die Vermutung sie vertauscht hatte.",
  "eng.meshfolder.no_folder_named": "kein Ordner angegeben",
- "eng.meshfolder.is_not_a_folder": "{raw} ist kein Ordner"
+ "eng.meshfolder.is_not_a_folder": "{raw} ist kein Ordner",
+ "bmdb.folder_button": "📁 Ordner öffnen…",
+ "bmdb.folder_button_title": "Die Modelle in einem beliebigen Ordner auf diesem PC ansehen, einem Blender-Export oder einem Ordner data, ohne ihn zu installieren. Öffnet das 3D-Feld."
 }

@@ -10537,5 +10537,7 @@
  "viewer3d.swap_sheets_title": "Poner la hoja principal en la ranura acoplada y la acoplada en la principal, para cuando la suposición las tenía al revés.",
  "bmdb.folder_no_models": "No hay ninguna malla .mesh en esta carpeta ni en las carpetas que contiene.",
  "eng.meshfolder.no_folder_named": "no se ha indicado ninguna carpeta",
- "eng.meshfolder.is_not_a_folder": "{raw} no es una carpeta"
+ "eng.meshfolder.is_not_a_folder": "{raw} no es una carpeta",
+ "bmdb.folder_button": "📁 Abrir una carpeta…",
+ "bmdb.folder_button_title": "Ver los modelos de cualquier carpeta de este PC, una exportación de Blender o una carpeta data, sin instalarla. Abre el panel 3D."
 }

@@ -292,6 +292,8 @@
 "bmdb.loose_meshes": "Meshes no entry names",
 "bmdb.loose_meshes_intro": "{n} in all. 🎨 marks the {hinted} with a texture of the same name. Any of them can take a texture picked by hand.",
 "bmdb.loose_row": "{hint}{name}<span class=\"count\">{bytes} KB</span>",
+"bmdb.folder_button": "📁 Open a folder…",
+"bmdb.folder_button_title": "Look at the models in any folder on this PC, a Blender export or a data folder, without installing it. Opens the 3D panel.",
 "bmdb.folder_models": "Models in a folder outside the mod",
 "bmdb.folder_intro": "Any folder on this PC: a Blender export (one model to a folder, with its <code>textures</code> and maybe a <code>_bmdb.txt</code>) or a <code>data</code> folder made to paste into a mod. Read only, nothing is copied.",
 "bmdb.folder_path_placeholder": "Paste a folder's path, or pick one",
