@@ -89,6 +89,8 @@ function renderBmdbFolder(){
     <div class="bmmain bmfoldercol">${bmFolderColHtml()}</div>
   </div>`;
   bmPrevAttach();
+  // a folder model plays the top mod's animations, so a new mod reloads them
+  if(v3 && v3IsFolder() && v3.anim && v3.anim.from !== v3AnimMod()) v3AnimInit();
 }
 function bmdbRow(e){
   const use=e.unused?`<span class="w-warn">${tt('common.nothing_references_it')}</span>`

@@ -252,25 +252,62 @@ class FolderSource:
                 best[key] = p
         return [best[k] for k in sorted(best)]
 
-    def _from_bmdb(self, src: Path) -> List[dict]:
-        """The skins the export's own ``_bmdb.txt`` names, found by file name."""
+    def _bmdb_entry(self, src: Path):
+        """The export's own ``_bmdb.txt`` beside ``src``, read, and its name."""
         stem = src.name[:-5] if src.name.lower().endswith(".mesh") else src.stem
         here = [p for p in self.files if p.parent == src.parent
                 and p.name.lower().endswith("bmdb.txt")]
         mine = [p for p in here if p.name.lower() == f"{stem.lower()}_bmdb.txt"]
         pick = mine[0] if mine else (here[0] if len(here) == 1 else None)
         if pick is None:
-            return []
+            return None, ""
         try:
             e = modeldb.parse_entry(pick.read_text(encoding=modeldb.ENCODING))
         except (ValueError, OSError) as err:
             self.notes.append(f"{self.rel(pick)}: {err}")
+            return None, ""
+        return e, pick.name
+
+    def _from_bmdb(self, src: Path) -> List[dict]:
+        """The skins the export's own ``_bmdb.txt`` names, found by file name."""
+        e, name = self._bmdb_entry(src)
+        if e is None:
             return []
         self._place(e, [src.parent / "textures", src.parent])
         rows = [r for r in mesh.entry_view(e, self.root)["skins"] if r["exists"]]
         for r in rows:
-            r["why"], r["entry"] = "bmdb", pick.name
+            r["why"], r["entry"] = "bmdb", name
         return rows
+
+    def skeleton_sets(self, rel: str, known: List[str]) -> dict:
+        """The skeletons a mesh with no entry is animated by, and how they were found.
+
+        The folder has no animations of its own: they are played out of a
+        mod's packs, by skeleton name. The export's ``_bmdb.txt`` names its
+        skeletons when there is one. Otherwise an export carries a ``.cas`` of
+        each skeleton it was rigged to beside the mesh, named for it
+        (``mtw2_swordsman.cas``), so a ``.cas`` whose name is a skeleton in
+        ``known`` (the mod's pack) is taken as one. ``sets`` is shaped like an
+        entry's, for :func:`unittransfer.animview.sets_view`.
+        """
+        src = self.root / rel
+        e, name = self._bmdb_entry(src)
+        if e is not None and e.animations:
+            return {"why": "bmdb", "from": name, "sets": [
+                {"mount": a.mount_type, "primary": a.primary_skeleton,
+                 "secondary": a.secondary_skeleton,
+                 "primary_weapons": list(a.pri_weapons),
+                 "secondary_weapons": list(a.sec_weapons)} for a in e.animations]}
+        by_low = {k.lower(): k for k in known}
+        cas = [p for p in sorted(src.parent.iterdir(), key=lambda p: p.name.lower())
+               if p.is_file() and p.suffix.lower() == ".cas"] if src.parent.is_dir() else []
+        names = [by_low[p.stem.lower()] for p in cas if p.stem.lower() in by_low]
+        if not names:
+            return {"why": "", "from": "", "sets": []}
+        return {"why": "cas", "from": ", ".join(p.name for p in cas if p.stem.lower() in by_low),
+                "sets": [{"mount": "none", "primary": names[0],
+                          "secondary": names[1] if len(names) > 1 else "",
+                          "primary_weapons": [], "secondary_weapons": []}]}
 
     def _guess(self, src: Path) -> List[dict]:
         """Main and attachment sheets taken from the folder, best guess first."""

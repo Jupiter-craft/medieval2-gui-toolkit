@@ -10542,5 +10542,14 @@
  "bmdb.folder_button_title": "Ver los modelos de cualquier carpeta de este PC, una exportación de Blender o una carpeta data, sin instalarla. Abre el panel 3D.",
  "bmdb.folder_leave": "← Entradas de modelos",
  "bmdb.folder_leave_title": "Volver a las entradas de modelos de este mod. La carpeta queda abierta para la próxima vez.",
- "bmdb.folder_pick_a_model": "Abrir una carpeta y elegir un modelo de la lista."
+ "bmdb.folder_pick_a_model": "Abrir una carpeta y elegir un modelo de la lista.",
+ "v3anim.folder_anims_from": "Animaciones de los packs de {mod}, el mod elegido arriba.",
+ "v3anim.folder_skel_bmdb": "Esqueleto nombrado por {file}.",
+ "v3anim.folder_skel_entry": "Esqueleto nombrado por su entrada de modeldb.",
+ "v3anim.folder_skel_cas": "Esqueleto deducido de {file}, junto a la malla.",
+ "v3anim.folder_skel_none": "No se encontró ningún esqueleto junto a la malla.",
+ "v3anim.folder_skel_hand": "Esqueleto elegido a mano.",
+ "v3anim.folder_pick_skeleton": "Esqueleto",
+ "v3anim.folder_skel_as_found": "- el encontrado -",
+ "v3anim.folder_no_skeleton": "No se encontró ningún esqueleto para este modelo. Hay que elegir uno de la lista de arriba."
 }

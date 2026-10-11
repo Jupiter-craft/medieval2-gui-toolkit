@@ -10087,5 +10087,14 @@
  "bmdb.folder_button_title": "Die Modelle in einem beliebigen Ordner auf diesem PC ansehen, einem Blender-Export oder einem Ordner data, ohne ihn zu installieren. Öffnet das 3D-Feld.",
  "bmdb.folder_leave": "← Modelleinträge",
  "bmdb.folder_leave_title": "Zurück zu den Modelleinträgen dieser Mod. Der Ordner bleibt für das nächste Mal geöffnet.",
- "bmdb.folder_pick_a_model": "Einen Ordner öffnen, dann ein Modell in der Liste wählen."
+ "bmdb.folder_pick_a_model": "Einen Ordner öffnen, dann ein Modell in der Liste wählen.",
+ "v3anim.folder_anims_from": "Animationen aus den Packs von {mod}, der oben gewählten Mod.",
+ "v3anim.folder_skel_bmdb": "Skelett genannt von {file}.",
+ "v3anim.folder_skel_entry": "Skelett genannt von seinem modeldb-Eintrag.",
+ "v3anim.folder_skel_cas": "Skelett vermutet aus {file} neben dem Mesh.",
+ "v3anim.folder_skel_none": "Neben dem Mesh wurde kein Skelett gefunden.",
+ "v3anim.folder_skel_hand": "Skelett von Hand gewählt.",
+ "v3anim.folder_pick_skeleton": "Skelett",
+ "v3anim.folder_skel_as_found": "- wie gefunden -",
+ "v3anim.folder_no_skeleton": "Für dieses Modell wurde kein Skelett gefunden. Eines aus der Liste oben wählen."
 }

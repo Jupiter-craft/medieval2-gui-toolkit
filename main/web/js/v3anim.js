@@ -347,19 +347,26 @@ function v3aMountRow(actions, slot){
 /* Called by v3Load once a model's geometry is in: a skinned .mesh asks which
    actions its skeletons have. A .cas and a static model have none to ask for. */
 async function v3AnimInit(){
-  // a loose mesh has no entry, so no skeleton is named for it, and a folder
-  // outside a mod has no skeletons to play
-  if(!v3 || !v3.geo || !v3.geo.skinned || v3.loose || v3IsFolder()) return v3AnimPanel();
+  // a mod's loose mesh has no entry, so no skeleton is named for it. A folder
+  // model borrows the packs of the mod picked at the top, and its skeleton is
+  // named by its entry, guessed from its folder, or picked by hand.
+  if(!v3 || !v3.geo || !v3.geo.skinned || (v3.loose && !v3IsFolder())) return v3AnimPanel();
   if(!v3.anim) v3.anim = {list: null, set: 0, skel: '', find: '', key: '', data: null,
                           playing: true, t: 0, speed: 1, err: '',
                           seq: [], seqData: null, seqOn: false, overlap: true,
                           weapons: true, mount: null, twin: null};
-  if(v3.anim.list) return v3AnimPanel();
+  // a folder model's animations are the top mod's, so a new mod is a new list
+  if(v3.anim.list && v3.anim.from === v3AnimMod()) return v3AnimPanel();
+  if(v3.anim.list) Object.assign(v3.anim, {list: null, set: 0, skel: '', key: '', data: null, mount: null});
+  v3.anim.from = v3AnimMod();
   const mine = v3;
   let list;
   // a strat .cas is played by the skeleton its descr_model_strat.txt entry names
-  const url = v3.cas ? `/api/map/model/anims?mod=${enc(v3.mod)}&rel=${enc(v3.cas)}`
-                     : `/api/model/anims?mod=${enc(v3.mod)}&entry=${enc(v3.entry)}`;
+  const url = v3.cas ? `/api/map/model/anims?mod=${enc(v3AnimMod())}&rel=${enc(v3.cas)}`
+            : v3IsFolder() ? `/api/model/anims?mod=${enc(v3AnimMod())}&folder=${enc(v3.mod)}`
+                + (v3.loose ? `&loose=${enc(v3.loose)}` : `&entry=${enc(v3.entry)}`)
+                + (v3.anim.handSkel ? `&skel=${enc(v3.anim.handSkel)}` : '')
+                     : `/api/model/anims?mod=${enc(v3AnimMod())}&entry=${enc(v3.entry)}`;
   try{ list = await api.get(url); }
   catch(e){ list = {error: ''+e}; }
   if(v3 !== mine) return;
@@ -367,7 +374,7 @@ async function v3AnimInit(){
   // a rider's entry: the mounts its units ride, to show it on one
   if(!v3.cas && (list.sets || []).some(x => (x.mount || 'none').toLowerCase() !== 'none')){
     v3.anim.mount = {on: false, list: null, pick: 0, x: null, data: null, err: ''};
-    api.get(`/api/model/mounts?mod=${enc(v3.mod)}&entry=${enc(v3.entry)}`)
+    api.get(`/api/model/mounts?mod=${enc(v3AnimMod())}&entry=${enc(v3.entry)}${v3IsFolder() ? `&folder=${enc(v3.mod)}` : ''}`)
       .then(r => { if(v3 === mine && v3.anim.mount){ v3.anim.mount.list = r; v3AnimPanel(); } })
       .catch(e => { if(v3 === mine && v3.anim.mount){ v3.anim.mount.err = '' + e; v3AnimPanel(); } });
   }
@@ -416,6 +423,38 @@ function v3AnimListHtml(){
 }
 
 function v3AnimPanel(){
+  v3AnimPanelBody();
+  const host = document.getElementById('v3anim');
+  if(host && v3IsFolder() && v3.anim) host.insertAdjacentHTML('afterbegin', v3AnimFolderBar());
+}
+
+/* A folder model's line above its animations: whose packs they come from, how
+   its skeleton was found, and any skeleton in those packs to use instead. */
+function v3AnimFolderBar(){
+  const a = v3.anim, L = a.list || {}, f = L.found || {};
+  const known = L.known || [];
+  const how = a.handSkel ? tt('v3anim.folder_skel_hand')
+    : f.why === 'bmdb' ? tt('v3anim.folder_skel_bmdb',{file:esc(f.from)})
+    : f.why === 'entry' ? tt('v3anim.folder_skel_entry')
+    : f.why === 'cas' ? tt('v3anim.folder_skel_cas',{file:esc(f.from)})
+    : L.sets && !L.sets.length ? tt('v3anim.folder_skel_none') : '';
+  const set = (L.sets || [])[a.set] || (L.sets || [])[0] || {};
+  const cur = (a.handSkel || set.primary || '').toLowerCase();
+  return `<div class="count">${tt('v3anim.folder_anims_from',{mod:esc(v3AnimMod() || '-')})} ${how}</div>
+    ${known.length ? `<label class="v3f"><span>${tt('v3anim.folder_pick_skeleton')}</span>
+      <select onchange="v3AnimHandSkel(this.value)">
+        <option value="">${tt('v3anim.folder_skel_as_found')}</option>
+        ${known.map(n => `<option value="${esc(n)}" ${a.handSkel && n.toLowerCase() === cur ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+      </select></label>` : ''}`;
+}
+
+function v3AnimHandSkel(name){
+  if(!v3 || !v3.anim) return;
+  Object.assign(v3.anim, {handSkel: name, list: null, set: 0, skel: '', key: '', data: null, mount: null});
+  v3AnimInit();
+}
+
+function v3AnimPanelBody(){
   const host = document.getElementById('v3anim');
   if(!host) return;
   if(!v3 || !v3.geo || !v3.geo.skinned || !v3.anim){
@@ -427,7 +466,7 @@ function v3AnimPanel(){
   if(L.error){ host.innerHTML = `<div class="k">${tt('v3anim.animation')}</div><div class="w-bad">${esc(L.error)}</div>`; return; }
   const sets = L.sets || [];
   if(!sets.length){
-    host.innerHTML = `<div class="k">${tt('v3anim.animation')}</div><div class="count">${tt('v3anim.this_entry_names_no_skeleton')}</div>`;
+    host.innerHTML = `<div class="k">${tt('v3anim.animation')}</div><div class="count">${tt(v3IsFolder() ? 'v3anim.folder_no_skeleton' : 'v3anim.this_entry_names_no_skeleton')}</div>`;
     return;
   }
   const set = sets[a.set] || sets[0];
@@ -603,7 +642,7 @@ async function v3AnimFetch(row, mod, skel, weapons){
   const q = row.rel ? `rel=${enc(row.rel)}` : `pack=${enc(row.path)}`;
   const w = weapons !== undefined ? weapons : v3AnimWeapons();
   const extra = (row.slot != null ? `&slot=${row.slot}` : '') + (w.length ? `&weapons=${enc(w.join(','))}` : '');
-  try{ return await api.get(`/api/model/anim?mod=${enc(mod || v3.mod)}&${q}&skel=${enc(skel || v3.anim.skel)}${extra}`); }
+  try{ return await api.get(`/api/model/anim?mod=${enc(mod || v3AnimMod())}&${q}&skel=${enc(skel || v3.anim.skel)}${extra}`); }
   catch(e){ return {error: '' + e}; }
 }
 
@@ -869,13 +908,13 @@ async function v3AnimMountLoad(){
   m.state = 'loading'; m.note = ''; v3AnimPanel();
   let info, geo, list;
   try{
-    info = await api.get(`/api/model?mod=${enc(v3.mod)}&entry=${enc(r.entry)}`);
+    info = await api.get(`/api/model?mod=${enc(v3AnimMod())}&entry=${enc(r.entry)}`);
     if(info.error) throw new Error(info.error);
     const lod = (info.lods.find(l => l.exists) || {index: 0}).index;
-    const res = await fetch(`/api/model/geometry?mod=${enc(v3.mod)}&entry=${enc(r.entry)}&lod=${lod}`);
+    const res = await fetch(`/api/model/geometry?mod=${enc(v3AnimMod())}&entry=${enc(r.entry)}&lod=${lod}`);
     if(!res.ok){ let msg = tt('v3anim.the_server_answered',{status:res.status}); try{ msg = (await res.json()).error || msg; }catch(e){} throw new Error(msg); }
     geo = v3Parse(await res.arrayBuffer());
-    list = await api.get(`/api/model/anims?mod=${enc(v3.mod)}&entry=${enc(r.entry)}`);
+    list = await api.get(`/api/model/anims?mod=${enc(v3AnimMod())}&entry=${enc(r.entry)}`);
   }catch(e){
     if(v3 !== mine) return;
     m.state = ''; m.err = `${r.entry}: ${e.message || e}`; return v3AnimPanel();
@@ -927,7 +966,7 @@ async function v3AnimMountAction(){
   if(picks.some(p => !p.row)){ m.data = null; m.note = tt('v3anim.the_mount_has_no_action_to'); return v3AnimPanel(); }
   const got = [];
   for(const p of picks){
-    const d = await v3AnimFetch(p.row, v3.mod, m.skel, []);
+    const d = await v3AnimFetch(p.row, v3AnimMod(), m.skel, []);
     if(v3 !== mine) return;
     if(d.error){ m.data = null; m.note = d.error; return v3AnimPanel(); }
     got.push(d);
@@ -987,7 +1026,7 @@ function v3AnimFrameBack(){
 /* Side by side: the mods to set against this one. */
 function v3AnimTwinHtml(){
   const a = v3.anim;
-  const mods = (state.mods || []).filter(x => !x.pack && x.name !== v3.mod);
+  const mods = (state.mods || []).filter(x => !x.pack && x.name !== v3AnimMod());
   if(!mods.length) return '';
   const t = a.twin || {};
   const opts = `<option value="">${tt('v3anim.nothing_beside_it')}</option>` + mods.map(x =>
@@ -1031,7 +1070,7 @@ async function v3AnimTwinAction(){
   if(!row || row.slot == null || a.seqOn){ v3AnimPanel(); return; }
   const mine = v3, key = a.key;
   let c;
-  try{ c = await api.get(`/api/model/compare?mod=${enc(v3.mod)}&other=${enc(t.mod)}&skel=${enc(a.skel)}&slot=${row.slot}`); }
+  try{ c = await api.get(`/api/model/compare?mod=${enc(v3AnimMod())}&other=${enc(t.mod)}&skel=${enc(a.skel)}&slot=${row.slot}`); }
   catch(e){ c = {error: '' + e}; }
   if(v3 !== mine || a.twin !== t || a.key !== key) return;
   if(c.error){ t.err = c.error; return v3AnimPanel(); }
@@ -1248,10 +1287,10 @@ async function v3AnimEditPreview(){
   e.busy = true; e.msg = ''; e.bad = false;
   let data;
   try{
-    data = a.rel ? await api.post('/api/model/anim/preview', {mod: v3.mod, rel: a.rel, edits: v3AnimEdits(),
+    data = a.rel ? await api.post('/api/model/anim/preview', {mod: v3AnimMod(), rel: a.rel, edits: v3AnimEdits(),
                                                               skeleton: a.skel || ''})
       // 86: the bytes a save into the pack would write, read back
-      : await api.post('/api/model/anim/pack_preview', {mod: v3.mod, skeleton: a.skel, slot: a.slot,
+      : await api.post('/api/model/anim/pack_preview', {mod: v3AnimMod(), skeleton: a.skel, slot: a.slot,
                                                         edits: v3AnimEdits(), weapons: v3AnimWeapons()});
   }
   catch(err){ data = {error: '' + err}; }
@@ -1279,7 +1318,7 @@ async function v3AnimEditSave(){
   const a = v3.anim, e = a.edit;
   if(e.target === 'pack') return v3AnimPackSave();
   const act = (v3AnimRow(a.key) || {}).action || '';
-  const body = {mod: v3.mod, rel: a.rel, edits: v3AnimEdits(), save_as: e.saveAs,
+  const body = {mod: v3AnimMod(), rel: a.rel, edits: v3AnimEdits(), save_as: e.saveAs,
                 skeleton: a.skel || '',
                 assign: e.assign && a.skel && !act.includes(' / ') ? {skeleton: a.skel, action: act} : null};
   let r;
@@ -1297,7 +1336,7 @@ async function v3AnimEditSave(){
   e.busy = false;
   if(w.error){ e.msg = w.error; e.bad = true; return v3AnimPanel(); }
   e.msg = tt('v3anim.saved_log_can_undo_it',{target:w.target});
-  if(typeof activity === 'function') activity(tt('v3anim.saved_animation'), tt('v3anim.target_in_mod',{target:w.target,mod:v3.mod}));
+  if(typeof activity === 'function') activity(tt('v3anim.saved_animation'), tt('v3anim.target_in_mod',{target:w.target,mod:v3AnimMod()}));
   // the saved file is loose now, and it may be this action's: ask again
   a.list = null;
   const keep = a;
@@ -1330,14 +1369,14 @@ async function v3AnimPackAfter(w, what){
 
 async function v3AnimPackSave(){
   const a = v3.anim, e = a.edit;
-  const body = {mod: v3.mod, skeleton: a.skel, slot: a.slot, edits: v3AnimEdits(), name: e.packName,
+  const body = {mod: v3AnimMod(), skeleton: a.skel, slot: a.slot, edits: v3AnimEdits(), name: e.packName,
                 rel: a.rel || '', keep_rebuildable: e.keep};
   let r;
   try{ r = await api.post('/api/model/anim/pack_plan', body); }
   catch(err){ r = {error: '' + err}; }
   const p = r.plan;
   if(r.error || !p || !p.ok){ e.msg = r.error || tt('v3anim.nothing_to_save'); e.bad = true; return v3AnimPanel(); }
-  if(!confirm(tt('v3anim.save_this_edit_into_s_pack',{mod:v3.mod,v3AnimPackMsg:v3AnimPackMsg(p)}))) return;
+  if(!confirm(tt('v3anim.save_this_edit_into_s_pack',{mod:v3AnimMod(),v3AnimPackMsg:v3AnimPackMsg(p)}))) return;
   e.busy = true; v3AnimPanel();
   let w;
   try{ w = await api.post('/api/model/anim/pack_apply', body); }
@@ -1352,14 +1391,14 @@ async function v3AnimPackSave(){
 async function v3AnimTwinTake(){
   const a = v3 && v3.anim, t = a && a.twin;
   if(!t || a.slot == null) return;
-  const body = {mod: v3.mod, skeleton: a.skel, slot: a.slot, source: t.mod, source_skeleton: a.skel,
+  const body = {mod: v3AnimMod(), skeleton: a.skel, slot: a.slot, source: t.mod, source_skeleton: a.skel,
                 keep_rebuildable: true};
   let r;
   try{ r = await api.post('/api/model/anim/bring_plan', body); }
   catch(err){ r = {error: '' + err}; }
   const p = r.plan;
   if(r.error || !p || !p.ok){ t.err = r.error || tt('v3anim.nothing_to_bring'); return v3AnimPanel(); }
-  if(!confirm(tt('v3anim.play_s_in_from_close_the',{mod:t.mod,action:p.action,mod2:v3.mod,source:p.source,v3AnimPackMsg:v3AnimPackMsg(p)}))) return;
+  if(!confirm(tt('v3anim.play_s_in_from_close_the',{mod:t.mod,action:p.action,mod2:v3AnimMod(),source:p.source,v3AnimPackMsg:v3AnimPackMsg(p)}))) return;
   let w;
   try{ w = await api.post('/api/model/anim/bring_apply', body); }
   catch(err){ w = {error: '' + err}; }
@@ -1373,7 +1412,7 @@ function v3AnimPortHtml(){
   if(!L || !L.packs || L.packs === 'vanilla') return '';
   const f = a.port;
   if(!f) return `<div class="v3btns"><button onclick="v3AnimPortOpen()" title="${ttA('v3anim.a_skeleton_and_every_animation_it')}">${tt('v3anim.bring_a_skeleton_from_another_mod')}</button></div>`;
-  const mods = (state.mods || []).filter(x => !x.pack && x.name !== v3.mod);
+  const mods = (state.mods || []).filter(x => !x.pack && x.name !== v3AnimMod());
   const p = f.plan;
   const bodies = v3.cas ? [] : [...new Set(((L.sets || []).flatMap(x => [x.primary, x.secondary])).filter(Boolean))];
   const t = p && p.port ? p.port.totals : null;
@@ -1416,7 +1455,7 @@ async function v3AnimPortSet(k, v){
 
 function v3AnimPortBody(){
   const f = v3.anim.port;
-  return {mod: v3.mod, source: f.mod, skeleton: f.name, entry: f.point ? v3.entry : '',
+  return {mod: v3AnimMod(), source: f.mod, skeleton: f.name, entry: f.point ? v3.entry : '',
           entry_skeleton: f.point, keep_rebuildable: true};
 }
 
@@ -1432,7 +1471,7 @@ async function v3AnimPortPlan(){
 
 async function v3AnimPortApply(){
   const f = v3.anim.port;
-  if(!confirm(tt('v3anim.bring_from_into_s_packs_close',{name:f.name,mod:f.mod,mod2:v3.mod}))) return;
+  if(!confirm(tt('v3anim.bring_from_into_s_packs_close',{name:f.name,mod:f.mod,mod2:v3AnimMod()}))) return;
   f.busy = true; f.msg = tt('common.writing'); v3AnimPanel();
   let w;
   try{ w = await api.post('/api/model/skeleton/port_apply', v3AnimPortBody()); }

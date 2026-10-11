@@ -1052,6 +1052,9 @@ function v3SetSkin(v){ if(!v3) return; v3.skin = +v; v3LoadSkin(v3Gen); v3Facts(
    LODs and geometry come through the same routes as a mod's; it has no
    skeletons or actions, so the animation and export panels stay shut. */
 function v3IsFolder(){ return !!(v3 && (v3.mod || '').startsWith('folder:')); }
+// whose animations the model plays: its own mod's, or for a folder model the
+// mod picked at the top of the page, whose packs it borrows
+function v3AnimMod(){ return v3IsFolder() ? (state.src || '') : (v3 ? v3.mod : ''); }
 
 /* Main and attachment the other way round. A Blender export holds one model to
    a folder, so two sheets that are not named for the job are taken in the order

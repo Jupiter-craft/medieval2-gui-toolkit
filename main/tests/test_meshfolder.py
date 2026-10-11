@@ -122,6 +122,9 @@ plant("export/khitan/textures/tielinjun.dds")
 plant("export/khitan/textures/tielinjun2.texture")
 plant("export/khitan/textures/tielinjun_n.texture")
 plant("export/khitan/textures/tielinjun2_norm2.texture")
+# the skeleton it was rigged to, and a pose: only the first is a skeleton's name
+plant("export/khitan/mtw2_fast_longbowman_string.cas", b"cas")
+plant("export/khitan/mtw2_bowman_attack_missile_ready_modified.cas", b"cas")
 plant("export/morannon/morannon.mesh", horse)
 plant("export/morannon/textures/Morannon_Att_Diff.texture")
 plant("export/morannon/textures/Morannon_Main_Diff.texture")
@@ -191,6 +194,21 @@ try:
     check("the hand picker offers the folder's sheets",
           "khitan/textures/tielinjun2.texture" in tex)
 
+    print("\n== the skeletons a folder model is animated by ==")
+    src = meshfolder.open_folder(str(E))
+    known = ["MTW2_Fast_Longbowman_String", "MTW2_Swordsman"]
+    sk = src.skeleton_sets("orc/orc.mesh", known)
+    check("the _bmdb.txt names them, weapons and all",
+          sk["why"] == "bmdb" and sk["sets"][0]["primary"] == "MTW2_Swordsman"
+          and sk["sets"][0]["primary_weapons"] == ["MTW2_Swordsman_Primary"])
+    sk = src.skeleton_sets("khitan/khitan.mesh", known)
+    check("else a .cas beside the mesh named for a skeleton in the pack, in the pack's spelling",
+          sk["why"] == "cas" and [x["primary"] for x in sk["sets"]] == ["MTW2_Fast_Longbowman_String"]
+          and not sk["sets"][0]["secondary"])
+    check("and nothing is guessed where no .cas is a skeleton's name",
+          src.skeleton_sets("lone/lone.mesh", known)["sets"] == []
+          and src.skeleton_sets("khitan/khitan.mesh", [])["sets"] == [])
+
     print("\n== a data folder, picked at the folder above it ==")
     d = get(f"/api/model/folder?path={enc(D)}")
     dm = d["mod"]
@@ -213,7 +231,7 @@ try:
           status(f"/api/model/folder?path={enc(top / 'nothing_here')}") == 404)
     check("a mesh outside the folder is a 404",
           status(f"/api/model?mod={enc(mod)}&loose={enc('../pasted/data/unit_models/_units/proj/elf.mesh')}") == 404)
-    check("animations are refused for a folder - it has no skeletons",
+    check("animations are refused with the folder as the mod - they come from a real one",
           status(f"/api/model/anims?mod={enc(dm)}&entry=elf") == 400)
     check("an export is refused too",
           status(f"/api/model/export?mod={enc(dm)}&entry=elf") == 400)

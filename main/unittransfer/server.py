@@ -5445,6 +5445,39 @@ class Handler(BaseHTTPRequestHandler):
             out["weapons"] = getattr(anim, "weapons", [])
             return self._json(out)
 
+        # A model out of a folder that is not a mod (meshfolder.py) is animated
+        # out of THIS mod's packs: `folder` names the folder, `entry` or
+        # `loose` the model in it, and `skel` a skeleton picked by hand.
+        folder_q = (q.get("folder") or [""])[0]
+        if folder_q and path in ("/api/model/anims", "/api/model/mounts"):
+            try:
+                src = meshfolder.open_folder(folder_q)
+            except (ValueError, OSError) as e:
+                return self._err(404, str(e))
+            fentry = src.modeldb.by_name().get((q.get("entry") or [""])[0].lower())
+            if path == "/api/model/mounts":
+                return self._json(animview.mounts_for(mod, fentry) if fentry is not None
+                                  else {"mounts": [], "classes": []})
+            skel = (q.get("skel") or [""])[0].strip()
+            packs, _whose = animpack.packs_for(mod.data)
+            known = packs.skeleton_names() if packs is not None and packs.skels is not None else []
+            if skel:
+                found = {"why": "hand", "from": "", "sets": [
+                    {"mount": "none", "primary": skel, "secondary": "",
+                     "primary_weapons": [], "secondary_weapons": []}]}
+            elif fentry is not None:
+                found = {"why": "entry", "from": fentry.name, "sets": [
+                    {"mount": a.mount_type, "primary": a.primary_skeleton,
+                     "secondary": a.secondary_skeleton,
+                     "primary_weapons": list(a.pri_weapons),
+                     "secondary_weapons": list(a.sec_weapons)} for a in fentry.animations]}
+            else:
+                found = src.skeleton_sets((q.get("loose") or [""])[0], known)
+            out = animview.sets_view(mod.data, found["sets"])
+            out["found"] = {"why": found["why"], "from": found["from"]}
+            out["known"] = known
+            return self._json(out)
+
         if path == "/api/model/compare":
             # 80b: the same skeleton's slot in another mod, for side by side
             other = (q.get("other") or [""])[0]
