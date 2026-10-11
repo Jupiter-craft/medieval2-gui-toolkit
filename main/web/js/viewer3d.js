@@ -374,18 +374,24 @@ async function v3MountCas(hostId, mod, rel){
   await v3Begin(mod, rel.split('/').pop(), hostId, rel);
 }
 
+// which v3Begin is the latest: two models clicked in quick succession are two
+// requests in flight, and the one that answers last must not be the one drawn
+let v3BeginSeq = 0;
+
 async function v3Begin(mod, entry, host, cas, loose){
   // Whatever was showing goes first. Two WebGL contexts on one page is two
   // copies of a 30 MB mesh and two animation loops, one of them for a view
   // nobody can see any more.
   v3Stop();
   v3 = null;
+  const seq = ++v3BeginSeq;
   let info;
   const url = cas ? `/api/map/model?mod=${enc(mod)}&rel=${enc(cas)}`
             : loose ? `/api/model?mod=${enc(mod)}&loose=${enc(loose)}`
                   : `/api/model?mod=${enc(mod)}&entry=${enc(entry)}`;
   try{ info = await api.get(url); }
-  catch(e){ return v3Fail(''+e, host); }
+  catch(e){ return seq === v3BeginSeq && v3Fail(''+e, host); }
+  if(seq !== v3BeginSeq) return;
   if(info.error) return v3Fail(info.error, host);
 
   // `skin` indexes info.skins, because a skin is a PAIR of files now - the
@@ -428,6 +434,9 @@ function v3SkinLabel(s){
   // a loose mesh's skins are guesses, and the label says which kind
   if(s.why){
     const file = (s.rel || '').split('/').pop();
+    const swapped = s.swapped ? tt('viewer3d.skin_swapped') : '';
+    if(s.why === 'bmdb') return tt('viewer3d.skin_from_bmdb',{file,entry:s.entry,swapped});
+    if(s.why === 'pair') return tt('viewer3d.skin_assumed_pair',{file,attach:(s.attach || '').split('/').pop(),swapped});
     if(s.why === 'copy') return tt('viewer3d.skin_from_copy',{entry:s.entry,file});
     if(s.why === 'folder') return tt('viewer3d.skin_from_folder',{file});
     if(s.why === 'elsewhere') return tt('viewer3d.skin_from_elsewhere',{file});
@@ -533,6 +542,8 @@ function v3Render(){
           <select onchange="v3SetLod(this.value)">${lods}</select></label>
         <label class="v3f"><span>${tt('viewer3d.skin')}</span>
           <select id="v3skinsel" onchange="v3SetSkin(this.value)" ${i.skins.length?'':'disabled'}>${skins}</select></label>
+        ${v3.loose || v3IsFolder() ? `<div class="v3btns"><button id="v3swap" onclick="v3SwapSkin()"
+          title="${ttA('viewer3d.swap_sheets_title')}">${tt('viewer3d.swap_sheets')}</button></div>` : ''}
         ${v3.loose ? '<div id="v3pick"></div>' : ''}`}
         <div class="v3btns">
           <button id="v3spin" class="${v3.spin?'on':''}" onclick="v3Toggle('spin')">${tt('viewer3d.rotate')}</button>
@@ -555,6 +566,7 @@ function v3Render(){
   v3Facts();
   v3UvKey();
   v3PickPanel();
+  v3SwapState();
   if(typeof v3AnimPanel === 'function') v3AnimPanel();
   if(typeof v3ExportPanel === 'function') v3ExportPanel();
   const c = document.getElementById('v3canvas');
@@ -1034,7 +1046,33 @@ function v3Parse(buf){
 /* --- controls ------------------------------------------------------------- */
 
 function v3SetLod(v){ if(!v3) return; v3.lod = +v; v3Stop(); v3.geo = null; v3Load(); }
-function v3SetSkin(v){ if(!v3) return; v3.skin = +v; v3LoadSkin(v3Gen); v3Facts(); }
+function v3SetSkin(v){ if(!v3) return; v3.skin = +v; v3LoadSkin(v3Gen); v3Facts(); v3SwapState(); }
+
+/* A model opened out of a folder that is not a mod (meshfolder.py). Its skins,
+   LODs and geometry come through the same routes as a mod's; it has no
+   skeletons or actions, so the animation and export panels stay shut. */
+function v3IsFolder(){ return !!(v3 && (v3.mod || '').startsWith('folder:')); }
+
+/* Main and attachment the other way round. A Blender export holds one model to
+   a folder, so two sheets that are not named for the job are taken in the order
+   they sort, and that is wrong about half the time - one press puts it right. */
+function v3SwapSkin(){
+  const s = v3 && v3Skin();
+  if(!s || !s.rel || !s.attach) return;
+  [s.rel, s.attach] = [s.attach, s.rel];
+  [s.exists, s.attach_exists] = [s.attach_exists, s.exists];
+  s.swapped = !s.swapped;
+  const sel = document.getElementById('v3skinsel');
+  if(sel) sel.innerHTML = v3SkinOptions();
+  v3SetSkin(v3.skin);
+}
+function v3SwapState(){
+  const b = document.getElementById('v3swap');
+  if(!b || !v3) return;
+  const s = v3Skin();
+  b.disabled = !(s && s.rel && s.attach);
+  b.classList.toggle('on', !!(s && s.swapped));
+}
 
 function v3SkinOptions(){
   const i = v3.info;

@@ -105,6 +105,7 @@ function bmdbRow(e){
 let bmPrevNode = null;          // the panel, or null when it is closed
 let bmPrevEntry = '';           // which entry it is showing
 let bmPrevLoose = '';           // or which loose .mesh, relative to data/
+let bmPrevExt = null;           // or {mod, entry, rel, name} out of a folder (bmFolder*)
 const BM_PREV_HOST = 'bmV3Host';
 
 function bmPrevDetach(){
@@ -128,7 +129,7 @@ const bmPrevOn = () => state.settings.bmdb_preview !== false;
 function bmPrevClose(){
   if(v3 && v3.host === BM_PREV_HOST) v3Unmount();
   bmPrevDetach();
-  bmPrevNode = null; bmPrevEntry = ''; bmPrevLoose = '';
+  bmPrevNode = null; bmPrevEntry = ''; bmPrevLoose = ''; bmPrevExt = null;
   state.settings.bmdb_preview = false;
   api.post('/api/settings', {bmdb_preview: false});
   renderBmdb();
@@ -154,24 +155,30 @@ function bmPrevMake(name){
         <summary>${tt('bmdb.loose_meshes')}</summary>
         <div class="stmbrowse" id="bmLooseBrowse"></div>
       </details>
+      <details class="bmloose" ontoggle="if(this.open)bmFolderPaint()">
+        <summary>${tt('bmdb.folder_models')}</summary>
+        <div class="stmbrowse" id="bmFolderBrowse"></div>
+      </details>
       <div class="edprevbody" id="${BM_PREV_HOST}"></div>`;
   }
   bmPrevEntry = name || bmPrevEntry;
 }
 function bmPrevOpen(name){
-  bmPrevLoose = '';
-  bmLoosePaint();
+  bmPrevLoose = ''; bmPrevExt = null;
+  bmLoosePaint(); bmFolderPaint();
   bmPrevMake(name);
   renderBmdb();               // re-marks the row that is showing, then re-attaches
 }
 function bmPrevBar(){
   const el = document.getElementById('bmPrevBar');
   if(!el) return;
-  const what = bmPrevLoose ? bmPrevLoose.split('/').pop() : bmPrevEntry;
+  const x = bmPrevExt;
+  const what = x ? x.name : bmPrevLoose ? bmPrevLoose.split('/').pop() : bmPrevEntry;
+  const full = x ? `${x.mod.slice(7)} › ${x.rel || x.entry}` : bmPrevLoose || bmPrevEntry;
   el.innerHTML = `<b>3D</b>
-    <span class="count" title="${esc(bmPrevLoose || bmPrevEntry)}">${esc(what || tt('bmdb.pick_an_entry'))}</span>
+    <span class="count" title="${esc(full)}">${x ? '📁 ' : ''}${esc(what || tt('bmdb.pick_an_entry'))}</span>
     <span class="sp"></span>
-    ${bmPrevEntry && !bmPrevLoose?`<button onclick="openBmdbEntry('${q1(esc(bmPrevEntry))}')"
+    ${bmPrevEntry && !bmPrevLoose && !x?`<button onclick="openBmdbEntry('${q1(esc(bmPrevEntry))}')"
       title="${ttA('bmdb.open_this_entrys_editor')}">✎</button>`:''}
     ${what?`<button onclick="bmPrevFull()" title="${ttA('bmdb.full_screen_esc_comes_back')}">⤢</button>`:''}
     <button onclick="bmPrevClose()" title="${ttA('bmdb.close_the_panel')}">✕</button>`;
@@ -179,6 +186,9 @@ function bmPrevBar(){
 async function bmPrevMount(){
   const host = document.getElementById(BM_PREV_HOST);
   if(!host) return;
+  const x = bmPrevExt;
+  if(x) return x.entry ? v3Mount(BM_PREV_HOST, x.mod, x.entry)
+                       : v3MountLoose(BM_PREV_HOST, x.mod, x.rel);
   if(bmPrevLoose) return v3MountLoose(BM_PREV_HOST, state.src, bmPrevLoose);
   if(!bmPrevEntry){
     host.innerHTML = `<div class="empty">${tt('bmdb.press_on_any_row')}</div>`;
@@ -224,8 +234,8 @@ function bmLooseFilter(text){
 
 function bmLooseShow(rel){
   bmPrevLoose = rel;
-  bmPrevEntry = '';
-  bmLoosePaint();
+  bmPrevEntry = ''; bmPrevExt = null;
+  bmLoosePaint(); bmFolderPaint();
   bmPrevBar();
   bmPrevMount();
   // the list is not re-rendered, so the row that was showing is let go here
@@ -259,6 +269,143 @@ function bmLoosePaint(){
       <input id="bmLooseFilter" type="text" value="${esc(k.filter)}"
         oninput="bmLooseFilter(this.value)"></label>
     ${want ? `<div class="count">${tt('stratview.shown_of_total',{shown:shown.length,total:all.length})}</div>` : ''}
+    <div class="cmodlist">${rows || `<div class="count">${tt('stratview.nothing_by_that_name')}</div>`}</div>`;
+}
+/* ---- models in a folder that is not a mod --------------------------------
+   A Blender export (a folder per model: the .mesh, its textures/ and maybe a
+   <name>_bmdb.txt) or a data folder made to be pasted into a mod, looked at
+   without installing either. The server reads the folder as a stand-in for a
+   mod (meshfolder.py), so the viewer draws it through the same routes; this is
+   the list. The folder is not the mod's, so it outlives switching mods, and the
+   last few opened are kept in the settings to come back to. */
+const BM_FOLDER_KEEP = 6;
+
+function bmFolderState(){
+  if(!state.bmfolder){
+    const recent = state.settings.model_folders || [];
+    state.bmfolder = {path: recent[0] || '', loading: false, err: '', data: null,
+                      items: [], filter: ''};
+  }
+  return state.bmfolder;
+}
+
+async function bmFolderBrowse(){
+  let r;
+  try{ r = await api.post('/api/browse_folder', {title: tt('bmdb.folder_pick_title')}); }
+  catch(e){ return toast(errText(e), 4000); }
+  if(r && r.path) bmFolderOpen(r.path);
+}
+
+async function bmFolderOpen(path, fresh){
+  const k = bmFolderState();
+  path = (path || '').trim().replace(/^"|"$/g, '');
+  if(!path) return toast(tt('bmdb.folder_name_one_first'), 3000);
+  Object.assign(k, {path, loading: true, err: '', data: null, items: []});
+  bmFolderPaint();
+  let d;
+  try{ d = await api.get(`/api/model/folder?path=${enc(path)}${fresh ? '&fresh=1' : ''}`); }
+  catch(e){ d = {error: errText(e)}; }
+  if(state.bmfolder !== k || k.path !== path) return;
+  k.loading = false;
+  if(d.error){ k.err = d.error; return bmFolderPaint(); }
+  k.data = d;
+  // one list to click through: the entries a modeldb names first, then the
+  // meshes no entry does, each under the folder it is in
+  k.items = [...(d.entries || []).map(e => ({kind: 'entry', name: e.name, entry: e.name, rel: '',
+                                             group: e.group, note: ttN('bmdb.skin_count', e.skins)})),
+             ...(d.meshes || []).map(m => ({kind: 'mesh', name: m.name, entry: '', rel: m.rel,
+                                            group: m.group, hint: m.hint,
+                                            note: `${Math.round(m.bytes / 1024)} KB`}))];
+  const low = d.root.toLowerCase();
+  const recent = [d.root, ...(state.settings.model_folders || []).filter(f => f.toLowerCase() !== low)]
+    .slice(0, BM_FOLDER_KEEP);
+  state.settings.model_folders = recent;
+  api.post('/api/settings', {model_folders: recent});
+  k.path = d.root;
+  bmFolderPaint();
+  // the first model is drawn straight away, so opening a folder shows something
+  const x = bmPrevExt;
+  if(k.items.length && !(x && x.mod === d.mod)) bmFolderShow(0);
+}
+
+function bmFolderFilter(text){
+  const k = bmFolderState();
+  k.filter = text;
+  bmFolderPaint();
+  const el = document.getElementById('bmFolderFilter');
+  if(el){ el.value = text; el.focus(); }
+}
+
+function bmFolderShow(n){
+  const k = state.bmfolder, it = k && k.items[n];
+  if(!it || !k.data) return;
+  bmPrevExt = {mod: k.data.mod, entry: it.entry, rel: it.rel, name: it.name};
+  bmPrevLoose = ''; bmPrevEntry = '';
+  bmFolderPaint(); bmLoosePaint();
+  bmPrevBar();
+  bmPrevMount();
+  main.querySelectorAll('.dbrow.showing').forEach(r => r.classList.remove('showing'));
+}
+
+function bmFolderPaint(){
+  const el = document.getElementById('bmFolderBrowse');
+  if(!el) return;
+  const k = bmFolderState();
+  const recent = state.settings.model_folders || [];
+  const head = `<div class="count">${tt('bmdb.folder_intro')}</div>
+    <div class="bmfolderpick">
+      <input id="bmFolderPath" type="text" value="${esc(k.path)}"
+        placeholder="${ttA('bmdb.folder_path_placeholder')}"
+        onkeydown="if(event.key==='Enter')bmFolderOpen(this.value)">
+      <button onclick="bmFolderBrowse()" title="${ttA('bmdb.folder_browse_title')}">📁</button>
+      <button class="primary" onclick="bmFolderOpen(document.getElementById('bmFolderPath').value)"
+        >${tt('bmdb.folder_open')}</button>
+      ${k.data ? `<button onclick="bmFolderOpen('${q1(esc(k.data.root))}', true)"
+        title="${ttA('bmdb.folder_reread_title')}">↻</button>` : ''}
+    </div>
+    ${recent.length > 1 ? `<label class="v3f"><span>${tt('bmdb.folder_recent')}</span>
+      <select onchange="if(this.value)bmFolderOpen(this.value)">
+        <option value="">-</option>
+        ${recent.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('')}
+      </select></label>` : ''}`;
+  if(k.loading){ el.innerHTML = head + `<div class="count">${tt('bmdb.folder_reading')}</div>`; return; }
+  if(k.err){ el.innerHTML = head + `<div class="w-warn">${esc(k.err)}</div>`; return; }
+  const d = k.data;
+  if(!d){ el.innerHTML = head; return; }
+  const all = k.items;
+  const summary = d.kind === 'data'
+    ? tt('bmdb.folder_data_summary', {entries: (d.entries || []).length, elsewhere: d.elsewhere || 0,
+                                      meshes: (d.meshes || []).length})
+    : tt('bmdb.folder_export_summary', {n: all.length});
+  const warn = [...(d.notes || []).map(esc),
+                d.truncated ? tt('bmdb.folder_truncated') : ''].filter(Boolean)
+    .map(t => `<div class="w-warn">${t}</div>`).join('');
+  if(!all.length){
+    el.innerHTML = head + warn + `<div class="count">${tt('bmdb.folder_no_models')}</div>`;
+    return;
+  }
+  const want = (k.filter || '').trim().toLowerCase();
+  const groups = new Map();
+  all.forEach((it, n) => {
+    if(want && !`${it.group}/${it.name}`.toLowerCase().includes(want)) return;
+    if(!groups.has(it.group)) groups.set(it.group, []);
+    groups.get(it.group).push(n);
+  });
+  const x = bmPrevExt;
+  const on = it => x && x.mod === d.mod && x.entry === it.entry && x.rel === it.rel;
+  const shown = [...groups.values()].reduce((a, l) => a + l.length, 0);
+  // an export is a folder to a model, and a heading over every row says nothing
+  const heads = shown > groups.size;
+  const rows = [...groups.entries()].map(([group, list]) => `
+    ${heads ? `<div class="k">${esc(group)} <span class="count">${list.length}</span></div>` : ''}
+    ${list.map(n => { const it = all[n]; return `<button class="cmodrow${on(it) ? ' on' : ''}"
+        onclick="bmFolderShow(${n})" title="${esc(it.rel || it.entry)}"
+        >${it.kind === 'entry' ? '▣ ' : it.hint ? '🎨 ' : ''}${esc(it.name)}<span class="count">${esc(it.note)}</span></button>`; }).join('')}`).join('');
+  el.innerHTML = head + `<div class="count">${summary}</div>${warn}
+    ${all.length > 8 ? `<label class="v3f"><span>${tt('common.find')}</span>
+      <input id="bmFolderFilter" type="text" value="${esc(k.filter)}"
+        oninput="bmFolderFilter(this.value)"></label>` : ''}
+    ${want ? `<div class="count">${tt('stratview.shown_of_total',{shown,total:all.length})}</div>` : ''}
     <div class="cmodlist">${rows || `<div class="count">${tt('stratview.nothing_by_that_name')}</div>`}</div>`;
 }
 function bmPrevFull(){

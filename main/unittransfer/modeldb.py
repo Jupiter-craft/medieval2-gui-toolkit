@@ -744,6 +744,25 @@ def parse_file(path: str | Path) -> ModelDb:
     return parse_text(Path(path).read_text(encoding=ENCODING))
 
 
+def parse_entry(text: str) -> ModelEntry:
+    """One entry on its own, with no archive header before it.
+
+    The shape a Blender export writes beside its mesh as ``<name>_bmdb.txt``:
+    the entry as it would sit in a modeldb, ready to paste into one.
+    """
+    r = _Reader(text)
+    for mark in kb.BOMS:
+        if text.startswith(mark):
+            r.i = len(mark)
+            break
+    try:
+        entry = _read_entry(r)
+    except _Desync as e:
+        raise ValueError(_desync_message(text, r, e, 0)) from None
+    entry.raw = text[:r.i]
+    return entry
+
+
 #: More mends than any hand-edited file has needed; a file past this is not
 #: damaged in a way this knows, whatever the next error says.
 REPAIR_MAX = 200

@@ -706,7 +706,7 @@ from typing import Dict, List, Optional
 from . import (bmdb, buildings, cards, cleaner, codeview, config, dupes, edit,
                modflags, modfiles, sounds, stratmap)
 from . import mapgen, mapnew, mapresize
-from . import loosemesh, modeldb, modeltext
+from . import loosemesh, meshfolder, modeldb, modeltext
 from . import ancillaries, areaeffects, campimport, edbimport, mapbundle, osmmap, osmsites, settlemodel, heroabilities, hordestart, walls, characters, projectzip, campaint, campdb, campevents, campfiles, campmap, campnew, campstrat, cas, casanim, animedit, animpack, animslot, animview, modelexport, launchcheck, packhouse, settlemech, fileswap, factionsites, sidefiles, banners, changesets, health, climatenew, guilds, mapcheck, mapfe, mapquery, mapterrain, mercpools, regiondel, edusort, factionaudit, factionclone, factions, images, mesh, minorfiles, namekeys, portrecords, rawtext, rebelpools, renames, soundbanks, soundscripts, spawns, sprites, stratcamp, stratchar, stratedit, stratobj, strings, traits, triggers, winconds
 from . import eop as _eop
 from . import logutil
@@ -2573,7 +2573,8 @@ class Handler(BaseHTTPRequestHandler):
             if u.path in ("/api/model", "/api/model/geometry", "/model_texture",
                           "/api/model/anims", "/api/model/anim", "/api/model/export",
                           "/api/model/mounts", "/api/model/compare",
-                          "/api/model/loose", "/api/model/loose/textures"):
+                          "/api/model/loose", "/api/model/loose/textures",
+                          "/api/model/folder"):
                 return self._model_route(u.path, q)
             if u.path == "/api/model/skeleton_names":
                 # 86: the skeletons another mod's pack holds, to port one
@@ -5381,10 +5382,31 @@ class Handler(BaseHTTPRequestHandler):
         sentence, because that sentence is the useful part - the viewer puts it
         on screen rather than showing an empty box.
         """
+        if path == "/api/model/folder":
+            # A folder that is not a mod - a Blender export, a data folder made
+            # to be pasted into one - opened to look at, read only. Its name on
+            # every route below is meshfolder.PREFIX + its path.
+            try:
+                src = meshfolder.open_folder((q.get("path") or [""])[0],
+                                             fresh=(q.get("fresh") or ["0"])[0] == "1")
+            except (ValueError, OSError) as e:
+                return self._err(404, str(e))
+            return self._json(src.listing())
         name = (q.get("mod") or [None])[0]
-        if not name or name not in self.registry.names():
+        if meshfolder.is_folder(name):
+            try:
+                mod = meshfolder.open_folder(name)
+            except (ValueError, OSError) as e:
+                return self._err(404, str(e))
+            if path not in ("/api/model", "/api/model/geometry", "/model_texture",
+                            "/api/model/loose", "/api/model/loose/textures"):
+                # the skeletons, actions and mounts are a mod's, and it has none
+                return self._err(400, "a folder outside a mod can be looked at, "
+                                      "not animated or exported")
+        elif not name or name not in self.registry.names():
             return self._err(404, "unknown mod")
-        mod = self.registry.get(name)
+        else:
+            mod = self.registry.get(name)
 
         if path == "/model_texture":
             # `rel` comes from the entry we just served, but it is still a path
@@ -5460,6 +5482,8 @@ class Handler(BaseHTTPRequestHandler):
         # entry is, as an entry of one LOD whose skins are guesses - the file
         # names no texture, see loosemesh.py.
         if path == "/api/model/loose":
+            if meshfolder.is_folder(name):
+                return self._json({"mod": name, "meshes": mod.listing()["meshes"]})
             return self._json({"mod": name, "meshes": loosemesh.loose_meshes(mod)})
         if path == "/api/model/loose/textures":
             return self._json({"mod": name, "textures": loosemesh.texture_files(mod)})
@@ -5470,7 +5494,9 @@ class Handler(BaseHTTPRequestHandler):
             if src is None or not src.is_file() or src.suffix.lower() != ".mesh":
                 return self._err(404, f"{loose!r} is not a .mesh in {name}")
             if path == "/api/model":
-                return self._json(loosemesh.view(mod, src.relative_to(mod.data).as_posix()))
+                rel = src.relative_to(mod.data).as_posix()
+                return self._json(mod.view(rel) if meshfolder.is_folder(name)
+                                  else loosemesh.view(mod, rel))
             try:
                 decoded = mesh.read_mesh(src)
             except mesh.MeshError as e:
