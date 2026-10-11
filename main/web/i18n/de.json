@@ -10084,5 +10084,8 @@
  "eng.meshfolder.no_folder_named": "kein Ordner angegeben",
  "eng.meshfolder.is_not_a_folder": "{raw} ist kein Ordner",
  "bmdb.folder_button": "📁 Ordner öffnen…",
- "bmdb.folder_button_title": "Die Modelle in einem beliebigen Ordner auf diesem PC ansehen, einem Blender-Export oder einem Ordner data, ohne ihn zu installieren. Öffnet das 3D-Feld."
+ "bmdb.folder_button_title": "Die Modelle in einem beliebigen Ordner auf diesem PC ansehen, einem Blender-Export oder einem Ordner data, ohne ihn zu installieren. Öffnet das 3D-Feld.",
+ "bmdb.folder_leave": "← Modelleinträge",
+ "bmdb.folder_leave_title": "Zurück zu den Modelleinträgen dieser Mod. Der Ordner bleibt für das nächste Mal geöffnet.",
+ "bmdb.folder_pick_a_model": "Einen Ordner öffnen, dann ein Modell in der Liste wählen."
 }

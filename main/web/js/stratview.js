@@ -62,16 +62,16 @@ async function cmodLoad(force){
   cmodPaint();
 }
 
-/* Typed into rather than submitted, so the list narrows as you go. The value is
-   kept on the panel and put back after the repaint - the input is inside the
-   markup this redraws, so it would otherwise lose the caret on every letter. */
+/* Typed into rather than submitted, so the list narrows as you go. Only the
+   rows under the box are repainted: rewriting the box itself on every letter
+   put the caret back at its start each time. */
 function cmodFilter(text){
   const k = state.cmod;
   if(!k) return;
   k.filter = text;
-  cmodPaint();
-  const el = document.getElementById('cmodFilter');
-  if(el){ el.value = text; el.focus(); }
+  const rows = document.getElementById('cmodRows');
+  if(rows) rows.innerHTML = cmodRowsHtml(k);
+  else cmodPaint();
 }
 
 //: A click on a file draws it in the panel this list is inside. The entry the
@@ -107,6 +107,15 @@ function cmodHtml(){
   if(!models.length)
     return `<div class="count">${tt('stratview.this_mod_ships_no_data_models')}</div>`;
 
+  return `<label class="v3f"><span>${tt('common.find')}</span>
+      <input id="cmodFilter" type="text" value="${esc(k.filter)}"
+        placeholder="${ttA('stratview.castle_general_symbol')}"
+        oninput="cmodFilter(this.value)"></label>
+    <div id="cmodRows">${cmodRowsHtml(k)}</div>`;
+}
+
+function cmodRowsHtml(k){
+  const models = k.models || [];
   const shown = cmodMatch(k);
   const groups = new Map();
   for(const m of shown){
@@ -115,15 +124,11 @@ function cmodHtml(){
   }
   const rows = [...groups.entries()].map(([group, list]) => `
     <div class="k">${esc(group)} <span class="count">${list.length}</span></div>
-    ${list.map(m => `<button class="cmodrow${k.chosen === m.rel ? ' on' : ''}"
+    ${list.map(m => `<button class="cmodrow${k.chosen === m.rel ? ' on' : ''}" data-rel="${esc(m.rel)}"
         onclick="cmodShow('${q1(esc(m.rel))}')" title="${esc(m.rel)}"
         >${tt('stratview.kb',{name:esc(m.name),bytes:Math.round(m.bytes/1024)})}</button>`
       ).join('')}`).join('');
-  return `<label class="v3f"><span>${tt('common.find')}</span>
-      <input id="cmodFilter" type="text" value="${esc(k.filter)}"
-        placeholder="${ttA('stratview.castle_general_symbol')}"
-        oninput="cmodFilter(this.value)"></label>
-    <div class="count">${shown.length === models.length
+  return `<div class="count">${shown.length === models.length
       ? ttN('stratview.model_files_under_data_models_strat',models.length)
       : tt('stratview.shown_of_total',{shown:shown.length,total:models.length})}</div>
     <div class="cmodlist">${rows || `<div class="count">${tt('stratview.nothing_by_that_name')}</div>`}</div>`;

@@ -10539,5 +10539,8 @@
  "eng.meshfolder.no_folder_named": "no se ha indicado ninguna carpeta",
  "eng.meshfolder.is_not_a_folder": "{raw} no es una carpeta",
  "bmdb.folder_button": "📁 Abrir una carpeta…",
- "bmdb.folder_button_title": "Ver los modelos de cualquier carpeta de este PC, una exportación de Blender o una carpeta data, sin instalarla. Abre el panel 3D."
+ "bmdb.folder_button_title": "Ver los modelos de cualquier carpeta de este PC, una exportación de Blender o una carpeta data, sin instalarla. Abre el panel 3D.",
+ "bmdb.folder_leave": "← Entradas de modelos",
+ "bmdb.folder_leave_title": "Volver a las entradas de modelos de este mod. La carpeta queda abierta para la próxima vez.",
+ "bmdb.folder_pick_a_model": "Abrir una carpeta y elegir un modelo de la lista."
 }

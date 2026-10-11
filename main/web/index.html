@@ -650,6 +650,29 @@
   /* ...and the one that opens a folder outside the mod */
   .bmfolderpick{display:flex;gap:4px;margin:4px 0}
   .bmfolderpick input{flex:1;min-width:0}
+  /* folder mode: the list is the left column and runs the page's length, and
+     the panel beside it is the model alone */
+  .bmfoldercol{display:flex;flex-direction:column;gap:6px}
+  .bmfoldercol .cmodlist{max-height:none}
+  .bmfoldercol .k{font-size:10.5px;color:var(--dim);text-transform:uppercase;
+    letter-spacing:.04em;font-weight:600;margin-top:6px}
+  .bmprev.folder .bmloose{display:none}
+  /* ...and a panel that wide is a dialog's room, so the viewer is laid out as
+     the dialog's is - controls beside the canvas, the canvas the panel's full
+     height - instead of stacked into one narrow column. !important because the
+     grab bar writes the stacked canvas's height inline. */
+  .bmprev.folder{height:calc(84vh / var(--uiz));max-height:none}
+  .bmprev.folder .edprevbody{overflow:hidden}
+  .bmprev.folder .v3wrap.dock{flex-direction:row;flex-wrap:nowrap;height:100%;min-height:0}
+  .bmprev.folder .v3wrap.dock .v3stage{flex:1 1 0!important;min-width:0;min-height:0!important}
+  .bmprev.folder .v3wrap.dock .v3side{flex:0 0 300px;max-height:100%;overflow:auto}
+  .bmprev.folder .v3wrap.dock .v3grip{display:none}
+  @container page (max-width:1100px){
+    .bmprev.folder{height:auto;max-height:calc(60vh / var(--uiz))}
+    .bmprev.folder .v3wrap.dock{flex-direction:column}
+    .bmprev.folder .v3wrap.dock .v3stage{min-height:240px!important}
+    .bmprev.folder .v3wrap.dock .v3side{flex:0 0 auto;max-height:calc(34vh / var(--uiz))}
+  }
   /* ---- the Unit cards tab ----
      A page, not a dialog: choosing between two cards a mod ships is reading
      work, and it needs the room and the scroll position a page has. */

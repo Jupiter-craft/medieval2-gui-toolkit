@@ -172,7 +172,11 @@ function stmPrevOpen(rel, what){
 //: would throw that list's scroll position away on every model.
 function stmPrevShowFile(rel){
   stmPrevMake(rel, rel.split('/').pop());
-  cmodPaint();
+  // the highlight moves; the list is not rewritten, so its scroll and the
+  // Find box's caret stay where they were
+  const rows = document.getElementById('cmodRows');
+  if(rows) rows.querySelectorAll('.cmodrow').forEach(x => x.classList.toggle('on', x.dataset.rel === rel));
+  else cmodPaint();
   stmPrevBar();
   stmPrevMount();
   // the row that matched the old file is no longer the one showing

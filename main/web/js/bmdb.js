@@ -44,6 +44,7 @@ async function loadBmdb(){
   renderBmdb();
 }
 function renderBmdb(){
+  if(bmFolderOn)return renderBmdbFolder();
   if(!state.bmdb||state.bmdb.mod!==state.src)return loadBmdb();
   const qq=search.value.trim().toLowerCase();
   const rows=state.bmdb.entries.filter(e=>
@@ -77,6 +78,16 @@ function renderBmdb(){
     </div>
   </div>`;
   main.querySelectorAll('.dbrow').forEach(r=>r.onclick=()=>openBmdbEntry(r.dataset.name));
+  bmPrevAttach();
+}
+// folder mode (bmFolderJump): the folder's picker and list where the entry
+// list was, the 3D panel beside it holding the model alone
+function renderBmdbFolder(){
+  bmPrevMake('');
+  bmPrevDetach();
+  main.innerHTML=bmdbTabsHtml('data/unit_models/battle_models.modeldb')+`<div class="bmsplit" id="bmSplit">
+    <div class="bmmain bmfoldercol">${bmFolderColHtml()}</div>
+  </div>`;
   bmPrevAttach();
 }
 function bmdbRow(e){
@@ -117,9 +128,15 @@ function bmPrevAttach(){
   const split = document.getElementById('bmSplit');
   if(!split || !bmPrevNode) return;
   split.appendChild(bmPrevNode);
+  // the panel's own folded lists are the entry list's companions, and in
+  // folder mode the folder's list is the left column instead
+  bmPrevNode.classList.toggle('folder', bmFolderOn);
   // Half the split by default - this mode's errand is looking AT models, not
-  // reading a list with a thumbnail beside it - and draggable from there.
-  splitInstall(split, bmPrevNode, 'bmdb_prev_px', avail => Math.round(avail / 2));
+  // reading a list with a thumbnail beside it - and draggable from there. In
+  // folder mode the list is short and the model is the point, so it takes
+  // more, and remembers its own width.
+  if(bmFolderOn) splitInstall(split, bmPrevNode, 'bmdb_folder_prev_px', avail => Math.round(avail * 0.62));
+  else splitInstall(split, bmPrevNode, 'bmdb_prev_px', avail => Math.round(avail / 2));
   bmPrevBar();
   bmPrevMount();
 }
@@ -129,6 +146,8 @@ function bmPrevAttach(){
    every time you open the mode is one that mostly does not get opened. */
 const bmPrevOn = () => state.settings.bmdb_preview !== false;
 function bmPrevClose(){
+  // in folder mode the panel is the folder's viewer, and closing it goes back
+  if(bmFolderOn) return bmFolderLeave();
   if(v3 && v3.host === BM_PREV_HOST) v3Unmount();
   bmPrevDetach();
   bmPrevNode = null; bmPrevEntry = ''; bmPrevLoose = ''; bmPrevExt = null;
@@ -157,17 +176,13 @@ function bmPrevMake(name){
         <summary>${tt('bmdb.loose_meshes')}</summary>
         <div class="stmbrowse" id="bmLooseBrowse"></div>
       </details>
-      <details class="bmloose" id="bmFolderBox" ontoggle="if(this.open)bmFolderPaint()">
-        <summary>${tt('bmdb.folder_models')}</summary>
-        <div class="stmbrowse" id="bmFolderBrowse"></div>
-      </details>
       <div class="edprevbody" id="${BM_PREV_HOST}"></div>`;
   }
   bmPrevEntry = name || bmPrevEntry;
 }
 function bmPrevOpen(name){
   bmPrevLoose = ''; bmPrevExt = null;
-  bmLoosePaint(); bmFolderPaint();
+  bmLooseMark();
   bmPrevMake(name);
   renderBmdb();               // re-marks the row that is showing, then re-attaches
 }
@@ -183,7 +198,7 @@ function bmPrevBar(){
     ${bmPrevEntry && !bmPrevLoose && !x?`<button onclick="openBmdbEntry('${q1(esc(bmPrevEntry))}')"
       title="${ttA('bmdb.open_this_entrys_editor')}">✎</button>`:''}
     ${what?`<button onclick="bmPrevFull()" title="${ttA('bmdb.full_screen_esc_comes_back')}">⤢</button>`:''}
-    <button onclick="bmPrevClose()" title="${ttA('bmdb.close_the_panel')}">✕</button>`;
+    <button onclick="bmPrevClose()" title="${ttA(bmFolderOn ? 'bmdb.folder_leave_title' : 'bmdb.close_the_panel')}">✕</button>`;
 }
 async function bmPrevMount(){
   const host = document.getElementById(BM_PREV_HOST);
@@ -191,12 +206,27 @@ async function bmPrevMount(){
   const x = bmPrevExt;
   if(x) return x.entry ? v3Mount(BM_PREV_HOST, x.mod, x.entry)
                        : v3MountLoose(BM_PREV_HOST, x.mod, x.rel);
+  if(bmFolderOn){
+    if(v3 && v3.host === BM_PREV_HOST) v3Unmount();
+    host.innerHTML = `<div class="empty">${tt('bmdb.folder_pick_a_model')}</div>`;
+    return;
+  }
   if(bmPrevLoose) return v3MountLoose(BM_PREV_HOST, state.src, bmPrevLoose);
   if(!bmPrevEntry){
     host.innerHTML = `<div class="empty">${tt('bmdb.press_on_any_row')}</div>`;
     return;
   }
   await v3Mount(BM_PREV_HOST, state.src, bmPrevEntry);
+}
+
+/* A list with a Find box over it is painted in two parts, and typing repaints
+   only the second. Rewriting the box itself on every letter puts the caret back
+   at the start of it (and drops the list's scroll), which is what both lists
+   below used to do. Picking a row only moves the highlight, for the same
+   reason: a repaint there would throw away where the list was scrolled to. */
+function bmMarkRows(id, on){
+  const el = document.getElementById(id);
+  if(el) el.querySelectorAll('.cmodrow').forEach(b => b.classList.toggle('on', on(b)));
 }
 
 /* ---- the meshes no entry names ------------------------------------------
@@ -229,15 +259,16 @@ function bmLooseFilter(text){
   const k = state.bmloose;
   if(!k) return;
   k.filter = text;
-  bmLoosePaint();
-  const el = document.getElementById('bmLooseFilter');
-  if(el){ el.value = text; el.focus(); }
+  const rows = document.getElementById('bmLooseRows');
+  if(rows) rows.innerHTML = bmLooseRowsHtml(k);
 }
+
+function bmLooseMark(){ bmMarkRows('bmLooseRows', b => b.dataset.rel === bmPrevLoose); }
 
 function bmLooseShow(rel){
   bmPrevLoose = rel;
   bmPrevEntry = ''; bmPrevExt = null;
-  bmLoosePaint(); bmFolderPaint();
+  bmLooseMark();
   bmPrevBar();
   bmPrevMount();
   // the list is not re-rendered, so the row that was showing is let go here
@@ -253,6 +284,15 @@ function bmLoosePaint(){
   if(k.err){ el.innerHTML = `<div class="w-warn">${esc(k.err)}</div>`; return; }
   const all = k.meshes || [];
   if(!all.length){ el.innerHTML = `<div class="count">${tt('bmdb.no_loose_meshes')}</div>`; return; }
+  el.innerHTML = `<div class="count">${tt('bmdb.loose_meshes_intro',{n:all.length,hinted:all.filter(m=>m.hint).length})}</div>
+    <label class="v3f"><span>${tt('common.find')}</span>
+      <input id="bmLooseFilter" type="text" value="${esc(k.filter)}"
+        oninput="bmLooseFilter(this.value)"></label>
+    <div id="bmLooseRows">${bmLooseRowsHtml(k)}</div>`;
+}
+
+function bmLooseRowsHtml(k){
+  const all = k.meshes || [];
   const want = (k.filter || '').trim().toLowerCase();
   const shown = want ? all.filter(m => m.rel.toLowerCase().includes(want)) : all;
   const groups = new Map();
@@ -262,43 +302,60 @@ function bmLoosePaint(){
   }
   const rows = [...groups.entries()].map(([group, list]) => `
     <div class="k">${esc(group)} <span class="count">${list.length}</span></div>
-    ${list.map(m => `<button class="cmodrow${bmPrevLoose === m.rel ? ' on' : ''}"
+    ${list.map(m => `<button class="cmodrow${bmPrevLoose === m.rel ? ' on' : ''}" data-rel="${esc(m.rel)}"
         onclick="bmLooseShow('${q1(esc(m.rel))}')" title="${esc(m.rel)}"
         >${tt('bmdb.loose_row',{name:esc(m.name),hint:m.hint?'🎨 ':'',bytes:Math.round(m.bytes/1024)})}</button>`
       ).join('')}`).join('');
-  el.innerHTML = `<div class="count">${tt('bmdb.loose_meshes_intro',{n:all.length,hinted:all.filter(m=>m.hint).length})}</div>
-    <label class="v3f"><span>${tt('common.find')}</span>
-      <input id="bmLooseFilter" type="text" value="${esc(k.filter)}"
-        oninput="bmLooseFilter(this.value)"></label>
-    ${want ? `<div class="count">${tt('stratview.shown_of_total',{shown:shown.length,total:all.length})}</div>` : ''}
+  return `${want ? `<div class="count">${tt('stratview.shown_of_total',{shown:shown.length,total:all.length})}</div>` : ''}
     <div class="cmodlist">${rows || `<div class="count">${tt('stratview.nothing_by_that_name')}</div>`}</div>`;
 }
-/* ---- models in a folder that is not a mod --------------------------------
+
+/* ---- folder mode: models in a folder that is not a mod --------------------
    A Blender export (a folder per model: the .mesh, its textures/ and maybe a
    <name>_bmdb.txt) or a data folder made to be pasted into a mod, looked at
    without installing either. The server reads the folder as a stand-in for a
-   mod (meshfolder.py), so the viewer draws it through the same routes; this is
-   the list. The folder is not the mod's, so it outlives switching mods, and the
+   mod (meshfolder.py), so the viewer draws it through the same routes.
+
+   The header's 📁 button turns the page over to it for a while: the folder's
+   picker and list take the left column in place of the entry list, and the
+   3D panel beside it is the model and nothing else, so it is not squeezed
+   under a list. ← Model entries (or the panel's ✕) puts the page back as it
+   was. The folder is not the mod's, so it outlives switching mods, and the
    last few opened are kept in the settings to come back to. */
 const BM_FOLDER_KEEP = 6;
+let bmFolderOn = false;         // the page is in folder mode
+let bmFolderWas = null;         // the panel as folder mode found it, to put back
 
-/* The header's 📁 button: the list lives in the 3D panel, folded, and a panel
-   that is shut hides it entirely - so this opens the panel, unfolds the list
-   and puts the cursor in the path box. */
 function bmFolderJump(){
-  if(!bmPrevNode){
-    state.settings.bmdb_preview = true;
-    api.post('/api/settings', {bmdb_preview: true});
-    const first = main.querySelector('.dbrow');
-    bmPrevOpen(first ? first.dataset.name : '');
-  }
-  const box = document.getElementById('bmFolderBox');
-  if(!box) return;
-  box.open = true;
-  bmFolderPaint();
-  box.scrollIntoView({block: 'nearest'});
+  if(bmFolderOn) return;
+  bmFolderOn = true;
+  bmFolderWas = {node: !!bmPrevNode, entry: bmPrevEntry, loose: bmPrevLoose};
+  bmPrevLoose = ''; bmPrevEntry = '';
+  bmPrevMake('');
+  renderBmdb();
+  window.scrollTo(0, 0);
+  const k = bmFolderState();
+  // the folder last looked at comes back with the mode, already open
+  if(k.data) bmFolderShow(Math.max(0, k.items.findIndex(it => bmFolderIsOn(it))));
+  else if(k.path && !k.loading) bmFolderOpen(k.path);
   const input = document.getElementById('bmFolderPath');
-  if(input) input.focus();
+  if(input && !k.path) input.focus();
+}
+
+function bmFolderLeave(){
+  if(!bmFolderOn) return;
+  bmFolderOn = false;
+  bmPrevExt = null;
+  const was = bmFolderWas || {};
+  bmFolderWas = null;
+  if(v3 && v3.host === BM_PREV_HOST) v3Unmount();
+  if(was.node){
+    bmPrevEntry = was.entry || ''; bmPrevLoose = was.loose || '';
+  }else{
+    bmPrevDetach();
+    bmPrevNode = null; bmPrevEntry = ''; bmPrevLoose = '';
+  }
+  renderBmdb();
 }
 
 function bmFolderState(){
@@ -308,6 +365,39 @@ function bmFolderState(){
                       items: [], filter: ''};
   }
   return state.bmfolder;
+}
+
+/* The left column in folder mode. renderBmdb writes it; the parts that change
+   after that are painted into their own boxes (bmFolderPaint, bmFolderRows). */
+function bmFolderColHtml(){
+  const k = bmFolderState();
+  return `<div class="dbhead">
+      <h2>📁 ${tt('bmdb.folder_models')}</h2>
+      <span class="sp" style="flex:1"></span>
+      <button onclick="bmFolderLeave()" title="${ttA('bmdb.folder_leave_title')}">${tt('bmdb.folder_leave')}</button>
+    </div>
+    <div class="count">${tt('bmdb.folder_intro')}</div>
+    <div class="bmfolderpick">
+      <input id="bmFolderPath" type="text" value="${esc(k.path)}"
+        placeholder="${ttA('bmdb.folder_path_placeholder')}"
+        onkeydown="if(event.key==='Enter')bmFolderOpen(this.value)">
+      <button onclick="bmFolderBrowse()" title="${ttA('bmdb.folder_browse_title')}">📁</button>
+      <button class="primary" onclick="bmFolderOpen(document.getElementById('bmFolderPath').value)"
+        >${tt('bmdb.folder_open')}</button>
+      <button onclick="bmFolderOpen(document.getElementById('bmFolderPath').value, true)"
+        title="${ttA('bmdb.folder_reread_title')}">↻</button>
+    </div>
+    <div id="bmFolderRecent">${bmFolderRecentHtml()}</div>
+    <div id="bmFolderBrowse">${bmFolderBodyHtml()}</div>`;
+}
+
+function bmFolderRecentHtml(){
+  const recent = state.settings.model_folders || [];
+  return recent.length > 1 ? `<label class="v3f"><span>${tt('bmdb.folder_recent')}</span>
+      <select onchange="if(this.value)bmFolderOpen(this.value)">
+        <option value="">-</option>
+        ${recent.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('')}
+      </select></label>` : '';
 }
 
 async function bmFolderBrowse(){
@@ -321,7 +411,7 @@ async function bmFolderOpen(path, fresh){
   const k = bmFolderState();
   path = (path || '').trim().replace(/^"|"$/g, '');
   if(!path) return toast(tt('bmdb.folder_name_one_first'), 3000);
-  Object.assign(k, {path, loading: true, err: '', data: null, items: []});
+  Object.assign(k, {path, loading: true, err: '', data: null, items: [], filter: ''});
   bmFolderPaint();
   let d;
   try{ d = await api.get(`/api/model/folder?path=${enc(path)}${fresh ? '&fresh=1' : ''}`); }
@@ -343,18 +433,28 @@ async function bmFolderOpen(path, fresh){
   state.settings.model_folders = recent;
   api.post('/api/settings', {model_folders: recent});
   k.path = d.root;
+  const input = document.getElementById('bmFolderPath');
+  if(input && document.activeElement !== input) input.value = d.root;
+  const rec = document.getElementById('bmFolderRecent');
+  if(rec) rec.innerHTML = bmFolderRecentHtml();
   bmFolderPaint();
   // the first model is drawn straight away, so opening a folder shows something
-  const x = bmPrevExt;
-  if(k.items.length && !(x && x.mod === d.mod)) bmFolderShow(0);
+  if(!bmFolderOn) return;
+  const at = k.items.findIndex(it => bmFolderIsOn(it));
+  if(k.items.length) bmFolderShow(at >= 0 ? at : 0);
+  else{ bmPrevExt = null; bmPrevBar(); bmPrevMount(); }
+}
+
+function bmFolderIsOn(it){
+  const x = bmPrevExt, k = state.bmfolder;
+  return !!(x && k && k.data && x.mod === k.data.mod && x.entry === it.entry && x.rel === it.rel);
 }
 
 function bmFolderFilter(text){
   const k = bmFolderState();
   k.filter = text;
-  bmFolderPaint();
-  const el = document.getElementById('bmFolderFilter');
-  if(el){ el.value = text; el.focus(); }
+  const rows = document.getElementById('bmFolderRows');
+  if(rows) rows.innerHTML = bmFolderRowsHtml(k);
 }
 
 function bmFolderShow(n){
@@ -362,37 +462,24 @@ function bmFolderShow(n){
   if(!it || !k.data) return;
   bmPrevExt = {mod: k.data.mod, entry: it.entry, rel: it.rel, name: it.name};
   bmPrevLoose = ''; bmPrevEntry = '';
-  bmFolderPaint(); bmLoosePaint();
+  bmMarkRows('bmFolderRows', b => +b.dataset.n === n);
   bmPrevBar();
   bmPrevMount();
-  main.querySelectorAll('.dbrow.showing').forEach(r => r.classList.remove('showing'));
 }
 
+/* Everything under the path box: what the folder is, its Find box and the
+   rows. Painted when a folder is read, never while typing into Find. */
 function bmFolderPaint(){
   const el = document.getElementById('bmFolderBrowse');
-  if(!el) return;
+  if(el) el.innerHTML = bmFolderBodyHtml();
+}
+
+function bmFolderBodyHtml(){
   const k = bmFolderState();
-  const recent = state.settings.model_folders || [];
-  const head = `<div class="count">${tt('bmdb.folder_intro')}</div>
-    <div class="bmfolderpick">
-      <input id="bmFolderPath" type="text" value="${esc(k.path)}"
-        placeholder="${ttA('bmdb.folder_path_placeholder')}"
-        onkeydown="if(event.key==='Enter')bmFolderOpen(this.value)">
-      <button onclick="bmFolderBrowse()" title="${ttA('bmdb.folder_browse_title')}">📁</button>
-      <button class="primary" onclick="bmFolderOpen(document.getElementById('bmFolderPath').value)"
-        >${tt('bmdb.folder_open')}</button>
-      ${k.data ? `<button onclick="bmFolderOpen('${q1(esc(k.data.root))}', true)"
-        title="${ttA('bmdb.folder_reread_title')}">↻</button>` : ''}
-    </div>
-    ${recent.length > 1 ? `<label class="v3f"><span>${tt('bmdb.folder_recent')}</span>
-      <select onchange="if(this.value)bmFolderOpen(this.value)">
-        <option value="">-</option>
-        ${recent.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('')}
-      </select></label>` : ''}`;
-  if(k.loading){ el.innerHTML = head + `<div class="count">${tt('bmdb.folder_reading')}</div>`; return; }
-  if(k.err){ el.innerHTML = head + `<div class="w-warn">${esc(k.err)}</div>`; return; }
+  if(k.loading) return `<div class="count">${tt('bmdb.folder_reading')}</div>`;
+  if(k.err) return `<div class="w-warn">${esc(k.err)}</div>`;
   const d = k.data;
-  if(!d){ el.innerHTML = head; return; }
+  if(!d) return '';
   const all = k.items;
   const summary = d.kind === 'data'
     ? tt('bmdb.folder_data_summary', {entries: (d.entries || []).length, elsewhere: d.elsewhere || 0,
@@ -401,10 +488,16 @@ function bmFolderPaint(){
   const warn = [...(d.notes || []).map(esc),
                 d.truncated ? tt('bmdb.folder_truncated') : ''].filter(Boolean)
     .map(t => `<div class="w-warn">${t}</div>`).join('');
-  if(!all.length){
-    el.innerHTML = head + warn + `<div class="count">${tt('bmdb.folder_no_models')}</div>`;
-    return;
-  }
+  if(!all.length) return warn + `<div class="count">${tt('bmdb.folder_no_models')}</div>`;
+  return `<div class="count">${summary}</div>${warn}
+    ${all.length > 8 ? `<label class="v3f"><span>${tt('common.find')}</span>
+      <input id="bmFolderFilter" type="text" value="${esc(k.filter)}"
+        oninput="bmFolderFilter(this.value)"></label>` : ''}
+    <div id="bmFolderRows">${bmFolderRowsHtml(k)}</div>`;
+}
+
+function bmFolderRowsHtml(k){
+  const all = k.items;
   const want = (k.filter || '').trim().toLowerCase();
   const groups = new Map();
   all.forEach((it, n) => {
@@ -412,21 +505,15 @@ function bmFolderPaint(){
     if(!groups.has(it.group)) groups.set(it.group, []);
     groups.get(it.group).push(n);
   });
-  const x = bmPrevExt;
-  const on = it => x && x.mod === d.mod && x.entry === it.entry && x.rel === it.rel;
   const shown = [...groups.values()].reduce((a, l) => a + l.length, 0);
   // an export is a folder to a model, and a heading over every row says nothing
   const heads = shown > groups.size;
   const rows = [...groups.entries()].map(([group, list]) => `
     ${heads ? `<div class="k">${esc(group)} <span class="count">${list.length}</span></div>` : ''}
-    ${list.map(n => { const it = all[n]; return `<button class="cmodrow${on(it) ? ' on' : ''}"
+    ${list.map(n => { const it = all[n]; return `<button class="cmodrow${bmFolderIsOn(it) ? ' on' : ''}" data-n="${n}"
         onclick="bmFolderShow(${n})" title="${esc(it.rel || it.entry)}"
         >${it.kind === 'entry' ? '▣ ' : it.hint ? '🎨 ' : ''}${esc(it.name)}<span class="count">${esc(it.note)}</span></button>`; }).join('')}`).join('');
-  el.innerHTML = head + `<div class="count">${summary}</div>${warn}
-    ${all.length > 8 ? `<label class="v3f"><span>${tt('common.find')}</span>
-      <input id="bmFolderFilter" type="text" value="${esc(k.filter)}"
-        oninput="bmFolderFilter(this.value)"></label>` : ''}
-    ${want ? `<div class="count">${tt('stratview.shown_of_total',{shown,total:all.length})}</div>` : ''}
+  return `${want ? `<div class="count">${tt('stratview.shown_of_total',{shown,total:all.length})}</div>` : ''}
     <div class="cmodlist">${rows || `<div class="count">${tt('stratview.nothing_by_that_name')}</div>`}</div>`;
 }
 function bmPrevFull(){
