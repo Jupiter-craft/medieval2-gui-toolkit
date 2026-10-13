@@ -2319,8 +2319,9 @@ after.
 
 **98b - a Ko-fi link in the tool.** A Ko-fi link at the bottom right of Home
 and in the Credits (`web/js/core.js`). It opens in the browser, never inside
-the app. **The URL is the user's to give**; no Ko-fi link exists anywhere in
-the repo today. One string, translated in German and Spanish in the same
+the app. **The URL is `https://ko-fi.com/projyeet`**, the one the README and
+the GitHub page already link (the user, 2026-10-13: "our kofi is on our
+github"); nothing in `web/` links it yet. One string, translated in German and Spanish in the same
 commit.
 
 **98c - the Strat map 3D panel loses the model.** Reported: picking a model
