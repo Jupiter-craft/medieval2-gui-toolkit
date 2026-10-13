@@ -420,7 +420,8 @@ and their lettered pieces are commits. Build the majors in this order.
 
 | Major | Phase | Feature | Pieces | Line |
 |---|---|---|---|---|
-| **I. Models Editor and Armory Studio** (next) | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
+| **0. Six reports** (next) | **98** | Six reports of 2026-10-13: the Spanish wording, a Ko-fi link, the Strat map 3D panel losing its model, building art that needs a refresh, texture paths that point somewhere else, vanilla files read from the game's packs (and the shipped building art dropped) | 98a-98f | both |
+| **I. Models Editor and Armory Studio** | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
 | **II. Campaign map** | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
 | | 96b-96d | Two layout faults (the green box, the bottom gap), ports and the capital by icon with one port per region, the garrison in the settlement editor | 96b, 96c, 96d | beta |
 | | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
@@ -433,6 +434,9 @@ and their lettered pieces are commits. Build the majors in this order.
 | **IV. Interface** | 90 | A layout that fits the window at every interface size | 90a-90c | both |
 | | 93 | Two reports on getting around | 93a-93b | both |
 | **V. Translations** | 88 | The remaining catalogues through 88d's workflow: 88e French, 88h Portuguese (Brazil), 88i Polish, 88l Turkish, 88m Russian, 88o Simplified Chinese with the CJK fonts and line breaking, 88p Traditional Chinese, 88q Japanese, 88r Korean | nine catalogues | both |
+
+**Phase 98 put first on 2026-10-13** (the user: "Add all these into our
+roadmap as immediate next phase"): six reports, ahead of major I.
 
 Translations stay last on the user's 2026-09-30 word, so every string the
 other majors add is translated once. Interface (IV) comes after the feature
@@ -2280,6 +2284,152 @@ character and agent drawn as its strat model (`descr_model_strat.txt` and the
 level's and culture's strat model (`settlemodel.py`), on its tile. Placing an
 agent and moving one work in 3D (97a). Many models at once, so share one
 loaded model per kind and drop detail with distance.
+
+# Phase 98 - six reports, scheduled 2026-10-13, first in the schedule
+
+Sent by the user on 2026-10-13: three reports from a player who uses the
+toolkit in English and read the Spanish catalogue for us, then three of the
+user's own, with screenshots. The user: "Add all these into our roadmap as
+immediate next phase". It goes **before Phase 95**. The pieces are in build
+order, smallest first; 98f is the large one.
+
+**98a - the Spanish wording the player flagged.** Five strings on Home and
+one term, in `web/i18n/es.json`:
+
+| key | now | becomes |
+|---|---|---|
+| `home.root_mod_folder_the_medieval_ii` | Carpeta raíz de mods. La carpeta de Medieval II bajo la que están los mods. | Carpeta de mods. La carpeta de Medieval II en la que están los mods. |
+| `home.pick_a_mod_then_a_module` | Hay que elegir un mod y después un módulo. | Elige un mod y después un módulo. |
+| `home.every_write_is_backed_up_log` | Toda escritura tiene copia de seguridad. 🕑 Historial deshace cualquiera de ellas. | Toda edición se guarda en el 🕑 Historial. Allí puedes deshacer cualquier acción. |
+| `home.last_time_you_were_in` | La última vez se estuvo en | La última vez estuviste en |
+| `core.health` and the other two | Salud | Estado |
+
+The player's reasons: "carpeta raíz" is not what a Spanish speaker calls it;
+"bajo la que" reads as the mods crushed under the folder; "Hay que" is an
+impersonal "we must", where the rest of an interface says "Elige"; the backup
+sentence is clearer said as what the user can do. **Two rules follow for the
+whole catalogue, not only these five:** `carpeta raíz` goes everywhere (three
+strings), and the impersonal `Hay que ...` / `se estuvo` for an instruction
+becomes the direct `tú` form wherever it tells the user to do something (157
+strings use `Hay que` or `se estuvo`; most are explanations and stay, so read
+each). `Salud` becomes `Estado` everywhere the Health screen is named. Write
+both rules into the style guide `dev/i18n/es.md`, and `Estado` into the
+termbase's Spanish column. `dev/checks/i18n_todo.py` still reports 0 problems
+after.
+
+**98b - a Ko-fi link in the tool.** A Ko-fi link at the bottom right of Home
+and in the Credits (`web/js/core.js`). It opens in the browser, never inside
+the app. **The URL is the user's to give**; no Ko-fi link exists anywhere in
+the repo today. One string, translated in German and Spanish in the same
+commit.
+
+**98c - the Strat map 3D panel loses the model.** Reported: picking a model
+on the Strat map tab of the Models Editor shows it "for a few seconds then it
+disappears and gets replaced by a huge list of `models_strat/residences`
+files that extends beyond the page". The cause, read in the code: the panel
+built by `stmPrevMake` (`web/js/stratmap.js`) is the bar, then the file
+browser (`#cmodBrowse`, `web/js/stratview.js`), then the 3D view. The browser
+is empty while `/api/map/models` walks the folder, so the model draws at the
+top; when the list arrives (635 files in The Elder Scrolls, 285 under
+`residences` alone) it paints above the view with no height limit and pushes
+the model out of sight. Fix: the 3D view comes first and the file browser is
+a folded list under it, closed by default, its rows in a scrolling box of
+bounded height, the same pattern as the BMDB panel's folded lists. Its open
+or closed state is remembered. The same screenshot shows rows marked `1 not
+shipped`; those files are in the base game's packs, and 98f is what lets them
+be drawn.
+
+**98d - building art that needs a refresh.** The user: "Building arts change
+requires a refresh on subsequent art updates Sometimes." A second replace of
+the same picture can show the old one until the page is reloaded. Reproduce
+it first (replace the same building's art twice in a row, then a third time
+from a different file of the same name). The likely cause is the browser
+holding the picture by its URL, which does not change when the file does; if
+so, every building-art URL carries the file's mtime and size, so a new file is
+a new URL. Check the picture dialog, the building card and the level list,
+since all three show the art.
+
+**98e - texture paths that point somewhere else.** Reported: "Sometimes when
+creating/editing units, the GUI Toolkit copies and references the texture
+files in a specific folder (usually the same as the meshes, eg _units/France).
+Even if I change them by using the 'import' option, they are still there, the
+solution being manually writing down the folder location." The player edited
+textures and normal maps for a while without seeing a change in game, because
+the entry named a copy in another folder. The second screenshot shows it: the
+model folder is `unit_models/_Units/skyrim`, the texture and attachment
+texture are under its `textures/`, but the normal map and attachment normal
+map are in the mesh folder itself (`skyrim/bendr_nm.texture`,
+`skyrim/rift_nm.texture`), boxed in amber. What the code does
+(`web/js/editor.js`): `edImportDir` lands an imported file **beside the file
+it replaces**, falling back to the model folder's `textures/` only when the
+slot was empty, and `edRebase` moves every path to `<folder>/textures/` only
+when a folder move is pending. So a path that was in the mesh folder stays
+there through every Import. The pieces:
+
+- **One rule for where a texture lands**: the model folder's `textures/`,
+  which is what the form already says ("Meshes here, textures in its
+  `textures/`, one folder"). Import puts the file there whatever the old path
+  was, and the box changes to the new path.
+- **Say where it went**: after an Import, the box shows the path it now names,
+  and a line under the form lists every texture slot whose path is outside
+  the model folder's `textures/`, with one button to bring them in (copied,
+  the paths changed, one Undo).
+- **Say when it names nothing**: a slot whose file does not exist in the mod
+  (nor, after 98f, in the base game) is marked as missing, distinct from the
+  amber of an edited box.
+- Find out what made the copies in the mesh folder in the first place (a
+  transfer, Add a model, or a save of the form) and make it follow the same
+  rule. Reproduce on the player's case before changing anything.
+
+**98f - vanilla files read from the game's packs, nothing unpacked.** The
+user: "The mods that rely on vanilla assets (like vanilla expanded ones or the
+Kingdoms expansions) throw errors of missing files/textures when editing
+units. Can you see if you can gather the data from the packs directly without
+unpacking them like we have done for the animations and skeletons." A mod that
+leans on vanilla ships only what it changed; the engine finds the rest in the
+base game's `packs/`, and the toolkit does not look there, so the unit editor,
+the modeldb checks, Health and the Strat map tab (98c's `not shipped`) report
+files that the game itself finds.
+
+What is there, measured 2026-10-13 on the Steam install
+(`C:/Program Files (x86)/Steam/steamapps/common/Medieval II Total War`):
+`packs/data_0.pack` to `data_4.pack` (3.9 GB in all), `localized.pack` and
+`voices.pack`; CA's own `tools/unpacker/unpacker.exe` with `unpack_all.bat`
+and one `.bat` per Kingdoms campaign (americas, britannia, crusades,
+teutonic). These are not the animation packs that 77 reads (`pack.dat` /
+`.idx` under `data/animations`), so this is a new, read-only reader.
+
+- **The reader**: `.pack` files indexed once (names, offsets, sizes), the
+  index cached on disk keyed by each pack's size and mtime, and one file read
+  out by name on demand into memory or a cache folder, never the whole pack.
+  CA's `unpacker.exe` is the fallback for a file the reader cannot decode
+  (asked for one file, into a temp folder), never the main path.
+- **One lookup**: a file a mod names is looked for in the mod's `data/`, then
+  in the base game's loose `data/` (an install that was unpacked already),
+  then in the packs. This is the order the game uses; confirm it with 82's
+  in-game method before relying on it. Every place that today says "missing"
+  or "not shipped" goes through it: the unit editor's model and texture
+  slots, the modeldb and texture checks, Health, the 3D viewers (battle and
+  strat) and Unit Transfer's file copy. A file found only in a pack is shown
+  as **from the base game**, not as missing, and a transfer copies it out of
+  the pack only when the destination does not reach the same base game.
+- **Kingdoms**: a campaign under `mods/americas` and the other three reads its
+  own folder first, then the base game, as the engine does. Check whether the
+  Kingdoms campaigns have packs of their own on this install.
+- **Building art from the packs**: once the reader works, the building
+  pictures come from the base game's packs and the shipped copy goes. Today
+  that copy is `main/vanilla_ui` (35 MB), which `config.get_vanilla_ui_root()`
+  and `buildings.vanilla_ui()` read, packed by
+  `dev/release/pack_vanilla_ui.py`. Drop it only after every building screen
+  is checked against a mod that has no art of its own, and keep a clear
+  message for an install with no packs. **This changes a release rule**: a
+  release zip is about 50-55 MB with the art and about 19 MB without it, and
+  RELEASE.md and the release check treat 19 MB as broken. The rule, the size
+  and the check change in the same commit that drops the folder, nowhere
+  sooner.
+- Measure the reader against the unpacked files before any screen uses it:
+  every name in the index read out and compared byte for byte with what
+  `unpacker.exe` writes, on a sample from each pack.
 
 # What else is open
 
