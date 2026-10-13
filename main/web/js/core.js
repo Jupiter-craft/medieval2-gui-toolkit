@@ -1963,6 +1963,10 @@ async function paintBuildTag(){
 }
 
 /* ---------- credits ---------- */
+// The README and the GitHub page link the same one. A plain target=_blank link,
+// so it opens in the browser beside the toolkit and never replaces it.
+const KOFI_URL='https://ko-fi.com/projyeet';
+const kofiLink=()=>`<a class="kofi" href="${KOFI_URL}" target="_blank" rel="noopener">${tt('core.support_on_kofi')}</a>`;
 async function openCredits(){
   let ver=verLabel(appBuild);
   if(!ver){try{const p=await api.get('/api/ping');ver=verLabel(p.version);}catch(e){}}
@@ -2001,6 +2005,10 @@ async function openCredits(){
       <div>
         <div class="lbl" style="margin-bottom:4px">${tt('core.testing')}</div>
         ${tt('core.jayzinski_theholypilgrim_espartan_anhlego_lupine')}
+      </div>
+      <div style="margin-top:14px">
+        <div class="lbl" style="margin-bottom:4px">${tt('core.support')}</div>
+        ${kofiLink()}
       </div>
     </div>
     <div style="padding:0 16px 16px;text-align:right">

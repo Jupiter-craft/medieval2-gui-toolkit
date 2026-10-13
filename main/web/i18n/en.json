@@ -2429,6 +2429,8 @@
 "core.is_not_a_unit_in": "“{qEdit}” is not a unit in {src}",
 "core.jayzinski_theholypilgrim_espartan_anhlego_lupine": "<b>Jayzinski</b>, <b>TheHolyPilgrim</b>, <b>Espartan</b>, <b>Anhlego</b>, <b>Lupinemaverick</b> and <b>empire3376</b>",
 "core.late": "Late",
+"core.support_on_kofi": "☕ Support the toolkit on Ko-fi",
+"core.support": "Support",
 "core.leave_without_saving": "Leave {rel} without saving? The edits are only in the Raw text box.",
 "core.loading": "Loading…",
 "core.loading_2": "Loading",

@@ -44,6 +44,7 @@ function renderHome(){
     ${homeResumeHtml()}
     <div class="homegrid">${mods.map(homeCardHtml).join('')}</div>
     ${homePrefsHtml()}
+    <div class="homefoot">${kofiLink()}</div>
   </div>`;
   mods.forEach(m => homeLoadReport(m.name));
 }

@@ -2328,8 +2328,10 @@ after.
 and in the Credits (`web/js/core.js`). It opens in the browser, never inside
 the app. **The URL is `https://ko-fi.com/projyeet`**, the one the README and
 the GitHub page already link (the user, 2026-10-13: "our kofi is on our
-github"); nothing in `web/` links it yet. One string, translated in German and Spanish in the same
-commit.
+github"); nothing in `web/` links it yet. **Done 2026-10-13**: `kofiLink()` in `core.js`, a
+foot row on Home (`.homefoot`) and a Support block last in the Credits. Its two
+strings are English only for now; German and Spanish go with the translations
+(major V), on the user's word the same day.
 
 **98c - the Strat map 3D panel loses the model.** Reported: picking a model
 on the Strat map tab of the Models Editor shows it "for a few seconds then it
