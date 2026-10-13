@@ -25,10 +25,19 @@ never *fichero*; *ordenador* is avoided (say *equipo* or nothing); *Añadir*.
 
 ## Voice
 
-- **tú**, as Windows and Microsoft's Spanish style do, but address the reader
-  as little as possible: an infinitive or an impersonal sentence first
-  (*Se guardará una copia*, *Hay que elegir una carpeta*). Never *usted*,
+- **tú**, as Windows and Microsoft's Spanish style do. A sentence that only
+  describes stays impersonal (*Se guardará una copia*). Never *usted*,
   never *vosotros*.
+- **An instruction says tú, directly** (98a, a player's report): where the
+  English tells the reader to do something, Spanish does too, *Elige un mod*,
+  *Cierra antes el juego*, *Vuelve a cargarlo*. Never the impersonal *Hay que
+  elegir...*, which reads as "we must", and never *se estuvo* for what the
+  reader did (*La última vez estuviste en*). *Hay que* stays only where a
+  sentence explains a need rather than asks for an action (*para leerla hay
+  que conocer su esqueleto*).
+- **The mods folder is *carpeta de mods*, Medieval II's is *carpeta de
+  Medieval II*** (98a): never *carpeta raíz*, which is not what a Spanish
+  speaker calls it, and never *bajo la que están los mods*; they are *en* it.
 - Buttons and menu items are **infinitives**: *Guardar*, *Añadir unidad*,
   *Descartar cambios*. Not imperatives (*Guarda*, *Añade*).
 - Headings and tab names are **nouns**: *Edificios*, *Mercenarios*,
@@ -79,6 +88,7 @@ need care:
 | unit | unidad | *archivo de unidades* for the unit file (EDU) |
 | entry / record | entrada / registro | an entry in a list vs one record of a data file |
 | log (the toolkit's) | Historial | *🕑 Historial puede deshacerlo.* |
+| Health (the screen) | Estado | 98a: *Salud* read as a person's health. Not in the termbase, which needs a word in all 16 languages |
 | tile | casilla | a square of the campaign map |
 | tier / level | grado / nivel | *grado de armadura*; a building's *nivel* |
 | port (verb) | portar | move between mods; the harbour noun is *puerto* |
@@ -169,3 +179,5 @@ Doubts for the native reviewer, one line each: the ID, the doubt.
 - (g8) Coined: Aspectos (skins), hoja (texture sheet), isla (UV island), Baqueta (ramrod), Virote de balista, Estructura alámbrica (wireframe), Disposición UV, en mano / guardada (weapon drawn / stowed), en el brazo / a la espalda (shield carried / slung), Quieto (Still), Tripulación (crew).
 - (g8 doubt) transfer.s_value_click_to_s_own ends on a code word ('import'/'keep'). More English from the code: transfer.mount_help, officer_help {which}; transfer.has_no_skeleton* {x}; v3anim.no_mount_in_descr_mount_txt {x}; v3anim.s_leaves_empty, pack_message {action}; stratedit.confirm_verb {verb}; triggerui.exports 'nothing'; transfer.say 'added'.
 - (code, 88f) triggerui.and / triggerui.or are options whose label was read back as the joiner written to the file, so German wrote "oder" into export_descr_*.txt. The options now carry value="and" / "or"; Spanish reads y / o.
+- (98a) The player's wording, and its two rules (Voice, above): 352 strings moved from *Hay que* to tú; six that explain stay (animpack.the_source_ships_no_packs_of, campaint.takes_region_id_and_the_region, casanim.is_an_animation_from_the_pack, both regiondel.is_region_id / shares_an_edge strings). Where a sentence around the instruction was impersonal about the reader, it moved too (*hasta que pulses Crear*, *como querías*). _exempt port_verb, the imperative *porta*: changes.every_save_this_toolkit_makes_to, changes.record_every_tracked_file_as_it_wrong_after_update, changes.this_switch_is_refused_conflicts. transfer, the imperative *transfiere*: edbimport.their_recruit_pools_are_left_out, eng.edbimport.recruit_pool_s_left_out_unit. character, a letter (*carácter*): eng.cas.w_text_latin1, eng.cas.w_text_long.
+- (98a doubt) eng.factionclone.descriptions_copied reads *te toca reescribirlo* for "is yours to rewrite".

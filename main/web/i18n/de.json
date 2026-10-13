@@ -818,6 +818,15 @@
   ],
   "transfer.added": [
    "add"
+  ],
+  "eng.cas.w_text_latin1": [
+   "character"
+  ],
+  "eng.cas.w_text_long": [
+   "character"
+  ],
+  "buildings.copied_pool_open_another_building": [
+   "header"
   ]
  },
  "ancillaries.a_character_holds_one_ancillary_per": "Ein Charakter hat pro Typ ein Gefolgsmitglied; das ist also das, was ein neues ersetzt",
@@ -10096,5 +10105,47 @@
  "v3anim.folder_skel_hand": "Skelett von Hand gewählt.",
  "v3anim.folder_pick_skeleton": "Skelett",
  "v3anim.folder_skel_as_found": "- wie gefunden -",
- "v3anim.folder_no_skeleton": "Für dieses Modell wurde kein Skelett gefunden. Eines aus der Liste oben wählen."
+ "v3anim.folder_no_skeleton": "Für dieses Modell wurde kein Skelett gefunden. Eines aus der Liste oben wählen.",
+ "core.repair_close": "Schließen",
+ "core.repair_done": "Repariert: {summary}. Öffne noch einmal, was fehlgeschlagen ist. Sieht das Ergebnis falsch aus, mach es im Verlauf rückgängig:",
+ "core.repair_go": "Reparieren",
+ "core.repair_not_now": "Nicht jetzt",
+ "core.repair_offer": "{file} in {mod} hat Schäden aus einer Handbearbeitung, die das Toolkit erkennt und beheben kann. Die Datei wird vorher gesichert, und die Reparatur lässt sich im Verlauf rückgängig machen.",
+ "core.support_on_kofi": "☕ Das Toolkit auf Ko-fi unterstützen",
+ "core.support": "Unterstützen",
+ "eng.cas.w_baked_hierarchy": "dieses Modell trägt eingebackene Animation, deshalb können sich seine Knoten und Keyzeiten hier nicht ändern (das bearbeitet casanim)",
+ "eng.cas.w_baked_keys": "der Modellschreiber behält die eingebackenen Animationskeys so, wie sie gelesen wurden; er kann keine hinzufügen und ihre Größe nicht ändern",
+ "eng.cas.w_bone": "Mesh {name} bindet einen Vertex an einen Knoten, den das Modell nicht hat",
+ "eng.cas.w_bone_count": "Mesh {name} braucht mit Skelett einen Knochen je Vertex und ohne Skelett keinen",
+ "eng.cas.w_colour_count": "Mesh {name} hat Farben für manche seiner Vertices und für andere nicht",
+ "eng.cas.w_colour_value": "Mesh {name} hat eine Vertexfarbe, die keine 32-Bit-Zahl ist",
+ "eng.cas.w_encode": "das Modell ließ sich nicht schreiben: {exc}",
+ "eng.cas.w_float_out_of_range": "{label}: eine Zahl ist nicht endlich oder passt in keinen 32-Bit-Float",
+ "eng.cas.w_index": "Mesh {name} hat ein Dreieck auf einem Vertex, den es nicht hat",
+ "eng.cas.w_key_count": "{key_times_n:,} Keyzeiten sind mehr, als der Leser annimmt",
+ "eng.cas.w_key_order": "die Keyzeiten laufen rückwärts",
+ "eng.cas.w_material": "Mesh {name} nennt Material {material} von {materials_n}",
+ "eng.cas.w_material_colours": "Material {name} braucht vier Diffus- und drei Spiegelungswerte",
+ "eng.cas.w_mesh_label": "{label} von Mesh {name}",
+ "eng.cas.w_node_count": "ein Modell braucht mindestens einen Knoten und hat {n:,}",
+ "eng.cas.w_normals": "Mesh {name} braucht eine Normale je Vertex",
+ "eng.cas.w_parent_cycle": "die Elterntabelle dreht sich bei Knoten {node} im Kreis",
+ "eng.cas.w_parent_index": "Knoten {node} nennt Eltern {parent}, und das ist kein anderer Knoten",
+ "eng.cas.w_parent_table": "die Elterntabelle braucht einen Eintrag je Knoten, für die Wurzel -1",
+ "eng.cas.w_partial": "{name} wurde nur teilweise gelesen, deshalb lässt es sich unverändert zurückschreiben, aber nicht bearbeiten: der nicht verstandene Teil ginge verloren",
+ "eng.cas.w_pivots": "{pivots_n} Drehpunktwerte für {n} Knoten; jeder Knoten braucht drei",
+ "eng.cas.w_positions": "Mesh {name} hat Positionen, die keine ganzen Dreiergruppen sind",
+ "eng.cas.w_text_nul": "ein Name in einer .cas ist Text ohne NUL darin",
+ "eng.cas.w_too_many": "{objects_n:,} Meshes und {materials_n:,} Materialien sind mehr, als der Leser annimmt",
+ "eng.cas.w_triangles": "Mesh {name} hat mehr als 65.535 Dreiecke oder ein Dreieck, dem eine seiner drei Ecken fehlt",
+ "eng.cas.w_uvs": "Mesh {name} hat UVs für manche seiner Vertices und für andere nicht",
+ "eng.cas.w_version": "Version {version:g} lässt sich nicht schreiben: der Schreiber kennt das Layout 3.02 bis {MAX_VERSION:g}",
+ "eng.cas.w_vertex_limit": "Mesh {name} hat {v:,} Vertices; ein .cas-Mesh fasst 65.535",
+ "eng.modeldb.repair_gave_up": "battle_models.modeldb lässt sich nach {n} Reparaturen immer noch nicht lesen, deshalb wurde keine davon gespeichert.",
+ "eng.modeldb.repaired_summary": {
+  "one": "battle_models.modeldb von {mod}: {count} Reparatur",
+  "other": "battle_models.modeldb von {mod}: {count} Reparaturen"
+ },
+ "eng.cas.w_text_latin1": "{value} enthält ein Zeichen, das eine .cas nicht halten kann (sie wird in Latin-1 geschrieben)",
+ "eng.cas.w_text_long": "ein Name mit {n:,} Zeichen ist länger, als der Leser annimmt"
 }
