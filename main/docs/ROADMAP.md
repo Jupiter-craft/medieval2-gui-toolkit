@@ -420,7 +420,7 @@ and their lettered pieces are commits. Build the majors in this order.
 
 | Major | Phase | Feature | Pieces | Line |
 |---|---|---|---|---|
-| **0. Six reports** (next) | **98** | Six reports of 2026-10-13: the Spanish wording, a Ko-fi link, the Strat map 3D panel losing its model, building art that needs a refresh, texture paths that point somewhere else, vanilla files read from the game's packs (and the shipped building art dropped) | 98a-98f | both |
+| **0. Reports** (next) | **98b-98f** | Five reports of 2026-10-13: a Ko-fi link, the Strat map 3D panel losing its model, building art that needs a refresh, texture paths that point somewhere else, vanilla files read from the game's packs (and the shipped building art dropped) | 98b-98f | both |
 | **I. Models Editor and Armory Studio** | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
 | **II. Campaign map** | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
 | | 96b-96d | Two layout faults (the green box, the bottom gap), ports and the capital by icon with one port per region, the garrison in the settlement editor | 96b, 96c, 96d | beta |
@@ -433,10 +433,15 @@ and their lettered pieces are commits. Build the majors in this order.
 | | 96e1-3, 96e5-7 | From the Oogway editor: the script builder and add-ons, checking (log, deep check, report), characters (family tree, portraits), units (model swap, voices), art (emblem, banners, recolouring), rules and mods (vanilla values, hard-link mod folders) | six areas | both |
 | **IV. Interface** | 90 | A layout that fits the window at every interface size | 90a-90c | both |
 | | 93 | Two reports on getting around | 93a-93b | both |
-| **V. Translations** | 88 | The remaining catalogues through 88d's workflow: 88e French, 88h Portuguese (Brazil), 88i Polish, 88l Turkish, 88m Russian, 88o Simplified Chinese with the CJK fonts and line breaking, 88p Traditional Chinese, 88q Japanese, 88r Korean | nine catalogues | both |
+| **V. Translations** | 98a | The Spanish wording a player flagged, and the two rules it sets for the catalogue | one | both |
+| | 88 | The remaining catalogues through 88d's workflow: 88e French, 88h Portuguese (Brazil), 88i Polish, 88l Turkish, 88m Russian, 88o Simplified Chinese with the CJK fonts and line breaking, 88p Traditional Chinese, 88q Japanese, 88r Korean | nine catalogues | both |
 
 **Phase 98 put first on 2026-10-13** (the user: "Add all these into our
 roadmap as immediate next phase"): six reports, ahead of major I.
+
+On 2026-10-13 the user moved every language piece to the end ("move all
+languages to the end for now"): 98a, the Spanish wording, now sits in major
+V beside the catalogues, so Phase 98 starts at 98b.
 
 Translations stay last on the user's 2026-09-30 word, so every string the
 other majors add is translated once. Interface (IV) comes after the feature
@@ -2293,7 +2298,9 @@ user's own, with screenshots. The user: "Add all these into our roadmap as
 immediate next phase". It goes **before Phase 95**. The pieces are in build
 order, smallest first; 98f is the large one.
 
-**98a - the Spanish wording the player flagged.** Five strings on Home and
+**98a - the Spanish wording the player flagged.** Moved to major V, the
+translations, on 2026-10-13 (the user: "move all languages to the end for
+now"); Phase 98 starts at 98b. Five strings on Home and
 one term, in `web/i18n/es.json`:
 
 | key | now | becomes |
