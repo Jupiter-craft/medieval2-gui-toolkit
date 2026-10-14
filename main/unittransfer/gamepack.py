@@ -47,6 +47,8 @@ import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from . import i18n as _i18n
+
 log = logging.getLogger(__name__)
 
 BLOCK = 0x10000
@@ -75,7 +77,7 @@ def lzo1x_decompress(src: bytes, out_len: int) -> bytes:
     def match(dist: int, length: int) -> None:
         start = len(out) - dist
         if start < 0:
-            raise PackError("an LZO match reaches before the start of the block")
+            raise PackError(_i18n.msg("eng.gamepack.lzo_match_before_start", "an LZO match reaches before the start of the block"))
         if dist >= length:
             out.extend(out[start:start + length])
         else:
@@ -166,9 +168,9 @@ def lzo1x_decompress(src: bytes, out_len: int) -> bytes:
                 ip += t
                 state = "trail_done"
     except IndexError:
-        raise PackError("an LZO block ends in the middle of an instruction") from None
+        raise PackError(_i18n.msg("eng.gamepack.lzo_block_cut_short", "an LZO block ends in the middle of an instruction")) from None
     if len(out) != out_len:
-        raise PackError(f"an LZO block decoded to {len(out)} bytes, not {out_len}")
+        raise PackError(_i18n.msg("eng.gamepack.lzo_wrong_size", "an LZO block decoded to {got} bytes, not {want}", got=len(out), want=out_len))
     return bytes(out)
 
 
@@ -186,7 +188,7 @@ class GamePack:
         with open(self.path, "rb") as f:
             head = f.read(24)
             if len(head) < 24 or head[:4] != MAGIC:
-                raise PackError(f"{self.path.name} is not a PACK file")
+                raise PackError(_i18n.msg("eng.gamepack.not_a_pack", "{name} is not a PACK file", name=self.path.name))
             _z, _version, count, index_size, nblocks, _zero = struct.unpack_from("<HHIIII", head, 4)
             starts = (0,) + struct.unpack(f"<{max(count - 1, 0)}I", f.read(4 * max(count - 1, 0)))
             self.blocks = struct.unpack(f"<{nblocks}I", f.read(4 * nblocks))

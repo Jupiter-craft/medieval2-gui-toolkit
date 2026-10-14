@@ -1714,9 +1714,9 @@ function edStrays(m){
 function edStrayBox(m){
   const me=state.ed.mEdits[m.name]||{},n=q1(esc(m.name));
   if(me.move_dir)return '';
-  const tex=`<span class="fpath">data/${esc(edHome(m))}/${TEX_SUBDIR}</span>`;
+  const home='data/'+esc(edHome(m))+'/'+TEX_SUBDIR;
   if(me.gather)return `<div class="folderbox">
-    <b class="w-good">${tt('editor.textures_coming_in',{tex})}</b>
+    <b class="w-good">${tt('editor.textures_coming_in',{tex:`<span class="fpath">${home}</span>`})}</b>
     <div class="barrow"><button onclick="edGather('${n}',false)">${tt('editor.undo_this_change')}</button></div></div>`;
   const list=edStrays(m);
   if(!list.length)return '';
@@ -1728,7 +1728,7 @@ function edStrayBox(m){
   // which says the same; this one is for the entry that looks tidy and is not
   if(!twin&&!(m.folder||{}).standardized)return '';
   return `<div class="folderbox${twin?' bad':''}">
-    <b class="${twin?'w-warn':'count'}">${ttN('editor.textures_outside',list.length,{tex})}</b>
+    <b class="${twin?'w-warn':'count'}">${ttN('editor.textures_outside',list.length,{tex:`<span class="fpath">${home}</span>`})}</b>
     <div class="movelist">${list.map(p=>`<div>data/${esc(p)}${
       twins.has(p.toLowerCase())?' <span class="w-warn">⚠</span>':''}</div>`).join('')}</div>
     ${twin?`<div class="count w-warn">${tt('editor.textures_outside_why')}</div>`:''}
@@ -1744,8 +1744,8 @@ function edAbsent(m,val){
 //: draws it; marked apart from a path that names nothing anywhere
 const edFromGame=(m,val)=>!!val&&(m.from_game||[]).some(a=>a.toLowerCase()===val.toLowerCase());
 const edAbsentAttr=(m,val)=>edAbsent(m,val)
-  ?` data-absent="1" title="${ttA('editor.no_file_at_this_path',{path:esc(val)})}"`
-  :` data-base="1" title="${ttA('editor.from_the_base_game_path',{path:esc(val)})}"`;
+  ?` data-absent="" title="${ttA('editor.no_file_at_this_path',{path:esc(val)})}"`
+  :` data-base="" title="${ttA('editor.from_the_base_game_path',{path:esc(val)})}"`;
 function edTexView(m){
   const me=state.ed.mEdits[m.name]||{};
   const defs={},facs={};

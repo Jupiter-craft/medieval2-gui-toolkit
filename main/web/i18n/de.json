@@ -10159,5 +10159,11 @@
  "editor.textures_outside_why": "⚠ Eine gleichnamige Datei liegt auch in textures/. Das Spiel liest den Pfad, den der Eintrag nennt, also ändert eine Bearbeitung der Datei in textures/ im Spiel nichts.",
  "viewer3d.from_the_base_game": "aus dem Basisspiel",
  "editor.from_the_base_game_path": "Nicht in dieser Mod. Das Spiel liest data/{path} aus seinen eigenen Dateien, und der Betrachter ebenso.",
- "stratmap.from_base_game": "{n} aus dem Basisspiel"
+ "stratmap.from_base_game": "{n} aus dem Basisspiel",
+ "viewer3d.main_texture_from_game": "die Haupttextur stammt aus dem Basisspiel, nicht aus dieser Mod",
+ "eng.gamepack.lzo_match_before_start": "ein LZO-Verweis reicht vor den Anfang des Blocks",
+ "eng.gamepack.lzo_block_cut_short": "ein LZO-Block endet mitten in einer Anweisung",
+ "eng.gamepack.lzo_wrong_size": "ein LZO-Block ergab {got} Bytes statt {want}",
+ "viewer3d.attachment_texture_from_game": "die Attachment-Textur stammt aus dem Basisspiel, nicht aus dieser Mod",
+ "eng.gamepack.not_a_pack": "{name} ist keine PACK-Datei"
 }

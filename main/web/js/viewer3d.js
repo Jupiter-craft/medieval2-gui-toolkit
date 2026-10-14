@@ -829,9 +829,10 @@ function v3Facts(){
     tt('viewer3d.in_game_units',{x:size[0],x2:size[1],x3:size[2]}),
     g.bones.length ? tt('viewer3d.rigged_to_bones',{bones_n:g.bones.length}) : 'no skeleton - a static model',
     skin && skin.rel ? tt(skin.exists ? 'viewer3d.main_texture' : 'viewer3d.main_texture_missing',{rel:esc(skin.rel)})
-                       + v3FromGame(skin.exists && skin.from_game)
                      : v3.loose ? tt('viewer3d.loose_no_texture_found')
                      : tt('viewer3d.no_texture_listed_on_this_entry'),
+    // 98f: a sheet the mod does not ship, drawn from the base game's files
+    skin && skin.exists && skin.from_game ? tt('viewer3d.main_texture_from_game') : '',
     v3.loose ? tt('viewer3d.loose_names_no_texture') : '',
     // What is actually on the model right now, which is not always what the
     // file holds: without HD, anything over 1024 arrived halved. Reading it off
@@ -845,11 +846,12 @@ function v3Facts(){
            : '',
     v3TexCase() === 'pair'
       ? tt(skin.attach_exists ? 'viewer3d.attachment_texture' : 'viewer3d.attachment_texture_missing',{attach:esc(skin.attach)})
-        + v3FromGame(skin.attach_exists && skin.attach_from_game)
       : v3TexCase() === 'self'
         ? tt(skin && skin.attach_exists ? 'viewer3d.attachment_slot_main_again' : 'viewer3d.attachment_slot_missing',
              {attach:esc((skin&&skin.attach)||'')})
         : tt('viewer3d.no_attachment_whole_space'),
+    v3TexCase() === 'pair' && skin.attach_exists && skin.attach_from_game
+      ? tt('viewer3d.attachment_texture_from_game') : '',
     // the honest answer to "why does this look right in the game and not here":
     // an entry can name an attachment sheet that no group's UVs ever reach
     onAtt ? ttN(v3TexCase() === 'pair' ? 'viewer3d.groups_reach_attachment' : 'viewer3d.groups_reach_right_half', onAtt)

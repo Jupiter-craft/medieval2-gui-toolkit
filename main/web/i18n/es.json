@@ -10629,5 +10629,11 @@
  "editor.textures_outside_why": "⚠ También hay un archivo con el mismo nombre en textures/. El juego lee la ruta que nombra la entrada, así que editar la textura de textures/ no cambia nada en el juego.",
  "viewer3d.from_the_base_game": "del juego base",
  "editor.from_the_base_game_path": "No está en este mod. El juego lee data/{path} de sus propios archivos, y el visor también.",
- "stratmap.from_base_game": "{n} del juego base"
+ "stratmap.from_base_game": "{n} del juego base",
+ "viewer3d.main_texture_from_game": "la textura principal viene del juego base, no de este mod",
+ "eng.gamepack.lzo_match_before_start": "una referencia LZO apunta antes del inicio del bloque",
+ "eng.gamepack.lzo_block_cut_short": "un bloque LZO termina a mitad de una instrucción",
+ "eng.gamepack.lzo_wrong_size": "un bloque LZO dio {got} bytes, no {want}",
+ "viewer3d.attachment_texture_from_game": "la textura del elemento acoplado viene del juego base, no de este mod",
+ "eng.gamepack.not_a_pack": "{name} no es un archivo PACK"
 }
