@@ -311,6 +311,8 @@
 "armory.exp_sheet_facts": "{fill}% used · the art needs {needs} · margin {margin} px",
 "armory.exp_sheet_main": "main",
 "armory.exp_sheet_unused": "Not used.",
+"armory.exp_sheets": "Sheets",
+"armory.exp_sheets_title": "The main and attachment sheets, always one size, as the game's skins are",
 "armory.exp_show": "Show",
 "armory.exp_size_auto": "Smallest that fits",
 "armory.exp_skeletons_from": "Skeletons and weapons from",

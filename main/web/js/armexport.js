@@ -21,7 +21,7 @@ function armExp(){
   const p = armProj();
   return state.armExp = state.armExp || {step: 'check', scope: {mode: 'visible',
     collections: p.collections.filter(c => c.export).map(c => c.id)},
-    settings: {size: {main: 'auto', attach: 'auto'}, margin: 0.4, obj_sheet: {}, block_sheet: {}, scale: {}, dyes: true},
+    settings: {size: {both: 'auto'}, margin: 0.4, obj_sheet: {}, block_sheet: {}, scale: {}, dyes: true},
     check: null, plan: null, busy: false, err: '', folder: '', stem: '', done: null};
 }
 function armExpBody(){ return {project: armProj(), scope: armExp().scope}; }
@@ -173,7 +173,7 @@ function armExpSet(key, v){
   const s = armExp().settings;
   if(key === 'margin') s.margin = Math.max(0, Math.min(5, +v || 0));
   else if(key === 'dyes') s.dyes = !!v;
-  else if(key === 'main' || key === 'attach') s.size[key] = v === 'auto' ? 'auto' : +v;
+  else if(key === 'size') s.size = {both: v === 'auto' ? 'auto' : +v};
   armExpReplan();
 }
 function armExpObjSheet(id, v){
@@ -206,9 +206,11 @@ const armExpLabel = s => s === 'attach' ? tt('armory.exp_sheet_attach') : tt('ar
 function armExpUvHtml(){
   const e = armExp(), P = e.plan, s = e.settings;
   if(!P) return `<div class="count">${e.busy ? tt('armory.reading') : ''}</div>`;
-  const sizeSel = sh => `<label>${armExpLabel(sh)}<select onchange="armExpSet('${sh}', this.value)">
-      <option value="auto"${s.size[sh] === 'auto' ? ' selected' : ''}>${tt('armory.exp_size_auto')}</option>
-      ${ARM_SIZES.map(z => `<option value="${z}"${s.size[sh] === z ? ' selected' : ''}>${z}</option>`).join('')}</select></label>`;
+  // both sheets are one size, as the game's skins are
+  const both = (s.size && s.size.both) || 'auto';
+  const sizeSel = `<label title="${esc(tt('armory.exp_sheets_title'))}">${tt('armory.exp_sheets')}<select onchange="armExpSet('size', this.value)">
+      <option value="auto"${both === 'auto' ? ' selected' : ''}>${tt('armory.exp_size_auto')}</option>
+      ${ARM_SIZES.map(z => `<option value="${z}"${both === z ? ' selected' : ''}>${z}</option>`).join('')}</select></label>`;
   const rows = P.objects.map(o => `<tr>
       <td><span class="armswatch" style="background:${armExpColour(o.id)}"></span> ${esc(o.name)}</td>
       <td class="num">${o.islands}</td>
@@ -228,7 +230,7 @@ function armExpUvHtml(){
       <span class="count">${tt('armory.exp_sheet_facts', {fill: Math.round(S.fill * 100), needs: S.needs, margin: S.margin_px})}</span>
       <canvas id="armExpCv_${sh}" width="320" height="320"></canvas></div>`;
   };
-  return `<div class="armexprow">${sizeSel('main')}${sizeSel('attach')}
+  return `<div class="armexprow">${sizeSel}
       <label>${tt('armory.exp_margin')}<input type="number" class="armnum" min="0" max="5" step="0.1" value="${s.margin}"
         onchange="armExpSet('margin', this.value)" title="${esc(tt('armory.exp_margin_title'))}">%</label>
       <label class="armcheck"><input type="checkbox"${s.dyes ? ' checked' : ''} onchange="armExpSet('dyes', this.checked)"> ${tt('armory.exp_apply_dyes')}</label></div>

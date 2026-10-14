@@ -2260,6 +2260,20 @@ places an image by a share of the part's own box on its sheet, sized, turned,
 blended by the dye's modes or laid on, with an opacity, previewed live and
 baked the same way. On the reference horse every one of 3,435 vertices reads
 on its new sheet the texel it read before. `tests/test_armory` (57).
+**Fixed 2026-10-15, after an exported model crashed the game** in battle.
+Its bone table was the bones its parts happened to use, in the order met and
+numbered 0 on, with one unnamed and no `bone_weapon`, where the game reads
+each bone's second number as its skeleton slot: of 756 soldier meshes in
+Heirs of Elendil and the Americas campaign, every one carries one of four
+standard tables (682 the melee one: pelvis 0 to lfoot 19, then the weapon and
+shield bones sharing 20 to 22; the bows and slingers add theirs). The bake
+now writes the table its source models carry, by the vertices each brings
+(never one without every bone named), the standard melee one when no part
+brings one, and finds each vertex's bones in it by name. Its sheets had no
+mipmaps, where 797 of 800 shipped sheets carry the whole chain: they do now.
+The main and attachment sheets were two sizes (2048 and 1024): they are one
+size now, chosen once (*Sheets*). And a block as wide as the sheet no longer
+goes to the next size up for its margin, which may run off the sheet's edge.
 
 **95j - normal maps.** A new normal map for each sheet from the material
 choices in 95f, with a preview of the unit wearing it. Measure the normal

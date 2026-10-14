@@ -370,6 +370,27 @@ if horse is not None:
           "horse_95i.mesh" in got["files"] and "horse_95i.texture" in got["files"])
     check(f"the written model has every vertex, triangle and group ({back.vertices}, {back.triangles}, {len(back.groups)})",
           (back.vertices, back.triangles, len(back.groups)) == (horse.vertices, horse.triangles, len(horse.groups)))
+    # 2026-10-15: an exported model crashed the game. Its bone table was the
+    # bones its parts used, in the order met, numbered 0 on, one unnamed, with
+    # no bone_weapon; its sheets had no mipmaps and were two sizes
+    back_tab = list(zip(back.bones, back.bone_links))
+    check("the bake writes the source model's own bone table, slots and all",
+          back_tab == list(zip(horse.bones, horse.bone_links)))
+    broken = mesh.MeshFile(source="x", format="mesh")
+    broken.bones, broken.bone_links = ["bone_rlowerleg", "", "bone_rfoot"], [0, 1, 2]
+    check("a table with an unnamed bone is never copied", not armbake._real_table(broken))
+    check("a model whose parts bring no table gets the standard one",
+          armbake.bone_table([], {}, None) == armbake.STANDARD_BONES)
+    from unittransfer import sprites as _spr
+    import struct as _st
+    dds = _spr.texture_to_dds((tmp / "out" / "horse_95i.texture").read_bytes())
+    side = _st.unpack_from("<I", dds, 16)[0]
+    check(f"a sheet carries its whole mipmap chain ({_st.unpack_from('<I', dds, 28)[0]} levels at {side})",
+          _st.unpack_from("<I", dds, 28)[0] == side.bit_length())
+    check("both sheets are one size", len({v for v in got["sheets"].values()}) == 1)
+    whole = armbake.Block([], ("s", None, 0, 1.0, {}), [0, 0, 1019, 1019], "")
+    check("a block nearly the sheet's width fits it: the margin may run off the edge",
+          not armbake.pack([whole], 1024, 5) and whole.x == 0)
     from unittransfer import sprites
     dds = sprites.texture_to_dds((tmp / "out" / "horse_95i.texture").read_bytes())
     check("its sheet is a .texture the game reads (DXT5 inside)", dds[:4] == b"DDS " and dds[84:88] == b"DXT5")

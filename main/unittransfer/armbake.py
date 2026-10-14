@@ -27,6 +27,7 @@ from __future__ import annotations
 import io
 import math
 import re
+import struct
 from array import array
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
@@ -690,14 +691,16 @@ def pack(blocks: List[Block], size: int, margin: int) -> List[Block]:
         b.w = max(1, int(math.ceil(b.src_w * b.scale)))
         b.h = max(1, int(math.ceil(b.src_h * b.scale)))
         b.placed = False
-    sky = _Skyline(size)
+    # the margin keeps blocks apart, and may run off the sheet's own edge,
+    # where no bleed is ever sampled: a block as wide as the sheet still fits
+    sky = _Skyline(size + 2 * margin)
     left = []
     for b in sorted(blocks, key=lambda b: (-max(b.w, b.h), -b.w * b.h)):
         got = sky.place(b.w + 2 * margin, b.h + 2 * margin, True)
         if got is None:
             left.append(b)
             continue
-        b.x, b.y, b.rot = got[0] + margin, got[1] + margin, got[2]
+        b.x, b.y, b.rot = got[0], got[1], got[2]
         b.placed = True
     return left
 
@@ -757,6 +760,12 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
     scales = dict(settings.get("scale") or {})
     sizes_in = settings.get("size") or {}
 
+    # both sheets are always one size (the game's skins are pairs of a size)
+    one = sizes_in.get("both") or sizes_in.get("main") or "auto"
+
+    def fits(mine, size):
+        return not pack(mine, size, margin_px(margin_pct, size))
+
     def run(scales, block_sheet):
         blocks = make_blocks(islands, dyes, scales)
         st = dict(settings, block_sheet=block_sheet)
@@ -770,23 +779,21 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
             b.sheet = _sheet_of(b, st, rooms)
             rooms[b.sheet] += b.src_w * b.src_h * b.scale * b.scale
         out = {}
+        mines = {s: [b for b in blocks if b.sheet == s] for s in SHEETS}
+        if one == "auto":
+            size = SIZES[-1]
+            for cand in SIZES:
+                if all(fits(mines[s], cand) for s in SHEETS if mines[s]):
+                    size = cand
+                    break
+        else:
+            size = int(one)
         for s in SHEETS:
-            mine = [b for b in blocks if b.sheet == s]
+            mine = mines[s]
             area = sum(b.src_w * b.src_h * b.scale * b.scale for b in mine)
-            want = sizes_in.get(s, "auto")
             if not mine:
                 out[s] = {"size": 0, "blocks": [], "left": [], "area": 0, "needs": 0}
                 continue
-            if want == "auto" or not want:
-                size = SIZES[-1]
-                for cand in SIZES:
-                    if cand * cand < area:
-                        continue
-                    if not pack(mine, cand, margin_px(margin_pct, cand)):
-                        size = cand
-                        break
-            else:
-                size = int(want)
             left = pack(mine, size, margin_px(margin_pct, size))
             out[s] = {"size": size, "blocks": mine, "left": left, "area": area, "needs": _needs(area, margin_pct)}
         return blocks, out
@@ -954,13 +961,33 @@ def normal_pixels(rgba: np.ndarray, setting: dict) -> np.ndarray:
     return out
 
 
+def dds_with_mipmaps(im: Image.Image) -> bytes:
+    """A DXT5 ``.dds`` with its whole mipmap chain down to 1x1, each level
+    made from the full image. Measured on 800 of Heirs of Elendil's unit
+    sheets: 797 carry a full chain (11 levels at 1024, 12 at 2048)."""
+    levels = []
+    cur = im
+    while True:
+        buf = io.BytesIO()
+        cur.save(buf, "DDS", pixel_format="DXT5")
+        levels.append(buf.getvalue())
+        if cur.width == 1 and cur.height == 1:
+            break
+        cur = im.resize((max(1, cur.width // 2), max(1, cur.height // 2)), Image.LANCZOS)
+    head = bytearray(levels[0][:128])
+    flags, = struct.unpack_from("<I", head, 8)
+    struct.pack_into("<I", head, 8, flags | 0x20000)            # DDSD_MIPMAPCOUNT
+    struct.pack_into("<I", head, 28, len(levels))
+    caps, = struct.unpack_from("<I", head, 108)
+    struct.pack_into("<I", head, 108, caps | 0x400008)          # COMPLEX | MIPMAP
+    return bytes(head) + b"".join(lv[128:] for lv in levels)
+
+
 def _write_sheet(out: Path, name: str, canvas: np.ndarray) -> List[str]:
     from . import sprites
     im = Image.fromarray(canvas, "RGBA")
     im.save(out / f"{name}.png")
-    buf = io.BytesIO()
-    im.save(buf, "DDS", pixel_format="DXT5")
-    (out / f"{name}.texture").write_bytes(sprites.dds_to_texture(buf.getvalue()))
+    (out / f"{name}.texture").write_bytes(sprites.dds_to_texture(dds_with_mipmaps(im)))
     return [f"{name}.texture", f"{name}.png"]
 
 
@@ -1119,21 +1146,84 @@ def bake(project: dict, mod_of, settings: Optional[dict], out_dir: str, stem: st
                 sx = (om.uvs[v * 2] - base) * W / span
                 sy = om.uvs[v * 2 + 1] * H
                 d[v] = _new_uv(b, sx, sy, size, b.sheet)
-    model = assemble(objs, meshes, new_uv)
+    model = assemble(objs, meshes, new_uv, bone_table(objs, armory.project_assets(project), mod_of))
     from . import meshwrite
     meshwrite.write_mesh(model, out / f"{stem}.mesh")
     written.insert(0, f"{stem}.mesh")
     return {"folder": str(out), "files": written, "vertices": model.vertices,
             "triangles": model.triangles, "groups": len(model.groups),
             "sheets": {s: per[s]["size"] for s in SHEETS if per[s]["size"]},
-            "normals": (normals.get("mode") or "skip")}
+            "normals": (normals.get("mode") or "skip"), "bones": len(model.bones),
+            "missing_bones": list(model.notes)}
+
+
+#: The bone table 682 of 756 soldier meshes in Heirs of Elendil and the
+#: Americas campaign carry, the melee skeletons' (the bows add bone_bowoffset,
+#: bone_bowstring and bone_sling, the slingers theirs): each bone's name and its
+#: slot in the skeleton, the weapon and shield bones sharing slots. A model
+#: whose parts bring no table of their own is written with this one.
+STANDARD_BONES = [
+    ("bone_pelvis", 0), ("bone_rthigh", 1), ("bone_rlowerleg", 2), ("bone_rfoot", 3), ("bone_abs", 4),
+    ("bone_torso", 5), ("bone_head", 6), ("bone_jaw", 7), ("bone_eyebrow", 8), ("bone_rclavical", 9),
+    ("bone_rupperarm", 10), ("bone_relbow", 11), ("bone_rhand", 12), ("bone_lclavical", 13),
+    ("bone_lupperarm", 14), ("bone_lelbow", 15), ("bone_lhand", 16), ("bone_lthigh", 17),
+    ("bone_llowerleg", 18), ("bone_lfoot", 19), ("bone_weapon01", 20), ("bone_weapon", 20),
+    ("bone_weapon02", 21), ("bone_weapon03", 22), ("bone_shield01", 22), ("bone_shield", 22)]
+
+
+def _real_table(m: mesh.MeshFile) -> bool:
+    """A table a model the game loads would carry: every bone named, slot 0
+    first, the slots never going down (a soldier's starts at the pelvis, a
+    horse's at the saddle). A table this toolkit wrote before the fix (bones
+    in the order met, one unnamed) is not one."""
+    if not m.bones or len(m.bone_links) != len(m.bones) or any(not b for b in m.bones):
+        return False
+    if m.bone_links[0] != 0:
+        return False
+    return all(b >= a for a, b in zip(m.bone_links, m.bone_links[1:]))
+
+
+def bone_table(objs: List[dict], assets: Dict[str, dict], mod_of) -> List[Tuple[str, int]]:
+    """The bone table to write: the one the source models carry, by the
+    vertices each brings; the standard melee table if none brings one.
+
+    The game reads each bone's second number as its slot in the skeleton
+    (``bone_weapon01`` and ``bone_weapon`` both 20). A table made up of the
+    bones the parts happen to use, numbered in order, puts every vertex on the
+    wrong bone and leaves the weapon with no ``bone_weapon`` to hang from: the
+    crash of 2026-10-15."""
+    from collections import Counter
+    votes: Counter = Counter()
+    for o in objs:
+        for pc in o.get("src") or []:
+            a = assets.get(pc.get("asset"))
+            if a is None:
+                continue
+            try:
+                m = armory.asset_mesh(a, mod_of)
+            except (armory.ArmoryError, mesh.MeshError, OSError):
+                continue
+            if _real_table(m):
+                votes[tuple(zip(m.bones, m.bone_links))] += len(set(armory.piece_indices(m, pc)))
+    return list(votes.most_common(1)[0][0]) if votes else list(STANDARD_BONES)
 
 
 def assemble(objs: List[dict], meshes: Dict[int, mesh.MeshFile],
-             new_uv: Dict[int, Dict[int, Tuple[float, float]]]) -> mesh.MeshFile:
-    """The objects as one model: one vertex pool, a group each, the bones a
-    union in order of first use."""
+             new_uv: Dict[int, Dict[int, Tuple[float, float]]],
+             table: Optional[List[Tuple[str, int]]] = None) -> mesh.MeshFile:
+    """The objects as one model: one vertex pool, a group each, written with
+    ``table`` (:func:`bone_table`), each vertex's bones found in it by name
+    (case aside); a bone it has not got goes to the pelvis and is named in
+    ``out.notes``."""
     out = mesh.MeshFile(source="armory", format="mesh")
+    table = list(table or STANDARD_BONES)
+    out.bones = [n for n, _l in table]
+    out.bone_links = [l for _n, l in table]
+    slot: Dict[str, int] = {}
+    for i, n in enumerate(out.bones):
+        slot.setdefault(n.lower(), i)
+    pelvis = slot.get("bone_pelvis", 0)
+    missing: set = set()
     weights, ids = array("f"), bytearray()
     for o in objs:
         om = meshes[o.get("id")]
@@ -1145,19 +1235,26 @@ def assemble(objs: List[dict], meshes: Dict[int, mesh.MeshFile],
             out.uvs.extend(uv.get(v, (om.uvs[v * 2], om.uvs[v * 2 + 1])))
         remap = []
         for name in om.bones:
-            if name not in out.bones:
-                out.bones.append(name)
-            remap.append(out.bones.index(name))
+            hit = slot.get((name or "").lower())
+            if hit is None:
+                hit = pelvis
+                if name:
+                    missing.add(name)
+            remap.append(hit)
         skinned = len(om.weights) >= om.vertices * 2 and len(om.bone_ids) >= om.vertices * 4
         for v in range(om.vertices):
             if skinned:
-                weights.extend((om.weights[v * 2], om.weights[v * 2 + 1]))
+                w0, w1 = om.weights[v * 2], om.weights[v * 2 + 1]
                 b = om.bone_ids[v * 4:v * 4 + 4]
-                ids += bytes((0, remap[b[1]] if b[1] < len(remap) else 0,
-                              remap[b[2]] if b[2] < len(remap) else 0, 0))
+                first = remap[b[2]] if b[2] < len(remap) else pelvis
+                second = remap[b[1]] if b[1] < len(remap) else pelvis
+                if w1 <= 0:
+                    second = first
+                weights.extend((w0, w1))
+                ids += bytes((0, second, first, 0))
             else:
                 weights.extend((1.0, 0.0))
-                ids += bytes(4)
+                ids += bytes((0, pelvis, pelvis, 0))
         g = om.groups[0] if om.groups else mesh.MeshGroup(o.get("name") or "part", o.get("mesh") or "part", array("H"))
         out.groups.append(mesh.MeshGroup(o.get("name") or g.name, o.get("mesh") or g.texture_group,
                                          array("H", (i + base for i in g.indices)), int(o.get("flag") or 0)))
@@ -1165,4 +1262,5 @@ def assemble(objs: List[dict], meshes: Dict[int, mesh.MeshFile],
         raise BakeError(_i18n.msg("eng.armory.too_many_vertices", "{n:,} vertices: a .mesh indexes at most 65,536", n=out.vertices))
     out.weights, out.bone_ids = weights, bytes(ids)
     out.lod_name = "characterlod0"
+    out.notes = sorted(missing)
     return out

@@ -11238,5 +11238,7 @@
  "eng.armory.card_needs_name": "dé un nombre a la tarjeta",
  "eng.armory.card_not_png": "la tarjeta no llegó como PNG",
  "cards.gen_turn": "Giro",
- "cards.gen_pose_no_mount": "No hay ningún esqueleto de jinete cargado, así que el jinete está de pie; cargue la entrada de una unidad montada para tenerlo."
+ "cards.gen_pose_no_mount": "No hay ningún esqueleto de jinete cargado, así que el jinete está de pie; cargue la entrada de una unidad montada para tenerlo.",
+ "armory.exp_sheets": "Hojas",
+ "armory.exp_sheets_title": "La hoja principal y la del elemento acoplado, siempre del mismo tamaño, como las texturas del juego"
 }

@@ -10761,5 +10761,7 @@
  "cards.gen_level": "Stufe",
  "cards.gen_pose_from": "Ein Frame aus {action} ({skeleton}).",
  "cards.gen_turn": "Drehung",
- "cards.gen_pose_no_mount": "Kein Skelett für ein Reittier ist geladen, also steht der Reiter; laden Sie dafür den Eintrag einer berittenen Einheit."
+ "cards.gen_pose_no_mount": "Kein Skelett für ein Reittier ist geladen, also steht der Reiter; laden Sie dafür den Eintrag einer berittenen Einheit.",
+ "armory.exp_sheets": "Sheets",
+ "armory.exp_sheets_title": "Haupt- und Attachment-Sheet, immer gleich groß, wie die Skins des Spiels"
 }
