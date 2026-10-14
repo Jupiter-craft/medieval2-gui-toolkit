@@ -97,6 +97,9 @@ class ModelEdit:
     factions: Optional[List[str]] = None         # None = leave the records alone
     move_dir: str = ""                           # relocate mesh/textures under data/<move_dir>
     move_shared: bool = False                    # repoint other entries using those files too
+    # 98e: copy every texture outside <model folder>/textures into it and point
+    # the entry there (see :func:`_plan_gather`)
+    gather: bool = False
 
 
 @dataclass
@@ -233,7 +236,8 @@ def request_from_dict(d: dict) -> EditRequest:
                                           for f in m.get("factions") if str(f).strip()]
                                          if m.get("factions") is not None else None),
                                move_dir=(m.get("move_dir") or "").strip(),
-                               move_shared=bool(m.get("move_shared", False)))
+                               move_shared=bool(m.get("move_shared", False)),
+                               gather=bool(m.get("gather", False)))
                      for m in (d.get("model_edits") or [])],
         new_models=[NewModel(name=(n.get("name") or "").strip().lower(),
                              clone_from=(n.get("clone_from") or "").strip().lower(),
@@ -976,6 +980,13 @@ def folder_info_of(slots: List[dict], name: str = "") -> dict:
     owned_attach = [p for p in attach_tex if _under(_dirname(p), home)]
     external = [p for p in attach_tex if p not in owned_attach]
     textures = list(dict.fromkeys(main_tex + owned_attach))
+    # 98e: the textures that are not in <home>/textures. `base` above counts a
+    # texture lying in the model folder itself as tidy, because the mesh is
+    # there too; but the form says textures go in its textures/, and a normal
+    # map left beside the mesh is the copy a player edited for weeks without
+    # the game drawing it, while the entry named the one beside the mesh.
+    tex_home = f"{home}/{TEXTURE_SUBDIR}"
+    stray = [p for p in textures if not _same_dir(_dirname(p), tex_home)]
 
     # what the UI lists: one line per real folder, with base and base/textures
     # collapsed into the single folder they are
@@ -986,7 +997,7 @@ def folder_info_of(slots: List[dict], name: str = "") -> dict:
     return {"base": base, "standardized": bool(base), "suggestion": suggestion,
             "mesh_dirs": mesh_dirs, "texture_dirs": tex_dirs,
             "mesh_files": meshes, "texture_files": textures,
-            "folders": folders,
+            "folders": folders, "home": home, "stray_textures": stray,
             "external_dirs": sorted({_dirname(p) for p in external}),
             "external_files": external}
 
@@ -1126,6 +1137,43 @@ def _plan_folder_move(plan: EditPlan, mod: Mod, entry: "modeldb.ModelEntry",
             f"{len(users)} other entr{'y' if len(users) == 1 else 'ies'} repointed "
             f"at data/{target}: {', '.join(users[:4])}{'…' if len(users) > 4 else ''}")
     plan.changes.append(f"{entry.name}: mesh + textures standardised under data/{target}")
+    return raw
+
+
+def _plan_gather(plan: EditPlan, mod: Mod, entry, raw: str) -> str:
+    """98e: every texture outside ``<model folder>/textures`` copied into it.
+
+    Copied, not moved: another entry may read the old file, and the copy left
+    behind costs nothing. When a file of that name is already in ``textures/``
+    the entry is pointed at it and nothing is written over it, because that is
+    the one the form said the entry used and the one most likely edited.
+    Shared attachment sets are not this model's files and are left alone, as
+    the folder move leaves them.
+    """
+    pad = entry.first_entry_pad
+    # the entry as it is on disk, as the folder move reads it: the boxes send
+    # the paths as the page shows them, already in textures/, so the text has
+    # lost the old ones by now. Anything typed into a box this save is added.
+    info = folder_info(entry)
+    home = info["home"]
+    now = folder_info_of(modeldb.path_slots_raw(raw, pad=pad), entry.name)
+    pending = {rel.lower() for _src, rel in plan.copies}
+    moves: Dict[str, str] = {}
+    for old in dict.fromkeys(info["stray_textures"] + now["stray_textures"]):
+        new = f"{home}/{TEXTURE_SUBDIR}/{_basename(old)}"
+        moves[old] = new
+        if (mod.data / new).is_file() or new.lower() in pending:
+            plan.changes.append(f"{entry.name}: {old} -> data/{new}, already there")
+            continue
+        src = mod.data / old
+        if not src.is_file():
+            plan.warnings.append(
+                _i18n.msg("eng.edit.data_is_not_on_disk_now", "data/{old} is not on disk - '{name}' now points at data/{new}, put the file there yourself.", old=old, name=entry.name, new=new))
+            continue
+        plan.copies.append((src, new))
+        plan.changes.append(f"copy data/{old} -> data/{new}")
+    if moves:
+        raw = modeldb.rewrite_entry_paths(raw, moves, pad=pad)
     return raw
 
 
@@ -1290,6 +1338,8 @@ def _plan_model_edit(plan: EditPlan, mod: Mod, me: ModelEdit,
     if me.move_dir:
         raw = _plan_folder_move(plan, mod, entry, raw, me)
         _follow_imports(plan, mod, raw, pad, imported)
+    elif me.gather:
+        raw = _plan_gather(plan, mod, entry, raw)
 
     # ---- rename (EDU refs follow, mod-wide) ----
     new_name = me.new_name.strip().lower()
@@ -1306,6 +1356,14 @@ def _plan_model_edit(plan: EditPlan, mod: Mod, me: ModelEdit,
 
     if raw != entry.raw:
         plan.entry_updates[entry.name] = raw
+
+
+def _texture_dir_of(dest_dir: str) -> str:
+    """``<dest_dir>/textures``, unless the folder given already is one."""
+    d = (dest_dir or "").replace("\\", "/").strip().rstrip("/")
+    if not d or d.lower() == TEXTURE_SUBDIR or d.lower().endswith("/" + TEXTURE_SUBDIR):
+        return d
+    return f"{d}/{TEXTURE_SUBDIR}"
 
 
 def _plan_new_model(plan: EditPlan, mod: Mod, nm: NewModel,
@@ -1328,13 +1386,17 @@ def _plan_new_model(plan: EditPlan, mod: Mod, nm: NewModel,
     slots = modeldb.path_slots(clone)
     index_map: Dict[int, str] = {}
 
+    # 98e: the meshes in the folder, the textures in its textures/, as the form
+    # says. Every texture used to land beside the mesh, and an entry made that
+    # way was where the stray copies a player found had come from.
+    tex_dir = _texture_dir_of(nm.dest_dir)
     mesh_rel = _plan_file_copy(plan, mod, Path(nm.mesh_src), nm.dest_dir) if nm.mesh_src else None
-    tex_rel = _plan_file_copy(plan, mod, Path(nm.texture_src), nm.dest_dir) if nm.texture_src else None
-    norm_rel = _plan_file_copy(plan, mod, Path(nm.normal_src), nm.dest_dir) if nm.normal_src else None
+    tex_rel = _plan_file_copy(plan, mod, Path(nm.texture_src), tex_dir) if nm.texture_src else None
+    norm_rel = _plan_file_copy(plan, mod, Path(nm.normal_src), tex_dir) if nm.normal_src else None
     spr_rel = _plan_file_copy(plan, mod, Path(nm.sprite_src), nm.dest_dir) if nm.sprite_src else None
-    att_tex_rel = (_plan_file_copy(plan, mod, Path(nm.attach_texture_src), nm.dest_dir)
+    att_tex_rel = (_plan_file_copy(plan, mod, Path(nm.attach_texture_src), tex_dir)
                    if nm.attach_texture_src else None)
-    att_norm_rel = (_plan_file_copy(plan, mod, Path(nm.attach_normal_src), nm.dest_dir)
+    att_norm_rel = (_plan_file_copy(plan, mod, Path(nm.attach_normal_src), tex_dir)
                     if nm.attach_normal_src else None)
 
     if mesh_rel:
@@ -1666,7 +1728,7 @@ def unit_detail(mod: Mod, unit_type: str) -> dict:
                            "slots": slots_for.get(name.lower(), [])})
             continue
         models.append(model_payload(e, slots_for.get(e.name, []),
-                                    sorted(set(users.get(e.name, [])))))
+                                    sorted(set(users.get(e.name, []))), mod=mod))
 
     all_factions = all_mod_factions(mod)
     return {
@@ -1707,15 +1769,23 @@ def unit_detail(mod: Mod, unit_type: str) -> dict:
     }
 
 
-def model_payload(e: "modeldb.ModelEntry", slots=(), used_by=()) -> dict:
+def model_payload(e: "modeldb.ModelEntry", slots=(), used_by=(), mod=None) -> dict:
     """One modeldb entry as the editor's model card reads it.
 
     Shared by the unit editor (the entries one unit points at) and bmdb mode
     (any entry in the mod), so both render and edit an entry identically.
+    With ``mod``, ``absent`` lists the paths no file answers (98e).
     """
     slot_paths = modeldb.path_slots(e)
     used = list(used_by)
+    folder = folder_info(e)
     return {
+        "absent": absent_files(mod, slot_paths) if mod is not None else [],
+        # 98e: the strays with a file of the same name in <home>/textures too,
+        # the trap a player fell in: they edited that one, the game read this
+        "twins": ([p for p in folder["stray_textures"]
+                   if (mod.data / folder["home"] / TEXTURE_SUBDIR / _basename(p)).is_file()]
+                  if mod is not None else []),
         "name": e.name,
         "missing": False,
         "slots": list(slots),
@@ -1727,12 +1797,27 @@ def model_payload(e: "modeldb.ModelEntry", slots=(), used_by=()) -> dict:
         "has_attach": bool(e.attach_textures),
         "textures": _texture_table(slot_paths),
         "texture_defaults": _texture_defaults(slot_paths),
-        "folder": folder_info(e),
+        "folder": folder,
         "skeletons": sorted(set(s for s in e.skeletons() if s)),
         # the whole list, not a sample: it backs the "shared with" dropdown
         "used_by": used,
         "shared": bool(used),
     }
+
+
+def absent_files(mod: Mod, slots) -> List[str]:
+    """The mesh and texture paths of these slots that name no file in the mod.
+
+    Sprites are left out: a sprite path is a pack name the game reads two files
+    from, and checking it is the sprite tab's business. The editor marks these
+    boxes as naming nothing, which is a different thing from a box edited.
+    """
+    out: List[str] = []
+    for value in _real(s["value"] for s in slots
+                       if s["kind"] in ("mesh", "texture", "normal")):
+        if not (mod.data / value).is_file():
+            out.append(value)
+    return out
 
 
 #: Tokens a modeldb texture record may carry that are NOT faction slots. `merc`

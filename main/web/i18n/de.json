@@ -10148,5 +10148,13 @@
  },
  "eng.cas.w_text_latin1": "{value} enthält ein Zeichen, das eine .cas nicht halten kann (sie wird in Latin-1 geschrieben)",
  "eng.cas.w_text_long": "ein Name mit {n:,} Zeichen ist länger, als der Leser annimmt",
- "stratview.all_model_files": "Alle Strategiemodell-Dateien"
+ "stratview.all_model_files": "Alle Strategiemodell-Dateien",
+ "editor.bring_them_in": "Hineinholen",
+ "editor.no_file_at_this_path": "Keine Datei unter data/{path} in dieser Mod",
+ "editor.textures_coming_in": "✓ Beim Speichern werden diese nach {tex} kopiert und der Eintrag zeigt dorthin. Eine gleichnamige Datei, die dort schon liegt, wird so verwendet, wie sie ist, und nicht überschrieben.",
+ "editor.textures_outside": {
+  "one": "{count} Textur liegt außerhalb von {tex}",
+  "other": "{count} Texturen liegen außerhalb von {tex}"
+ },
+ "editor.textures_outside_why": "⚠ Eine gleichnamige Datei liegt auch in textures/. Das Spiel liest den Pfad, den der Eintrag nennt, also ändert eine Bearbeitung der Datei in textures/ im Spiel nichts."
 }

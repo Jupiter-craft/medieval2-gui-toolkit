@@ -168,7 +168,7 @@ function edModelEdits(){
       raw_entry:name===cvName?e.cv.base:'',
       imports:(me.imports||[]).map(x=>({src:x.src,dest_dir:x.dest_dir})),
       defaults:v.defs,faction_paths,factions:me.factions||null,
-      move_dir:me.move_dir||'',move_shared:!!me.move_shared};
+      move_dir:me.move_dir||'',move_shared:!!me.move_shared,gather:!!me.gather};
   }).filter(Boolean);
 }
 function edPayload(extra){
@@ -466,14 +466,21 @@ function edWireModels(){
       inp.oninput=ev=>{if(prev)prev.call(inp,ev); cvFromGui(state.ed.mcv);};
     });
 }
-// Where an imported texture should land: alongside the one it replaces, else in
-// the model folder's textures/ (sprites live in their own shared folder).
+// Where an imported file should land. A texture goes in the model folder's
+// textures/, whatever the box named before: 98e, where landing beside the old
+// file kept a normal map in the mesh folder through every Import, and the
+// player edited the copy in textures/ that the game never read. A sprite is a
+// shared pack file and still lands beside the one it replaces.
 function edImportDir(m,kind){
+  if(kind!=='sprite')return edHome(m)+'/'+TEX_SUBDIR;
   const cur=edTexView(m).defs[kind]||'';
-  if(cur.includes('/'))return cur.slice(0,cur.lastIndexOf('/'));
-  const me=state.ed.mEdits[m.name]||{};
-  const base=me.move_dir||m.folder.base||m.folder.suggestion;
-  return kind==='sprite'?'unit_sprites':base+'/textures';
+  return cur.includes('/')?cur.slice(0,cur.lastIndexOf('/')):'unit_sprites';
+}
+//: The model's folder: the one a pending move names, else the one its files
+//: are in (the server's `home`), else the one it suggests.
+function edHome(m){
+  const me=state.ed.mEdits[m.name]||{},f=m.folder||{};
+  return (me.move_dir||f.home||f.base||f.suggestion||'').replace(/\/+$/,'');
 }
 const TEX_FILTER=tt('editor.textures_texture_texture_all_files');
 const SPR_FILTER=tt('editor.sprites_spr_spr_all_files');
@@ -1676,10 +1683,65 @@ const edFacs=m=>((state.ed.mEdits[m.name]||{}).factions)||m.factions;
 // send it straight back.
 function edRebase(name,val,kind){
   const me=state.ed.mEdits[name]||{};
-  if(!me.move_dir||!val||kind==='sprite')return val;
+  if(!val||kind==='sprite')return val;
+  if(me.gather&&!me.move_dir&&kind!=='mesh'){
+    const m=state.ed.d.models.find(x=>x.name===name);
+    return m&&edStray(m,val,kind)?edHome(m)+'/'+TEX_SUBDIR+'/'+val.split('/').pop():val;
+  }
+  if(!me.move_dir)return val;
   const base=me.move_dir.replace(/\/+$/,''),file=val.split('/').pop();
   return (kind==='mesh'?base:base+'/'+TEX_SUBDIR)+'/'+file;
 }
+/* 98e: a texture path outside <model folder>/textures. The same rule as the
+   server's `stray_textures`: an attachment texture counts only while it is in
+   the model folder itself, since one anywhere else is a shared attachment set
+   and not this model's file to copy. */
+function edStray(m,val,kind){
+  if(!val||val==='0'||kind==='sprite'||kind==='mesh')return false;
+  const home=edHome(m).toLowerCase();
+  const dir=(val.includes('/')?val.slice(0,val.lastIndexOf('/')):'').toLowerCase();
+  if(dir===home+'/'+TEX_SUBDIR)return false;
+  return kind.startsWith('attach')?dir===home:true;
+}
+//: Every stray path the boxes name right now, before any gather rebases them.
+function edStrays(m){
+  const me=state.ed.mEdits[m.name]||{},out=new Map(),kinds=edKinds(m);
+  const add=(src)=>kinds.forEach(k=>{if(edStray(m,src[k],k))out.set(src[k].toLowerCase(),src[k]);});
+  add(Object.assign({},m.texture_defaults,me.defaults||{}));
+  edFacs(m).forEach(f=>add(Object.assign({},m.textures[f]||{},(me.faction_paths||{})[f]||{})));
+  return [...out.values()];
+}
+function edStrayBox(m){
+  const me=state.ed.mEdits[m.name]||{},n=q1(esc(m.name));
+  if(me.move_dir)return '';
+  const tex=`<span class="fpath">data/${esc(edHome(m))}/${TEX_SUBDIR}</span>`;
+  if(me.gather)return `<div class="folderbox">
+    <b class="w-good">${tt('editor.textures_coming_in',{tex})}</b>
+    <div class="barrow"><button onclick="edGather('${n}',false)">${tt('editor.undo_this_change')}</button></div></div>`;
+  const list=edStrays(m);
+  if(!list.length)return '';
+  // most strays are textures shared with another model on purpose; the box is
+  // amber only for the trap itself, a file of the same name in textures/ too
+  const twins=new Set((m.twins||[]).map(x=>x.toLowerCase()));
+  const twin=list.some(p=>twins.has(p.toLowerCase()));
+  // an entry already spread across folders has the Standardise box above,
+  // which says the same; this one is for the entry that looks tidy and is not
+  if(!twin&&!(m.folder||{}).standardized)return '';
+  return `<div class="folderbox${twin?' bad':''}">
+    <b class="${twin?'w-warn':'count'}">${ttN('editor.textures_outside',list.length,{tex})}</b>
+    <div class="movelist">${list.map(p=>`<div>data/${esc(p)}${
+      twins.has(p.toLowerCase())?' <span class="w-warn">⚠</span>':''}</div>`).join('')}</div>
+    ${twin?`<div class="count w-warn">${tt('editor.textures_outside_why')}</div>`:''}
+    <div class="barrow"><button class="primary" onclick="edGather('${n}',true)">${tt('editor.bring_them_in')}</button></div></div>`;
+}
+function edGather(name,on){const me=edTouch(name); me.gather=!!on; edRenderTab(); edPreview();}
+//: 98e: a box whose path no file in the mod answers. Known only for the paths
+//: the entry had when it was read; an import or a gather is a file on its way.
+function edAbsent(m,val){
+  return !!val&&(m.absent||[]).some(a=>a.toLowerCase()===val.toLowerCase());
+}
+const edAbsentAttr=(m,val)=>edAbsent(m,val)
+  ?` data-absent="1" title="${ttA('editor.no_file_at_this_path',{path:esc(val)})}"`:'';
 function edTexView(m){
   const me=state.ed.mEdits[m.name]||{};
   const defs={},facs={};
@@ -1720,7 +1782,7 @@ function edModelCard(m,idx){
     return `<div class="prow">
       <span class="pl" title="${esc(p.label)}">${esc(p.label)}</span>
       <input data-entry="${esc(m.name)}" data-i="${p.i}" value="${esc(cur)}"
-        title="${esc(cur)}" class="${cur!==p.value?'changed':''}">
+        ${edAbsent(m,cur)?edAbsentAttr(m,cur):`title="${esc(cur)}"`} class="${cur!==p.value?'changed':''}">
       <button onclick="edImportPath('${q1(esc(m.name))}',${p.i},'mesh')">${tt('editor.import')}</button>
       <button onclick="edResetPath('${q1(esc(m.name))}',${p.i})" title="${ttA('editor.undo_this_change')}">↺</button></div>`;
   }).join('');
@@ -1752,6 +1814,7 @@ function edModelCard(m,idx){
       ${edFolderBox(m)}
       <div class="psec">${tt('editor.meshes_lods')}</div>${meshes||`<div class="count">${tt('common.none')}</div>`}
       ${edDefaultTextures(m)}
+      ${edStrayBox(m)}
       ${edFactionSkins(m)}
       </div>
       ${cvOn?`<div id="edmCode${idx}">${cvHtml(e.mcv)}</div>`:''}
@@ -1803,7 +1866,7 @@ function edDefaultTextures(m){
   const rows=edKinds(m).map(k=>`<div class="prow" style="grid-template-columns:var(--plw) 1fr auto">
       <span class="pl">${KIND_LABEL[k]}</span>
       <input data-def="${esc(m.name)}" data-kind="${k}" value="${esc(v.defs[k]||'')}"
-        title="${esc(v.defs[k]||'')}"
+        ${edAbsent(m,v.defs[k])?edAbsentAttr(m,v.defs[k]):`title="${esc(v.defs[k]||'')}"`}
         class="${(state.ed.mEdits[m.name]||{}).defaults&&k in state.ed.mEdits[m.name].defaults?'changed':''}">
       <button onclick="edImportDefault('${q1(esc(m.name))}','${k}')">${tt('editor.import')}</button></div>`).join('');
   return `<div class="psec">${tt('editor.default_textures_and_sprites')}</div>
@@ -1852,7 +1915,7 @@ function edFacUniquePanel(m,f,v,kinds){
         <span class="pl">${KIND_LABEL[k]}</span>
         <input data-fac="${esc(m.name)}" data-f="${esc(f)}" data-kind="${k}"
           value="${esc(own?cur[k]:'')}" placeholder="${esc(v.defs[k]||'(default)')}"
-          title="${esc(own?cur[k]:v.defs[k]||'')}" class="${own?'changed':''}">
+          ${own&&edAbsent(m,cur[k])?edAbsentAttr(m,cur[k]):`title="${esc(own?cur[k]:v.defs[k]||'')}"`} class="${own?'changed':''}">
         <button onclick="edImportFac('${q1(esc(m.name))}','${q1(esc(f))}','${k}')">${tt('editor.import')}</button>
       </div>`;}).join('')}</div>`;
 }

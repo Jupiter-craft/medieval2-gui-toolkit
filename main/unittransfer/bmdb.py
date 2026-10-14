@@ -985,7 +985,7 @@ def entry_detail(mod: Mod, name: str) -> dict:
     labels = [f"{k}: {', '.join(short_referrer(w) for w in slots[k][:3])}"
               f"{'…' if len(slots[k]) > 3 else ''}"
               for k in SLOT_KINDS if slots[k]]
-    payload = edit.model_payload(entry, labels, refs)
+    payload = edit.model_payload(entry, labels, refs, mod=mod)
     all_factions = edit.all_mod_factions(mod)
     return {
         "mod": mod.name,

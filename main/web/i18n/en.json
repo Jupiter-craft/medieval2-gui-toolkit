@@ -2660,6 +2660,7 @@
 "editor.base_it_on": "Base it on",
 "editor.battle_models_bmdb": "Battle models (bmdb)",
 "editor.both_columns_are_editable_save_changes": "Both columns are editable. <b>Save changes</b> writes both units.",
+"editor.bring_them_in": "Bring them in",
 "editor.card_png_converted_engine_reads_nothing_else": "A <code>.png</code>/<code>.jpg</code> is converted to <code>.tga</code>; the engine reads nothing else.",
 "editor.change_folder": "Change folder…",
 "editor.choose": "Choose…",
@@ -2803,6 +2804,7 @@
 "editor.no_entry_matches": "No entry matches",
 "editor.no_existing_model_entry_to_clone": "No existing model entry to clone this tier from",
 "editor.no_faction_with_this_name_in": "No faction with this name in this mod’s\ndescr_sm_factions.txt. The modeldb still names it, so the record is kept.",
+"editor.no_file_at_this_path": "No file at data/{path} in this mod",
 "editor.no_folder": "(no folder)",
 "editor.no_single_model_folder": "⚠ No single model folder",
 "editor.no_unit_is_open_so_nothing": "No unit is open, so nothing is repointed at it. Use the entry from a unit's Battle models tab afterwards.",
@@ -2904,6 +2906,12 @@
 "editor.standardise": "Standardise…",
 "editor.taken_another_entry_in_this_mod": "✗ Taken. Another entry in this mod already has that name.",
 "editor.texture": "Texture",
+"editor.textures_coming_in": "✓ On save these are copied into {tex} and the entry points there. A file of the same name already there is used as it is, not written over.",
+"editor.textures_outside": {
+"one": "{count} texture is outside {tex}",
+"other": "{count} textures are outside {tex}"
+},
+"editor.textures_outside_why": "⚠ A file of the same name is in textures/ as well. The game reads the path the entry names, so editing the one in textures/ changes nothing in game.",
 "editor.textures_texture_texture_all_files": "Textures (*.texture)|*.texture|All files (*.*)|*.*",
 "editor.tga": "#{dictionary}.tga",
 "editor.the_description_is_stored_on_a": "The description is stored on a single line, so any new line or tab you type becomes <code>\\n</code> / <code>\\t</code> when you click away.",

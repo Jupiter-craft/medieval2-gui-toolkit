@@ -2367,7 +2367,14 @@ from a different file of the same name). The likely cause is the browser
 holding the picture by its URL, which does not change when the file does; if
 so, every building-art URL carries the file's mtime and size, so a new file is
 a new URL. Check the picture dialog, the building card and the level list,
-since all three show the art.
+since all three show the art. **Done 2026-10-14**: the cause was on the page,
+not the server. The server's picture cache is keyed by each file's mtime and
+size already; the browser holds an image by its URL, and `bldIcon`
+(`web/js/buildings.js`) was the one picture URL that did not carry
+`iconBust()`, the stamp `imgBust()` moves on every write. So the re-render after
+a replace built the URL it had before and the browser drew the picture it held
+for it. All three places build their URL through `bldIcon`; the replace dialog
+reads the stamped URL as the same building.
 
 **98e - texture paths that point somewhere else.** Reported: "Sometimes when
 creating/editing units, the GUI Toolkit copies and references the texture
@@ -2400,6 +2407,27 @@ there through every Import. The pieces:
 - Find out what made the copies in the mesh folder in the first place (a
   transfer, Add a model, or a save of the form) and make it follow the same
   rule. Reproduce on the player's case before changing anything.
+
+**98e done 2026-10-14.** Where the copies came from: **Add a model**
+(`_plan_new_model` in `unittransfer/edit.py`) copied the texture, normal map
+and both attachment files into the folder the form names, beside the mesh,
+while the form said textures go in its `textures/`. They now go in
+`<folder>/textures` (`_texture_dir_of`). Import (`edImportDir`) lands a texture
+in the model folder's `textures/` whatever the box named; a sprite still lands
+beside the one it replaces. The folder report gains `home` and
+`stray_textures` (a texture outside `<home>/textures`; an attachment texture
+only while it is in the model folder itself, a shared set elsewhere is not
+this model's), and the card `absent` (mesh and texture paths no file answers,
+a dashed red box with a tooltip) and `twins` (strays with a file of the same
+name in `textures/` too, the player's trap). A box under the default textures
+lists the strays with **Bring them in** (`gather` on the model edit,
+`_plan_gather`): each is copied into `textures/` and the entry repointed, a
+file already there is pointed at and never written over, the old copy is left
+for any other entry, and Undo is the save's. The box shows only where the
+Standardise box above is silent (an entry that looks tidy) or there is a twin,
+and it is amber only for a twin: 299 of Heirs of Elendil's 1,446 entries read
+a texture from outside their folder, nearly all shared on purpose.
+`tests/test_texture_home.py`, 21 checks.
 
 **98f - vanilla files read from the game's packs, nothing unpacked.** The
 user: "The mods that rely on vanilla assets (like vanilla expanded ones or the

@@ -10617,5 +10617,14 @@
  },
  "eng.cas.w_text_latin1": "{value} tiene un carácter que un .cas no puede guardar (se escribe en Latin-1)",
  "eng.cas.w_text_long": "un nombre de {n:,} caracteres es más largo de lo que admite el lector",
- "stratview.all_model_files": "Todos los archivos de modelos estratégicos"
+ "stratview.all_model_files": "Todos los archivos de modelos estratégicos",
+ "editor.bring_them_in": "Traerlas aquí",
+ "editor.no_file_at_this_path": "No hay ningún archivo en data/{path} en este mod",
+ "editor.textures_coming_in": "✓ Al guardar se copian a {tex} y la entrada apunta allí. Si ya hay un archivo con el mismo nombre, se usa tal cual y no se sobrescribe.",
+ "editor.textures_outside": {
+  "one": "{count} textura está fuera de {tex}",
+  "many": "{count} texturas están fuera de {tex}",
+  "other": "{count} texturas están fuera de {tex}"
+ },
+ "editor.textures_outside_why": "⚠ También hay un archivo con el mismo nombre en textures/. El juego lee la ruta que nombra la entrada, así que editar la textura de textures/ no cambia nada en el juego."
 }
