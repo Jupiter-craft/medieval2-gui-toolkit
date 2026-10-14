@@ -2297,6 +2297,31 @@ unit** (this model joins an existing unit as a soldier model); **New unit**
 (duplicate a chosen unit, with this entry as its soldier model). All through
 the plan/apply door, so My Changes shows it and it can be undone. A button
 here opens the unit card generator (95m) on this model.
+**Done 2026-10-14, not yet loaded in game**: `unittransfer/armunit.py`,
+`/api/armory/templates`, `/api/armory/install/plan` and `/apply`, the export's
+fourth step, **Into a mod**, once a bake is written. **Skip** plans one new
+modeldb entry through `edit.plan_bmdb`; **Add to a unit** the same entry
+through `edit.plan_edit` with `assign_to: soldier`; **New unit** is the
+same-mod transfer the unit list's *new unit from this one* is (the copy keeps
+the voice of the unit it copies), then that edit on the new unit. Every write
+goes through `file_op`, so My Changes shows it and the Log's Undo takes it
+back. An entry is a clone of one the mod has (`edit.NewModel`): the baked
+mesh, its sheets and normal maps copied into the folder and its
+`textures/`, the clone's skeletons, weapons, sprites and faction records kept.
+The clone is the unit's own soldier model, an entry named, or a **role
+template's**. **Role templates** (heavy infantry, spear, pike, archer,
+crossbow, javelin, cavalry) are measured on the mod itself: the units playing
+each role by EDU category and class and their soldier's skeleton, the
+animation set their entries share most (whose most typical entry is cloned,
+so skeletons and weapons are the role's), and the class, formation,
+attributes and, for cavalry, mount they share most, set on a new unit. The
+Americas campaign: 65 heavy infantry, 48 spear, 13 pike (`MTW2_Pike`,
+phalanx, `pike`), 53 archer, 16 crossbow, 19 javelin, 97 cavalry (heavy
+horse). The plan is shown before anything is written; a new unit's second
+step is shown on the unit it copies. `edit._plan_new_model` now warns when an
+attachment sheet has no record to sit in. Its *Unit cards…* button waits on
+95m. `tests/test_armory` (80), the three ways written into a scratch mod and
+one undone.
 
 **95l - the asset library.** Existing models sorted into categories for
 later, each with a name and notes of the user's own beside its code name,

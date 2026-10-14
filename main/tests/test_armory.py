@@ -10,6 +10,8 @@
     reference horse packed and baked, every vertex reading the texel it read.
   * normal maps (95j): the generator's direction and strength, the page's
     preview against the bake, Skip flat and Specialized per material.
+  * into a mod (95k): role templates measured on a mod, and a new entry, a
+    unit's new soldier model and a new unit from a template, each undoable.
 """
 import io
 import json
@@ -458,6 +460,86 @@ if horse is not None:
     check(f"Specialized: wood is cut deeper than skin ({tilt(wood_id):.1f} against {tilt(skin_id):.1f})",
           tilt(wood_id) > tilt(skin_id) > 0)
     hproj.pop("normals")
+
+# ---------------------------------------------------------------------------
+print("\nInto a mod: the import unit menu (95k)")
+
+game_k = _realmod.game(required=False)
+AMER = (game_k / "mods" / "americas") if game_k.is_dir() else None
+if horse is not None and AMER is not None and AMER.is_dir():
+    from unittransfer import armunit, config, gamepack, transfer
+    from unittransfer.mod import Mod
+    amer = Mod(AMER)
+    cfg = tmp / "cfg"
+    cfg.mkdir()
+    config.CONFIG_DIR = cfg
+    config.BACKUP_DIR = cfg / "backups"
+    config.SETTINGS_PATH = cfg / "settings.json"
+    config.LOG_PATH = cfg / "transfers.json"
+    mroot = tmp / "mod_k"
+    for rel in ("export_descr_unit.txt", "text/export_units.txt", "unit_models/battle_models.modeldb",
+                "descr_mount.txt"):
+        src, _where = gamepack.lookup(rel, amer)
+        if src is not None and src.is_file():
+            (mroot / "data" / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, mroot / "data" / rel)
+    kmod = Mod(mroot)
+    temps = armunit.role_templates(kmod)
+    counts = ", ".join(f"{r} {t['units']}" for r, t in temps.items())
+    check(f"role templates measured on the mod itself ({counts})",
+          set(temps) == set(armunit.ROLES))
+    check(f"a pike unit is a phalanx with pikes ({temps['pike']['skeletons']}, {temps['pike']['fields'].get('formation')})",
+          "pike" in temps["pike"]["fields"].get("attributes", "") and "phalanx" in temps["pike"]["fields"].get("formation", "")
+          and any("pike" in s.lower() for s in temps["pike"]["skeletons"]))
+    check(f"cavalry rides ({temps['cavalry']['fields'].get('mount')})", temps["cavalry"]["fields"].get("mount"))
+
+    bake_dir = str(tmp / "out")
+    base = {"bake_folder": bake_dir, "stem": "horse_95i"}
+    sk = armunit.plan_install(kmod, dict(base, choice="skip", name="armory_horse", template="cavalry"))
+    shown = armunit.payload(sk)
+    check(f"Skip plans one new entry, cloned from the template's ({sk['steps'][0]['plan'].new_entries[0][0]})",
+          shown["ok"] and [n for n, _r, _p in sk["steps"][0]["plan"].new_entries] == ["armory_horse"])
+    rec = armunit.apply_install(lambda n: Mod(mroot), "mod_k", dict(base, choice="skip", name="armory_horse", template="cavalry"))
+    after = Mod(mroot)
+    ent = after.modeldb.by_name().get("armory_horse")
+    check("written: the entry points at the baked mesh, copied into its folder",
+          ent is not None and ent.lods[0][0].endswith("armory/armory_horse/horse_95i.mesh")
+          and (mroot / "data" / "unit_models/_units/armory/armory_horse/horse_95i.mesh").is_file())
+    check("and at its sheets and normal maps, in the folder's textures/",
+          (mroot / "data" / "unit_models/_units/armory/armory_horse/textures/horse_95i.texture").is_file()
+          and (mroot / "data" / "unit_models/_units/armory/armory_horse/textures/horse_95i_normal.texture").is_file())
+    check("its skeletons are the cavalry template's",
+          ent is not None and ent.animations[0].primary_skeleton == temps["cavalry"]["skeletons"][0])
+    transfer.undo(rec["records"][0]["id"])
+    check("Undo takes the entry back out", "armory_horse" not in Mod(mroot).modeldb.by_name())
+
+    unit_k = next(u.type for u in kmod.edu.units
+                  if (u.category or "").lower() == "infantry" and kmod.modeldb.by_name().get((u.soldier_model or "").lower()))
+    armunit.apply_install(lambda n: Mod(mroot), "mod_k", dict(base, choice="add", name="armory_foot", unit=unit_k))
+    after = Mod(mroot)
+    check(f"Add to a unit: {unit_k} now wears the new entry",
+          after.edu.by_type()[unit_k].soldier_model.lower() == "armory_foot" and "armory_foot" in after.modeldb.by_name())
+
+    try:
+        armunit.plan_install(after, dict(base, choice="new", name="armory_pike", unit=unit_k, new_type=unit_k))
+        refused = False
+    except armunit.InstallError:
+        refused = True
+    check("a new unit cannot take a type the mod has", refused)
+    got = armunit.apply_install(lambda n: Mod(mroot), "mod_k",
+                                dict(base, choice="new", name="armory_pike", unit=unit_k,
+                                     new_type="armory_pikemen", template="pike"))
+    after = Mod(mroot)
+    nu = after.edu.by_type().get("armory_pikemen")
+    check("New unit: the unit is duplicated and wears the new entry",
+          nu is not None and nu.soldier_model.lower() == "armory_pike" and len(got["records"]) == 2)
+    attrs = armunit._field(nu, "attributes") if nu else ""
+    check(f"with the pike template's class, formation and attributes ({attrs})",
+          nu is not None and "pike" in attrs and "phalanx" in armunit._field(nu, "formation")
+          and (nu.class_type or "").lower() == "spearmen")
+    check("and the unit it came from is unchanged", after.edu.by_type()[unit_k].soldier_model.lower() == "armory_foot")
+else:
+    print("  no mod installed to write into; skipped")
 
 # ---------------------------------------------------------------------------
 print("\nThe project")

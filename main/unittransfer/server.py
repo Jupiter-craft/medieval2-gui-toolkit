@@ -706,7 +706,7 @@ from typing import Dict, List, Optional
 from . import (bmdb, buildings, cards, cleaner, codeview, config, dupes, edit,
                modflags, modfiles, sounds, stratmap)
 from . import mapgen, mapnew, mapresize
-from . import armory, armbake, loosemesh, meshfolder, modeldb, modeltext
+from . import armory, armbake, armunit, loosemesh, meshfolder, modeldb, modeltext
 from . import ancillaries, areaeffects, campimport, edbimport, mapbundle, osmmap, osmsites, settlemodel, heroabilities, hordestart, walls, characters, projectzip, campaint, campdb, campevents, campfiles, campmap, campnew, campstrat, cas, casanim, animedit, animpack, animslot, animview, modelexport, launchcheck, packhouse, settlemech, fileswap, factionsites, sidefiles, banners, changesets, health, climatenew, guilds, mapcheck, mapfe, mapquery, mapterrain, mercpools, regiondel, edusort, factionaudit, factionclone, factions, images, mesh, minorfiles, namekeys, portrecords, rawtext, rebelpools, renames, soundbanks, soundscripts, spawns, sprites, stratcamp, stratchar, stratedit, stratobj, strings, traits, triggers, winconds
 from . import eop as _eop
 from . import logutil
@@ -2731,6 +2731,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
             if u.path == "/api/armory/allow_texture":
                 return self._json({"ok": armory.allow_texture(body.get("path") or "")})
+            if u.path in ("/api/armory/install/plan", "/api/armory/install/apply"):
+                # 95k: the baked model into a mod, through the edit and
+                # transfer doors, so My Changes shows it and Undo takes it back
+                name = body.get("mod") or ""
+                if name not in self.registry.names():
+                    return self._err(404, "unknown mod")
+                try:
+                    if u.path.endswith("/plan"):
+                        return self._json(armunit.payload(armunit.plan_install(self.registry.get(name), body)))
+                    out = armunit.apply_install(self.registry.get, name, body, self.registry.invalidate)
+                    log.info("ARMORY installed %r into %s (%s)", body.get("name"), name, body.get("choice"))
+                    return self._json(out)
+                except (armunit.InstallError, armory.ArmoryError, KeyError, ValueError, OSError) as e:
+                    return self._err(400, str(e))
             if u.path in ("/api/armory/check", "/api/armory/uv", "/api/armory/bake"):
                 # 95i: the export's check, UV menu and bake, each on the
                 # project as the page holds it
@@ -5675,6 +5689,12 @@ class Handler(BaseHTTPRequestHandler):
         mod = self.registry.get(name)
         if path == "/api/armory/catalogue":
             return self._json(armory.catalogue(mod))
+        if path == "/api/armory/templates":
+            # 95k: each role as this mod plays it, and its units to duplicate
+            return self._json({"templates": armunit.role_templates(mod),
+                               "units": [{"type": u.type, "category": u.category, "class": u.class_type,
+                                          "soldier": u.soldier_model} for u in mod.edu.units],
+                               "entries": sorted(mod.modeldb.by_name())})
         if path == "/api/armory/asset":
             try:
                 return self._json(armory.asset_view(mod, arg("entry")))

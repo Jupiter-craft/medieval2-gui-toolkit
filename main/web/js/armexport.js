@@ -46,13 +46,14 @@ function armExportPaint(){
   const errors = e.check ? e.check.issues.filter(i => i.level === 'error').length : 0;
   modal.innerHTML = `<div class="armexp">
     <h3>${tt('armory.exp_title')}</h3>
-    <div class="mftabs">${tab('check', tt('armory.exp_step_check'))}${tab('uv', tt('armory.exp_step_uv'))}${tab('bake', tt('armory.exp_step_bake'))}</div>
-    <div id="armExpBody">${e.step === 'check' ? armExpCheckHtml() : e.step === 'uv' ? armExpUvHtml() : armExpBakeHtml()}</div>
+    <div class="mftabs">${tab('check', tt('armory.exp_step_check'))}${tab('uv', tt('armory.exp_step_uv'))}${tab('bake', tt('armory.exp_step_bake'))}${tab('mod', tt('armory.exp_step_mod'))}</div>
+    <div id="armExpBody">${e.step === 'check' ? armExpCheckHtml() : e.step === 'uv' ? armExpUvHtml() : e.step === 'mod' ? armExpModHtml() : armExpBakeHtml()}</div>
     ${e.err ? `<div class="armexperr">${esc(e.err)}</div>` : ''}
     <div class="armimpfoot"><span class="count">${e.busy ? tt('armory.reading') : ''}</span><span style="flex:1"></span>
       <button onclick="closeModal()">${tt('common.close')}</button>
       ${e.step === 'check' ? `<button class="primary" onclick="armExportStep('uv')"${errors || !e.check ? ' disabled' : ''}>${tt('armory.exp_next')}</button>` : ''}
       ${e.step === 'uv' ? `<button class="primary" onclick="armExportStep('bake')"${e.plan && e.plan.fits ? '' : ' disabled'}>${tt('armory.exp_next')}</button>` : ''}
+      ${e.step === 'bake' && e.done ? `<button class="primary" onclick="armExportStep('mod')">${tt('armory.exp_next')}</button>` : ''}
     </div></div>`;
   if(e.step === 'uv') armExpDrawSheets();
 }
@@ -61,10 +62,12 @@ function armExportStep(s){
   const e = armExp();
   if(s !== 'check' && (!e.check || e.check.issues.some(i => i.level === 'error'))){ e.step = 'check'; armExportPaint(); return; }
   if(s === 'bake' && !(e.plan && e.plan.fits)) s = 'uv';
+  if(s === 'mod' && !e.done) s = 'bake';
   e.step = s; e.err = '';
   armExportPaint();
   if(s === 'check') armExportCheck();
   if(s === 'uv') armExportPlan();
+  if(s === 'mod') armExpModLoad();
 }
 
 /* --- 1. check ------------------------------------------------------------ */
@@ -318,4 +321,120 @@ async function armExpBake(){
   }catch(err){ e.err = errText(err); }
   e.busy = false;
   armExportPaint();
+}
+
+/* --- 4. into a mod (95k) ----------------------------------------------------------
+
+   Three ways in, each through the toolkit's own doors (armunit.py), so My
+   Changes shows what was written and the Log's Undo takes it back out:
+   SKIP a new modeldb entry only; ADD it to a unit as its soldier model; or a
+   NEW UNIT duplicated from a chosen one, wearing it, with a role template's
+   class, formation, attributes and mount on top. An entry is a clone of one
+   the mod has, for its skeletons and weapons: the unit's own soldier, a role
+   template's most typical entry, or one named here. */
+
+function armExpMod(){
+  const e = armExp();
+  return e.mod = e.mod || {target: state.src || (ARM.mods || [])[0] || '', choice: 'skip', name: '', folder: '',
+                           template: '', clone_from: '', unit: '', new_type: '', new_name: '', data: null, plan: null};
+}
+async function armExpModLoad(){
+  const m = armExpMod(), e = armExp();
+  if(!ARM.mods){ try{ ARM.mods = (await api.get('/api/mods')).map(x => x.name); }catch(err){ ARM.mods = []; } }
+  if(!m.target) m.target = state.src || ARM.mods[0] || '';
+  if(!m.name) m.name = (e.stem || 'armory_model').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  m.plan = null;
+  if(!m.target){ armExportPaint(); return; }
+  e.busy = true; armExportPaint();
+  try{ m.data = await api.get('/api/armory/templates?mod=' + enc(m.target)); e.err = ''; }
+  catch(err){ m.data = null; e.err = errText(err); }
+  e.busy = false;
+  armExportPaint();
+}
+const armRoleLabel = r => ({heavy_infantry: tt('armory.role_heavy_infantry'), spear: tt('armory.role_spear'),
+  pike: tt('armory.role_pike'), archer: tt('armory.role_archer'), crossbow: tt('armory.role_crossbow'),
+  javelin: tt('armory.role_javelin'), cavalry: tt('armory.role_cavalry')})[r] || r;
+
+function armExpModStepTitle(st, m){
+  if(st.kind === 'transfer') return tt('armory.exp_step_duplicate');
+  if(st.kind === 'bmdb') return tt('armory.exp_step_entry');
+  if(m.choice === 'new') return tt('armory.exp_step_new_unit_edit', {unit: st.on});
+  return tt('armory.exp_step_unit_edit');
+}
+
+function armExpModHtml(){
+  const m = armExpMod(), d = m.data;
+  const radio = (v, label, note) => `<label class="armcheck armexpchoice"><input type="radio" name="armExpChoice"${m.choice === v ? ' checked' : ''}
+      onchange="armExpModSet('choice','${v}')"> <b>${label}</b> <span class="count">${note}</span></label>`;
+  const mods = (ARM.mods || []).map(x => `<option${x === m.target ? ' selected' : ''}>${esc(x)}</option>`).join('');
+  let html = `<div class="armexprow"><label>${tt('armory.exp_target_mod')}<select onchange="armExpModTarget(this.value)">${mods}</select></label></div>
+    <div class="armexpchoices">${radio('skip', tt('armory.exp_choice_skip'), tt('armory.exp_choice_skip_note'))}
+      ${radio('add', tt('armory.exp_choice_add'), tt('armory.exp_choice_add_note'))}
+      ${radio('new', tt('armory.exp_choice_new'), tt('armory.exp_choice_new_note'))}</div>`;
+  if(!d) return html;
+  const units = `<datalist id="armExpUnits">${d.units.map(u => `<option value="${esc(u.type)}">${esc(u.category)} · ${esc(u['class'])}</option>`).join('')}</datalist>`;
+  const entries = `<datalist id="armExpEntries">${d.entries.map(n => `<option value="${esc(n)}">`).join('')}</datalist>`;
+  const roles = Object.values(d.templates);
+  html += `<div class="armexprow">
+      <label>${tt('armory.exp_entry_name')}<input value="${esc(m.name)}" oninput="armExpModSet('name', this.value, true)"></label>
+      <label>${tt('armory.exp_entry_folder')}<input class="armwide" value="${esc(m.folder)}" placeholder="unit_models/_units/armory/${esc(m.name)}" oninput="armExpModSet('folder', this.value, true)"></label></div>`;
+  if(m.choice !== 'skip')
+    html += `<div class="armexprow"><label>${m.choice === 'new' ? tt('armory.exp_unit_from') : tt('armory.exp_unit')}<input list="armExpUnits" value="${esc(m.unit)}"
+        placeholder="${esc(tt('armory.find'))}" onchange="armExpModSet('unit', this.value)"></label>${units}</div>`;
+  if(m.choice === 'new')
+    html += `<div class="armexprow"><label>${tt('armory.exp_new_type')}<input value="${esc(m.new_type)}" oninput="armExpModSet('new_type', this.value, true)"></label>
+      <label>${tt('armory.exp_new_name')}<input value="${esc(m.new_name)}" oninput="armExpModSet('new_name', this.value, true)"></label></div>`;
+  html += `<div class="armsect">${tt('armory.exp_skeletons_from')}</div>
+    <div class="armexprow"><select onchange="armExpModSet('template', this.value)">
+      <option value="">${m.choice === 'skip' ? tt('armory.exp_template_entry') : tt('armory.exp_template_unit')}</option>
+      ${roles.map(t => `<option value="${t.role}"${m.template === t.role ? ' selected' : ''}>${esc(tt('armory.exp_template_option', {role: armRoleLabel(t.role), n: t.units}))}</option>`).join('')}</select>
+      ${m.template ? '' : `<label>${tt('armory.exp_clone_from')}<input list="armExpEntries" value="${esc(m.clone_from)}" onchange="armExpModSet('clone_from', this.value)"></label>${entries}`}</div>`;
+  const t = d.templates[m.template];
+  if(t){
+    const fields = Object.entries(t.fields).map(([k, v]) => `${k} ${v}`).join(' · ');
+    html += `<div class="count armnote">${tt('armory.exp_template_facts', {example: t.example, skeletons: t.skeletons.join(', '), fields})}</div>`;
+    if(m.choice !== 'new') html += `<div class="count armnote">${tt('armory.exp_template_fields_new_only')}</div>`;
+  }
+  html += `<div class="armexprow"><button onclick="armExpModPlan()">${tt('armory.exp_plan')}</button>
+      <button class="primary" onclick="armExpModApply()"${m.plan && m.plan.ok ? '' : ' disabled'}>${tt('armory.exp_write')}</button>
+      <button class="mini" disabled title="${esc(tt('armory.exp_cards_later'))}">${tt('armory.exp_cards')}</button></div>`;
+  if(m.plan) html += m.plan.steps.map((st, i) => `<div class="armissue ${st.errors.length ? 'error' : 'ok'}">
+      <b>${m.plan.steps.length > 1 ? `${i + 1}. ` : ''}${armExpModStepTitle(st, m)}</b>
+      ${st.lines.slice(1).map(l => `<div class="count">${esc(l)}</div>`).join('')}
+      ${st.warnings.map(w => `<div class="armexpwarn">${esc(w)}</div>`).join('')}
+      ${st.errors.map(w => `<div class="armexperr">${esc(w)}</div>`).join('')}</div>`).join('');
+  if(m.written) html += `<div class="armissue ok">${tt('armory.exp_written_mod', {mod: m.written.mod, name: m.written.name})}</div>`;
+  return html;
+}
+function armExpModBody(){
+  const m = armExpMod(), e = armExp();
+  return {mod: m.target, choice: m.choice, name: m.name.trim().toLowerCase(), folder: m.folder.trim(),
+          template: m.template, clone_from: m.template ? '' : m.clone_from.trim().toLowerCase(),
+          unit: m.unit, new_type: m.new_type.trim(), new_name: m.new_name.trim(),
+          bake_folder: e.done ? e.done.folder : e.folder, stem: e.stem};
+}
+function armExpModSet(k, v, live){
+  const m = armExpMod();
+  m[k] = v; m.plan = null; m.written = null;
+  if(!live) armExportPaint();
+}
+function armExpModTarget(v){ armExpMod().target = v; armExpModLoad(); }
+async function armExpModPlan(){
+  const m = armExpMod(), e = armExp();
+  e.busy = true; armExportPaint();
+  try{ m.plan = await api.post('/api/armory/install/plan', armExpModBody()); e.err = ''; }
+  catch(err){ m.plan = null; e.err = errText(err); }
+  e.busy = false; armExportPaint();
+}
+async function armExpModApply(){
+  const m = armExpMod(), e = armExp();
+  if(!m.plan || !m.plan.ok) return;
+  e.busy = true; armExportPaint();
+  try{
+    await api.post('/api/armory/install/apply', armExpModBody());
+    m.written = {mod: m.target, name: m.choice === 'new' ? m.new_type : m.name};
+    m.plan = null; e.err = '';
+    toast(tt('armory.exp_written_mod', m.written));
+  }catch(err){ e.err = errText(err); }
+  e.busy = false; armExportPaint();
 }

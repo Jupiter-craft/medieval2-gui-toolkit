@@ -1399,6 +1399,9 @@ def _plan_new_model(plan: EditPlan, mod: Mod, nm: NewModel,
     att_norm_rel = (_plan_file_copy(plan, mod, Path(nm.attach_normal_src), tex_dir)
                     if nm.attach_normal_src else None)
 
+    if att_tex_rel and not any(s["group"] == "attach" for s in slots):
+        # 95k: an attachment sheet needs a record to sit in, and the clone has none
+        plan.warnings.append(_i18n.msg("eng.edit.clone_has_no_attachment", "'{clone}' has no attachment texture record, so the attachment sheet is copied but nothing points at it: clone an entry that has one", clone=clone.name))
     if mesh_rel:
         meshes = [s for s in slots if s["kind"] == "mesh"]
         for k, s in enumerate(meshes):
