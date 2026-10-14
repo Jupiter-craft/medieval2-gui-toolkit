@@ -10187,5 +10187,6 @@
  "core.cas_models": "CAS-Modelle",
  "core.cas_models_hint": "jede .cas unter data/models_strat: Siedlungen, Gebäude und alles andere, was die Kampagnenkarte zeichnet",
  "stratmap.cas_models_title": "{src} - CAS-Modelle",
- "stratmap.cas_models_intro": "Jede .cas-Datei unter data/models_strat. Siedlungen und Gebäude wählt das Spiel nach Stufe und Kultur aus den Ordnern, daher nennt sie kein Eintrag; wähle eine aus, um sie neben der Liste zu zeichnen."
+ "stratmap.cas_models_intro": "Jede .cas-Datei unter data/models_strat. Siedlungen und Gebäude wählt das Spiel nach Stufe und Kultur aus den Ordnern, daher nennt sie kein Eintrag; wähle eine aus, um sie neben der Liste zu zeichnen.",
+"eng.cas.w_material_name": "Externe CAS-Texturen haben kein Feld für einen Materialnamen; lass den Materialnamen leer"
 }

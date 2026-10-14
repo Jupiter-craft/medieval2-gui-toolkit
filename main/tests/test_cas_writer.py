@@ -27,6 +27,9 @@ def fixture(*, unknown=False, baked=False, partial=False, version=3.2):
     if baked:
         data += struct.pack('<4f', 0, 0, 0, 1)
     data += struct.pack('<6f', 0, 0, 0, 0.5, 1.5, -0.5)
+    header = bytearray(data)
+    struct.pack_into('<II', header, 42, len(data) - 42, 0)
+    data = bytes(header)
     for kind in (1, 2):
         body = struct.pack('<I', 1) + text('static' if kind == 1 else 'skin') + text('Mass = 4')
         body += bytes([0x61 + kind]) * (37 if kind == 1 else 28)
@@ -42,7 +45,7 @@ def fixture(*, unknown=False, baked=False, partial=False, version=3.2):
         if partial and kind == 1:
             body = struct.pack('<I', 2) + body[4:]  # second advertised object is absent
         data += chunk(kind, body)
-    mat = struct.pack('<II', 1, 1) + b'atlas\0textures\\atlas.tga\0'
+    mat = struct.pack('<II', 1, 1) + b'\0textures\\atlas.tga\0'
     mat += struct.pack('<7f', 1, 0.5, 0.25, 1, 0.125, 0.25, 0.5) + bytes(range(90, 119))
     data += chunk(5, mat)
     for kind in (3, 8, 10):
@@ -59,7 +62,7 @@ class CasWriterTests(unittest.TestCase):
         self.assertEqual(self.roundtrip(scene).objects[0].positions[0], 7.0)
 
     def test_material_order_across_chunks(self):
-        material = struct.pack('<II', 1, 1) + b'second\0second.tga\0'
+        material = struct.pack('<II', 1, 1) + b'\0second.tga\0'
         material += struct.pack('<7f', 1, 1, 1, 1, 0, 0, 0) + b'\0' * 28 + b'\1'
         raw = fixture() + chunk(5, material)
         scene = self.decode(raw)
@@ -67,7 +70,7 @@ class CasWriterTests(unittest.TestCase):
         scene.materials.reverse()
         scene.objects[0].material = 0
         after = self.roundtrip(scene)
-        self.assertEqual([m.name for m in after.materials], ['second', 'atlas'])
+        self.assertEqual([m.texture for m in after.materials], ['second.tga', 'textures\\atlas.tga'])
         self.assertEqual(after.materials[after.objects[0].material].texture, 'second.tga')
 
     def decode(self, raw=None):
@@ -86,7 +89,7 @@ class CasWriterTests(unittest.TestCase):
 
     def test_fresh_static_and_skinned_scene(self):
         scene = cas.CasScene(source='fresh.cas', version=3.2, nodes=['Scene Root', 'bone_pelvis'], parents=[-1, 0], pivots=array('f', [0, 0, 0, 0, 2, 0]), key_times=array('f', [0]))
-        scene.materials = [cas.CasMaterial(name='new', texture='new.tga')]
+        scene.materials = [cas.CasMaterial(texture='new.tga')]
         for skin in (False, True):
             scene.objects.append(cas.CasObject(name=str(skin), skinned=skin, material=0, positions=array('f', [0, 0, 0, 1, 0, 0, 0, 1, 0]), normals=array('f', [0, 0, 1] * 3), uvs=array('f', [0, 0, 1, 0, 0, 1]), indices=array('H', [0, 1, 2]), bones=array('I', [1, 1, 1] if skin else [])))
         out = self.roundtrip(scene)
@@ -114,7 +117,7 @@ class CasWriterTests(unittest.TestCase):
         obj.colours[1] = 0x12345678
         obj.material = None
         mat = scene.materials[0]
-        mat.name, mat.texture = 'longer-material-name', 'textures\\replacement.tga'
+        mat.texture = 'textures\\replacement.tga'
         mat.diffuse, mat.specular = (0.25, 0.5, 0.75, 1), (0.5, 0.25, 0.125)
         raw = cas.write_cas(scene)
         self.assertNotEqual(raw, fixture())
@@ -125,7 +128,43 @@ class CasWriterTests(unittest.TestCase):
         self.assertEqual(out.materials[0], mat)
         for opaque in (b'TAIL', b'UVWXYZ', b'ABCD', b'b' * 37, b'c' * 28, bytes(range(90,119)), b'node_prop'):
             self.assertIn(opaque, raw)
-        self.assertEqual(raw[20:50], fixture()[20:50])
+        self.assertEqual(raw[20:42], fixture()[20:42])
+        self.assertEqual(raw[46:50], fixture()[46:50])
+
+    def test_skeleton_chunk_size_after_header_edits(self):
+        raw = fixture()
+        scene = self.decode(raw)
+        scene.nodes[1] += '_longer'
+        scene.key_times.extend([1, 2])
+        output = cas.write_cas(scene)
+        self.assertEqual(struct.unpack_from('<I', output, 42)[0],
+                         struct.unpack_from('<I', raw, 42)[0] + len('_longer') + 8)
+
+    def test_fresh_chunk_order_and_closing_counts(self):
+        scene = self.decode()
+        for item in [scene, *scene.objects, *scene.materials]:
+            if hasattr(item, '_wire'):
+                del item._wire
+        output = cas.write_cas(scene)
+        after = self.decode(output)
+        self.assertEqual([kind for kind, _, _ in after._wire['chunks']], [1, 2, 3, 8, 10, 5])
+        self.assertEqual(struct.unpack_from('<I', output, 42)[0], after._wire['skeleton_size'])
+        for kind, chunk_raw, tail in after._wire['chunks']:
+            if kind in (1, 2):
+                self.assertEqual(struct.unpack_from('<I', tail, 2 if kind == 1 else 0)[0], 1)
+        import copy
+        extra = copy.deepcopy(after.objects[1])
+        extra.name = 'another skin'
+        after.objects.append(extra)
+        resized = self.roundtrip(after)
+        skin_tail = next(tail for kind, _, tail in resized._wire['chunks'] if kind == 2)
+        self.assertEqual(struct.unpack('<I', skin_tail)[0], 2)
+
+    def test_external_material_name_rejected(self):
+        scene = self.decode()
+        scene.materials[0].name = 'not-a-binary-material-field'
+        with self.assertRaises(cas.CasError):
+            cas.write_cas(scene)
 
     def test_geometry_resize_recomputes_counts(self):
         scene = self.decode()
@@ -143,7 +182,7 @@ class CasWriterTests(unittest.TestCase):
         second = copy.deepcopy(scene.objects[0])
         second.name = 'another static'
         scene.objects.insert(0, second)
-        scene.materials.append(cas.CasMaterial(name='second', texture='second.tga'))
+        scene.materials.append(cas.CasMaterial(texture='second.tga'))
         second.material = 1
         out = self.roundtrip(scene)
         self.assertEqual([o.name for o in out.objects], ['another static', 'static', 'skin'])
@@ -182,7 +221,7 @@ class CasWriterTests(unittest.TestCase):
 
     def test_float_bits_survive_unedited(self):
         data = bytearray(fixture())
-        colour_at = data.index(b'atlas\0textures\\atlas.tga\0') + len(b'atlas\0textures\\atlas.tga\0')
+        colour_at = data.index(b'\0textures\\atlas.tga\0') + len(b'\0textures\\atlas.tga\0')
         struct.pack_into('<I', data, colour_at, 0x7f800123)  # signaling NaN payload
         struct.pack_into('<I', data, colour_at + 4, 0x80000000)  # negative zero
         raw = bytes(data)

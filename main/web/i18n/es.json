@@ -10657,5 +10657,6 @@
  "core.cas_models": "Modelos CAS",
  "core.cas_models_hint": "cada .cas bajo data/models_strat: asentamientos, edificios y lo demás que dibuja el mapa de campaña",
  "stratmap.cas_models_title": "{src} - modelos CAS",
- "stratmap.cas_models_intro": "Cada archivo .cas bajo data/models_strat. El juego elige los asentamientos y edificios de las carpetas por nivel y cultura, así que ninguna entrada los nombra; elige uno para dibujarlo junto a la lista."
+ "stratmap.cas_models_intro": "Cada archivo .cas bajo data/models_strat. El juego elige los asentamientos y edificios de las carpetas por nivel y cultura, así que ninguna entrada los nombra; elige uno para dibujarlo junto a la lista.",
+"eng.cas.w_material_name": "las texturas CAS externas no tienen un campo de nombre de material; deja el nombre del material vacío"
 }

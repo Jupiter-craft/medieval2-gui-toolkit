@@ -9361,5 +9361,6 @@
 "walls.wall_level": "Wall level {level}",
 "walls.wall_level_line": "Wall level {level} <span class=\"count\">line {line}</span>",
 "walls.with_tower_level_its_tower_needs": ", with <code>tower_level {tower_levels}</code>: its tower needs that many firing levels",
-"walls.write_changes_confirm": "Write {n} change(s)?\n\n{changes}{warnings}\n\nBacked up first, and 🕑 Log can undo it."
+"walls.write_changes_confirm": "Write {n} change(s)?\n\n{changes}{warnings}\n\nBacked up first, and 🕑 Log can undo it.",
+"eng.cas.w_material_name": "external CAS textures have no material-name field; keep the material name empty"
 }

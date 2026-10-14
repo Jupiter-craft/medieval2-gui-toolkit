@@ -191,6 +191,8 @@ class CasError(Exception):
 class CasMaterial:
     """One material: the texture a mesh is painted with, and its two colours."""
 
+    #: Compatibility field for legacy decoded data. External texture entries
+    #: have an embedded-image flag, not a material name; writers require "".
     name: str = ""
     #: the path as the file writes it, backslashes and all:
     #: ``textures\\#banner_symbol_wales.tga``. Some mods lead with a backslash.
@@ -439,6 +441,7 @@ def _read_header(r: _Reader, out: CasScene) -> None:
     if block:
         out.baked_keys = block
     out.pivots = r.floats(nodes * 3)
+    out._wire["skeleton_size"] = r.p - (NODE_COUNT_AT - 8)
 
     bad = [p for p in out.parents[1:] if not 0 <= p < nodes]
     if bad:
@@ -537,11 +540,12 @@ def _looks_like_path(text: str) -> bool:
 def _read_materials(r: _Reader, end: int, out: CasScene) -> None:
     """The material list: a name, a texture path, and two colours each.
 
-    **The leading flag is whether the material is named at all**, and it has to
-    be read before the strings and not after. A material with the flag clear
-    writes no name and no path - not two empty strings - and 31 objects across
-    the installed set point at one. Reading two strings anyway eats the first
-    two bytes of the diffuse colour and slides every material after it.
+    The leading uint32 says whether texture data follows. For an external
+    sheet it is followed by a zero embedded-image byte and the NUL-terminated
+    texture path. The compatibility ``name`` string consumes that zero byte;
+    it is not a writable material name. Embedded data remains opaque, and
+    partially decoded material records can only be serialized unchanged.
+    A clear leading flag goes straight to the colours, with no texture bytes.
 
     The 29 bytes past the two colours are three more triples and a scalar, and
     are not decoded. They are skipped by length and the chunk is required to
@@ -732,6 +736,7 @@ def _validate_write(scene):
         for values, label in ((obj.positions, "positions"), (obj.normals, "normals"), (obj.uvs, "UVs")):
             floats(values, _i18n.msg("eng.cas.w_mesh_label", "mesh {name}'s {label}", name=name, label=label))
     for mat in scene.materials:
+        require(not mat.name, _i18n.msg("eng.cas.w_material_name", "external CAS textures have no material-name field; keep the material name empty"))
         require(len(mat.diffuse) == 4 and len(mat.specular) == 3,
                 _i18n.msg("eng.cas.w_material_colours", "material {name} needs four diffuse and three specular numbers", name=repr(mat.name)))
         floats(mat.diffuse, "a diffuse colour")
@@ -818,6 +823,12 @@ def write_cas(scene: CasScene) -> bytes:
             out += [old[1] if old and old[0] == name else _text_bytes(name),
                     old[2] if old else b"\0" * 20 + _text_bytes("")]
         out += [keys, _numbers(scene.pivots, "f")]
+        # The last eight prefix bytes start the skeleton chunk (size, kind 0).
+        # Preserve a noncanonical original declaration unless its layout grows.
+        skeleton_size = sum(map(len, out)) - (NODE_COUNT_AT - 8)
+        if not wire or skeleton_size != wire.get("skeleton_size", skeleton_size):
+            struct.pack_into("<I", prefix, NODE_COUNT_AT - 8, skeleton_size)
+            out[0] = bytes(prefix)
         chunks = list(wire.get("chunks", []))
         kinds = [c[0] for c in chunks]
         for kind in (STATIC_MESHES, SKINNED_MESHES, MATERIALS):
@@ -830,6 +841,8 @@ def write_cas(scene: CasScene) -> bytes:
                 kinds.append(kind)
         if not wire:
             chunks += [(kind, struct.pack("<II", 16, kind) + b"\0" * 8, b"") for kind in ALWAYS_EMPTY]
+            rank = {kind: i for i, kind in enumerate((1, 2, 3, 8, 10, 5))}
+            chunks.sort(key=lambda item: rank[item[0]])
         last = {kind: i for i, (kind, _, _) in enumerate(chunks)}
         material_members = {}
         material_cursor = 0
@@ -850,6 +863,13 @@ def write_cas(scene: CasScene) -> bytes:
                 # A version change may alter the known static trailer width.
                 if len(tail) != _trailer(version, kind):
                     tail = b"\0" * _trailer(version, kind)
+                # Known exporter trailers repeat the mesh count. Older static
+                # trailers and unrecognized source bytes remain opaque.
+                count_at = 2 if kind == STATIC_MESHES else 0
+                if len(tail) == count_at + 4:
+                    old_count = struct.unpack_from("<I", raw, 8)[0] if raw else None
+                    if not raw or struct.unpack_from("<I", tail, count_at)[0] == old_count:
+                        tail = tail[:count_at] + struct.pack("<I", len(members))
                 payload = struct.pack("<I", len(members)) + b"".join(_write_object(o) for o in members) + tail
             elif kind == MATERIALS:
                 members = material_members[i]
