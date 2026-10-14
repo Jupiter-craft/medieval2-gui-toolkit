@@ -842,6 +842,24 @@
   ],
   "armory.prefix_add": [
    "add"
+  ],
+  "armory.head_as_one_title": [
+   "turn"
+  ],
+  "armory.key_frame_selected": [
+   "frame"
+  ],
+  "armory.key_frame_all": [
+   "frame"
+  ],
+  "armory.statistics": [
+   "stats"
+  ],
+  "armory.key_rotate": [
+   "turn"
+  ],
+  "armory.rotate": [
+   "turn"
   ]
  },
  "ancillaries.a_character_holds_one_ancillary_per": "Ein Charakter hat pro Typ ein Gefolgsmitglied; das ist also das, was ein neues ersetzt",
@@ -10431,5 +10449,64 @@
  "armory.split_done": {
   "one": "{name}: {count} Dreieck abgetrennt",
   "other": "{name}: {count} Dreiecke abgetrennt"
- }
+ },
+ "armory.animations": "Animationen",
+ "armory.skeleton_of": "Skelette von",
+ "armory.pick_model_entry": "ein geladener Modelleintrag…",
+ "armory.skeleton": "Skelett",
+ "armory.rest": "Ruhe",
+ "armory.rest_title": "Anhalten und das Modell wieder still stehen lassen",
+ "armory.anim_all_follow": "Jedes Teil folgt dem Skelett.",
+ "armory.anim_missing": "An Knochen gewichtet, die dieses Skelett nicht hat, daher gehen sie mit dem Becken: {names}.",
+ "armory.anim_unweighted": "Keine Knochengewichte, daher stehen sie still: {names}. Übertragen Sie ihnen Knochengewichte.",
+ "armory.bones_renamed": {
+  "one": "{count} Knochen übernimmt die Schreibweise des verwendeten Skeletts.",
+  "other": "{count} Knochen übernehmen die Schreibweise des verwendeten Skeletts."
+ },
+ "armory.bones_missing": "An Knochen gewichtet, die das verwendete Skelett nicht hat: {names}.",
+ "armory.budget_ok": "Im Budget: das 95. Perzentil des Grundspiels liegt bei {high} Dreiecken",
+ "armory.budget_high": "Über dem 95. Perzentil des Grundspiels von {high} Dreiecken",
+ "armory.budget_heavy": "Über {heavy} Dreiecken, schwerer als 95 von 100 Einheiten einer großen Mod",
+ "armory.delete_n_confirm": {
+  "one": "Das ausgewählte Objekt aus dem Modell nehmen?",
+  "other": "Die {count} ausgewählten Objekte aus dem Modell nehmen?"
+ },
+ "armory.face_orientation": "Flächenausrichtung",
+ "armory.statistics": "Statistik",
+ "armory.head_as_one": "Kopf als Ganzes",
+ "armory.head_as_one_title": "Helm, Kettenhaube, Gesicht, Haar und Bart bewegen, drehen und skalieren sich gemeinsam, welches davon auch gewählt ist",
+ "armory.key_grab": "Bewegen (G)",
+ "armory.key_rotate": "Drehen (R)",
+ "armory.key_scale": "Skalieren (S)",
+ "armory.key_hide": "Auswahl ausblenden",
+ "armory.key_unhide_all": "Alles einblenden",
+ "armory.key_select_all": "Alles auswählen",
+ "armory.key_deselect_all": "Nichts auswählen",
+ "armory.key_delete": "Auswahl löschen",
+ "armory.key_frame_selected": "Auswahl einpassen",
+ "armory.key_frame_all": "Alles einpassen",
+ "armory.key_view_front": "Vorderansicht",
+ "armory.key_view_back": "Rückansicht",
+ "armory.key_view_right": "Rechte Ansicht",
+ "armory.key_view_left": "Linke Ansicht",
+ "armory.key_view_top": "Draufsicht",
+ "armory.key_view_bottom": "Untersicht",
+ "armory.key_ortho": "Orthografisch oder perspektivisch",
+ "armory.move": "Bewegen",
+ "armory.rotate": "Drehen",
+ "armory.scale": "Skalieren",
+ "armory.uniform_scale": "Alle drei gemeinsam skalieren",
+ "armory.nothing_selected": "Nichts ausgewählt",
+ "armory.ortho": "Orthografisch",
+ "armory.shortcuts": "Tastenkürzel…",
+ "armory.shortcuts_intro": "Klicken Sie auf eine Taste, um sie zu ändern, und drücken Sie dann die neue (Esc behält die alte). Eine Taste gehört zu einer Aktion: gibt man sie einer anderen, verliert die erste sie.",
+ "armory.press_a_key": "Taste drücken…",
+ "armory.no_key": "keine",
+ "armory.reset_keys": "Auf Blenders zurücksetzen",
+ "armory.view_hint": "Mittlere Taste ziehen dreht die Ansicht, Umschalt verschiebt, Strg oder das Mausrad zoomt, Alt+links ersetzt die mittlere Taste. Klick wählt, Umschalt fügt hinzu, Ziehen zeichnet einen Rahmen. G, R, S mit X, Y oder Z und einer Zahl; Eingabe behält, Esc setzt zurück. H blendet aus, Alt+H ein.",
+ "armory.xform_hint": "X Y Z auf eine Achse beschränken · Zahl eintippen · Eingabe behält · Esc setzt zurück",
+ "armory.stat_objects": "Objekte {n}",
+ "armory.stat_vertices": "Vertices {n}",
+ "armory.stat_triangles": "Dreiecke {n}",
+ "armory.stat_selected": "Ausgewählte Dreiecke {n}"
 }

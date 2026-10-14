@@ -3365,6 +3365,22 @@
   .armsect{font-weight:600;color:var(--accent);margin-top:4px}
   .armlayers{display:flex;flex-direction:column;gap:3px}
   .armlayer{display:flex;gap:6px;align-items:center}
+  .armanimwin{position:absolute;right:8px;bottom:8px;width:290px;max-width:calc(100% - 16px);display:flex;flex-direction:column;gap:4px;
+    background:rgba(20,23,28,.9);border:1px solid var(--edge);border-radius:7px;padding:6px 8px;font-size:12px}
+  .armanimwin label{display:flex;flex-direction:column;gap:2px}
+  .armanimlist{width:100%}
+  .armanimwin input[type=range]{flex:1}
+  .armsliders{display:flex;flex-direction:column;gap:3px;font-size:12px}
+  .armslrow{display:flex;gap:6px;align-items:center}
+  .armslrow b{width:58px}
+  .armslrow label{display:flex;gap:3px;align-items:center}
+  .armslrow input[type=number]{width:72px;padding:2px 4px}
+  .armtoggles{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;flex:1}
+  .armhint{flex-basis:100%}
+  .armanimhost{flex-basis:100%}
+  .armkeys{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:3px 14px;max-height:60vh;overflow:auto}
+  .armkeyrow{display:flex;gap:6px;align-items:center}
+  .armkeyrow span{flex:1}
   .armdetailbar{position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;
     background:rgba(20,23,28,.86);border:1px solid var(--edge);border-radius:7px;padding:5px 8px;font-size:12.5px}
   .armimp{padding:14px 16px;display:flex;flex-direction:column;gap:8px;max-height:84vh}
@@ -3584,6 +3600,8 @@
 <script src="js/gallery.js"></script>
 <script src="js/armory.js"></script>
 <script src="js/armobj.js"></script>
+<script src="js/armview.js"></script>
+<script src="js/armanim.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->
 <script src="js/v3anim.js"></script>
 <!-- M18: after viewer3d.js, which owns the matrix helpers it shares. -->

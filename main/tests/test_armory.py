@@ -206,6 +206,35 @@ if node:
                               "hair__hair_1", "Body__body_01"])
     check("grey is metal, white is white, red is cloth", got and got[6:] == ["metal", "white", "cloth"])
 
+    # 95g: the viewport's arithmetic, under node with the page's own files
+    stub = ("const tt=x=>x,ttN=x=>x,V3_ENV='',state={},overlay=null,api={};"
+            "function v3Norm(a){const L=Math.hypot(...a)||1;return a.map(x=>x/L)}")
+    js = "".join((ROOT / "web" / "js" / f).read_text(encoding="utf-8") for f in ("armory.js", "armview.js"))
+    probe = stub + js + r""";
+const same = (a, b) => a.every((x, i) => Math.abs(x - b[i]) < 1e-6);
+const angles = [[10, 20, 30], [-45, 60, 5], [0, 89, 0], [170, -30, 100]];
+const trip = angles.every(a => { const e = m3euler(m3(...a)); return same(m3(...e).flat(), m3(...a).flat()); });
+const keys = [armKeyName({code: 'Numpad1', key: '1'}), armKeyName({code: 'Numpad1', key: '1', ctrlKey: true}),
+              armKeyName({code: 'KeyH', key: 'H', altKey: true}), armKeyName({code: 'NumpadDecimal', key: '.'})];
+// two objects a metre apart turned 90 about y as one: each turns and they
+// trade places about their middle
+ARM.assets = new Map();
+const o1 = {src: [], t: [1, 0, 0], r: [0, 0, 0], s: [1, 1, 1]}, o2 = {src: [], t: [-1, 0, 0], r: [0, 0, 0], s: [1, 1, 1]};
+const snap = armSnapshot([o1, o2]);
+armGroupApply(snap, armMedian(snap), 'rotate', m3axis(1, 90));
+console.log(JSON.stringify({trip, keys, t1: o1.t.map(v => Math.round(v * 1000) / 1000), r1: o1.r.map(Math.round)}));
+"""
+    (tmp / "probe2.js").write_text(probe, encoding="utf-8")
+    out = subprocess.run([node, str(tmp / "probe2.js")], capture_output=True, text=True, timeout=60)
+    got = __import__("json").loads(out.stdout or "null") or {}
+    check("a turn goes into degrees and back to the same matrix", got.get("trip"))
+    check(f"keys are named as the keymap writes them ({got.get('keys')})",
+          got.get("keys") == ["numpad1", "ctrl+numpad1", "alt+h", "numpad."])
+    check(f"several objects turn about their middle ({got.get('t1')}, {got.get('r1')})",
+          got.get("t1") == [0, 0, -1] and got.get("r1") == [0, 90, 0])
+    if out.stderr.strip():
+        print("          " + out.stderr.strip().splitlines()[-1][:120])
+
 # ---------------------------------------------------------------------------
 print("\nThe project")
 armory.save_project({"v": 1, "objects": [{"id": 1}]})

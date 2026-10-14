@@ -828,7 +828,7 @@ function armDetailConnected(){
 }
 
 function armBoxDrag(drag, e){
-  if(!ARM.detail || !ARM.xray || drag.button !== 0) return false;
+  if(drag.button !== 0 || (ARM.detail && !ARM.xray)) return false;
   if(!drag.moved) return true;
   drag.box = true;
   const a = armCanvasXY({clientX: drag.x0, clientY: drag.y0}), b = armCanvasXY(e);
@@ -839,9 +839,18 @@ function armBoxDrag(drag, e){
 function armBoxEnd(drag, e){
   const d = ARM.detail, o = d && armObj(d.id);
   const bx = ARM.box; ARM.box = null;
-  if(!o || !bx){ armFrame(); return; }
+  if(!bx){ armFrame(); return; }
   const [x0, x1] = [Math.min(bx[0], bx[2]), Math.max(bx[0], bx[2])];
   const [y0, y1] = [Math.min(bx[1], bx[3]), Math.max(bx[1], bx[3])];
+  if(!d){
+    // Blender's box: every object with a corner inside it; Shift adds
+    if(!e.shiftKey) ARM.sel.clear();
+    for(const tr of armScreenTris())
+      if([tr[3], tr[4], tr[5]].some(p => p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1)) ARM.sel.add(tr[0].id);
+    armPaintObjects(); armPaintFoot(); armFrame();
+    return;
+  }
+  if(!o){ armFrame(); return; }
   if(!e.shiftKey) d.selV.clear();
   for(const tr of armScreenTris(o))
     for(const p of [tr[3], tr[4], tr[5]])

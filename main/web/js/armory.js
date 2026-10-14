@@ -122,6 +122,7 @@ async function renderArmory(){
   armPaintObjects();
   armPaintBar();
   armPaintFoot();
+  if(typeof armAnimPaint === 'function') armAnimPaint();
   armFrame();
 }
 
@@ -137,8 +138,7 @@ function armPaintBar(){
     <button class="mini" onclick="armNew()">${tt('armory.new_project')}</button>`;
 }
 function armPaintFoot(){
-  const el = document.getElementById('armFoot');
-  if(el && !el.dataset.filled){ el.dataset.filled = '1'; el.innerHTML = ''; }
+  if(typeof armPaintSliders === 'function') armPaintSliders();
 }
 function armObjTris(o){
   let n = 0;
@@ -312,6 +312,7 @@ function armPull(key, group){
     return;
   }
   p.objects.push(armNewObject(key, ob));
+  if(typeof armBoneCheck === 'function') armBoneCheck(key, [group]);
   armSave(); armPaintAssets(); armPaintObjects(); armPaintBar(); armFrame();
 }
 function armNewObject(key, ob){
@@ -330,6 +331,7 @@ function armPullAll(key){
     p.objects.push(armNewObject(key, ob)); added++;
   }
   toast(ttN('armory.pulled_n', added));
+  if(added && typeof armBoneCheck === 'function') armBoneCheck(key);
   armSave(); armPaintAssets(); armPaintObjects(); armPaintBar(); armFrameAll();
 }
 
@@ -598,6 +600,7 @@ function armMountView(){
     armInstallControls(ARM.view);
   }
   host.appendChild(ARM.view);
+  if(typeof armViewWire === 'function') armViewWire();
   if(!ARM.resizeObs){
     ARM.resizeObs = new ResizeObserver(() => armFrame());
   }
@@ -690,7 +693,39 @@ function armRender(objs, w, h, cam, opts){
   gl.uniformMatrix4fv(L.uView, false, new Float32Array(cam.view));
   gl.uniform1f(L.uFlip, o.faceOrient ? -1 : 1);
   if(!o.plain && ARM.xray){ gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
+  const bindTex = (live, pc, ob) => {
+    // a dyed object draws from its own crop of the sheet (armobj.js)
+    const dyed = typeof armDyedTexture === 'function' ? armDyedTexture(ob, pc) : null;
+    const tex = dyed ? dyed.tex : live.objTex ? live.objTex[pc.group] : live.tex;
+    gl.uniform1f(L.uHasTex, tex ? 1 : 0);
+    gl.uniform1f(L.uUScale, live.objTex ? 1.0 : (live.uScale || 0.5));
+    gl.uniform4fv(L.uCrop, dyed ? dyed.crop : [0, 0, 1, 1]);
+    if(tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(L.uTex, 0); }
+  };
   for(const ob of objs){
+    // posed by the animation previewer (armanim.js): already in the game's
+    // space, its own move, turn and scale in it
+    const posed = !o.plain && typeof armAnimGeoFor === 'function' ? armAnimGeoFor(ob) : null;
+    if(posed){
+      gl.uniformMatrix4fv(L.uModel, false, new Float32Array(ARM_MIRROR));
+      gl.uniform1f(L.uHi, ARM.hover === ob.id ? 1 : 0);
+      gl.uniform1f(L.uSel, ARM.sel.has(ob.id) ? 1 : 0);
+      gl.uniform1f(L.uXray, ARM.xray ? 1 : 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, posed.glPos);
+      gl.enableVertexAttribArray(L.aPos); gl.vertexAttribPointer(L.aPos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, posed.glNrm);
+      gl.enableVertexAttribArray(L.aNormal); gl.vertexAttribPointer(L.aNormal, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, posed.glUv);
+      gl.enableVertexAttribArray(L.aUv); gl.vertexAttribPointer(L.aUv, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, posed.glIdx);
+      for(const r of posed.ranges){
+        const live = ARM.assets.get(r.pc.asset);
+        if(!live) continue;
+        bindTex(live, r.pc, ob);
+        gl.drawElements(gl.TRIANGLES, r.count, gl.UNSIGNED_SHORT, r.start * 2);
+      }
+      continue;
+    }
     const om = armMul(ARM_MIRROR, armObjMatrix(ob, armPivot(ob)));
     for(const pc of ob.src || []){
       const live = ARM.assets.get(pc.asset);
@@ -698,13 +733,7 @@ function armRender(objs, w, h, cam, opts){
       const g = live.geo.groups[pc.group];
       if(!g) continue;
       gl.uniformMatrix4fv(L.uModel, false, new Float32Array(pc.xf ? armMul(om, pc.xf) : om));
-      // a dyed object draws from its own crop of the sheet (armobj.js)
-      const dyed = typeof armDyedTexture === 'function' ? armDyedTexture(ob, pc) : null;
-      const tex = dyed ? dyed.tex : live.objTex ? live.objTex[pc.group] : live.tex;
-      gl.uniform1f(L.uHasTex, tex ? 1 : 0);
-      gl.uniform1f(L.uUScale, live.objTex ? 1.0 : (live.uScale || 0.5));
-      gl.uniform4fv(L.uCrop, dyed ? dyed.crop : [0, 0, 1, 1]);
-      if(tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(L.uTex, 0); }
+      bindTex(live, pc, ob);
       gl.uniform1f(L.uHi, !o.plain && ARM.hover === ob.id ? 1 : 0);
       gl.uniform1f(L.uSel, !o.plain && ARM.sel.has(ob.id) ? 1 : 0);
       gl.uniform1f(L.uXray, !o.plain && ARM.xray ? 1 : 0);
@@ -737,6 +766,7 @@ function armDraw(){
   const w = Math.max(64, Math.round(r.width * dpr)), h = Math.max(64, Math.round(r.height * dpr));
   if(view.width !== w || view.height !== h){ view.width = w; view.height = h; }
   const cam = armCamera(w / h);
+  if(typeof armAnimPose === 'function') armAnimPose();
   if(!armRender(armVisibleObjects(), w, h, cam, {faceOrient: ARM.faceOrient})) return;
   const ctx = view.getContext('2d');
   ctx.drawImage(ARM.glCanvas, 0, 0, w, h, 0, 0, w, h);
@@ -777,24 +807,32 @@ function armThumbsPaint(fresh){
 
 /* --- viewport controls (95g makes them Blender's) -------------------------- */
 
+/* Blender's mouse (95g): middle drag orbits, Shift+middle pans, Ctrl+middle
+   zooms, the wheel zooms; left click selects and left drag draws a box.
+   Alt+left stands in for the middle button on a mouse or pad without one.
+   A G, R or S under way (armview.js) takes the mouse while it lasts. */
 function armInstallControls(c){
   let drag = null;
   c.tabIndex = 0;
   c.addEventListener('pointerdown', e => {
     c.focus({preventScroll: true});
     if(typeof armPointerDown === 'function' && armPointerDown(e)) return;
-    drag = {x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, button: e.button, moved: false};
+    const button = e.button === 0 && e.altKey ? 1 : e.button;
+    drag = {x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, button, moved: false};
     c.setPointerCapture(e.pointerId);
+    if(button === 1) e.preventDefault();
   });
   c.addEventListener('pointermove', e => {
+    if(typeof armXformMove === 'function' && armXformMove(e)) return;
     if(!drag){ if(typeof armHoverAt === 'function') armHoverAt(e); return; }
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if(Math.abs(e.clientX - drag.x0) + Math.abs(e.clientY - drag.y0) > 3) drag.moved = true;
     drag.x = e.clientX; drag.y = e.clientY;
-    if(drag.button === 0 && typeof armBoxDrag === 'function' && armBoxDrag(drag, e)) return;
+    if(drag.button === 0){ if(typeof armBoxDrag === 'function') armBoxDrag(drag, e); return; }
     if(!drag.moved) return;
-    if(drag.button === 1 && e.shiftKey || drag.button === 2) armPan(dx, dy);
-    else if(drag.button === 0 || drag.button === 1){
+    if(drag.button === 1 && e.shiftKey) armPan(dx, dy);
+    else if(drag.button === 1 && e.ctrlKey) ARM.cam.dist = Math.max(0.05, ARM.cam.dist * Math.exp(dy * 0.01));
+    else if(drag.button === 1){
       ARM.cam.yaw -= dx * 0.01;
       ARM.cam.pitch = Math.max(-1.5, Math.min(1.5, ARM.cam.pitch + dy * 0.01));
     }
@@ -808,6 +846,8 @@ function armInstallControls(c){
   });
   c.addEventListener('pointerleave', () => { if(typeof armHoverAt === 'function') armHoverAt(null); });
   c.addEventListener('contextmenu', e => e.preventDefault());
+  c.addEventListener('auxclick', e => e.preventDefault());
+  c.addEventListener('keydown', e => { if(typeof armKey === 'function') armKey(e); });
   c.addEventListener('wheel', e => {
     e.preventDefault();
     ARM.cam.dist = Math.max(0.05, ARM.cam.dist * Math.exp(e.deltaY * 0.0012));

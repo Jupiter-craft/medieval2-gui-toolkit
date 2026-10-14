@@ -755,6 +755,22 @@ def save_presets(presets: list) -> None:
     PRESETS.write_text(json.dumps(presets, indent=1), encoding="utf-8")
 
 
+KEYS = ARMORY_DIR / "keys.json"
+
+
+def load_keys() -> dict:
+    """The viewport's shortcuts the user changed (95g); the rest are the page's own."""
+    try:
+        return json.loads(KEYS.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_keys(keys: dict) -> None:
+    ARMORY_DIR.mkdir(parents=True, exist_ok=True)
+    KEYS.write_text(json.dumps(keys, indent=1), encoding="utf-8")
+
+
 def save_project(project: dict) -> None:
     ARMORY_DIR.mkdir(parents=True, exist_ok=True)
     tmp = PROJECT.with_suffix(".tmp")

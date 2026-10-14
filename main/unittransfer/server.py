@@ -2726,6 +2726,9 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/armory/presets":
                 armory.save_presets(body.get("presets") or [])
                 return self._json({"ok": True})
+            if u.path == "/api/armory/keys":
+                armory.save_keys(body.get("keys") or {})
+                return self._json({"ok": True})
             if u.path == "/api/armory/allow_texture":
                 return self._json({"ok": armory.allow_texture(body.get("path") or "")})
             if u.path == "/api/browse_file":
@@ -5628,6 +5631,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(armory.load_project())
         if path == "/api/armory/presets":
             return self._json({"presets": armory.load_presets()})
+        if path == "/api/armory/keys":
+            return self._json({"keys": armory.load_keys()})
         if path == "/api/armory/external":
             try:
                 return self._json(armory.external_view(arg("path")))

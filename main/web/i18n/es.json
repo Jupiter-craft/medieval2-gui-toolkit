@@ -959,6 +959,21 @@
   ],
   "armory.prefix_add": [
    "add"
+  ],
+  "armory.head_as_one_title": [
+   "turn"
+  ],
+  "armory.key_frame_selected": [
+   "frame"
+  ],
+  "armory.key_frame_all": [
+   "frame"
+  ],
+  "armory.key_rotate": [
+   "turn"
+  ],
+  "armory.rotate": [
+   "turn"
   ]
  },
  "ancillaries.a_character_holds_one_ancillary_per": "Un personaje solo puede tener un séquito de cada tipo, así que este es el que sustituiría uno nuevo",
@@ -10906,5 +10921,66 @@
   "many": "{name}: {count} triángulos separados",
   "other": "{name}: {count} triángulos separados"
  },
- "armory.weights_transferred": "Sus pesos de huesos se obtuvieron al transferir los del modelo"
+ "armory.weights_transferred": "Sus pesos de huesos se obtuvieron al transferir los del modelo",
+ "armory.animations": "Animaciones",
+ "armory.skeleton_of": "Esqueletos de",
+ "armory.pick_model_entry": "una entrada de modelo cargada…",
+ "armory.skeleton": "Esqueleto",
+ "armory.rest": "Reposo",
+ "armory.rest_title": "Parar y dejar el modelo quieto otra vez",
+ "armory.anim_all_follow": "Todas las piezas siguen al esqueleto.",
+ "armory.anim_missing": "Con pesos en huesos que este esqueleto no tiene, así que van con la pelvis: {names}.",
+ "armory.anim_unweighted": "Sin pesos de huesos, así que se quedan quietas: {names}. Usa «Transferir pesos de huesos» en ellas.",
+ "armory.bones_renamed": {
+  "one": "{count} hueso toma la grafía del esqueleto en uso.",
+  "many": "{count} huesos toman la grafía del esqueleto en uso.",
+  "other": "{count} huesos toman la grafía del esqueleto en uso."
+ },
+ "armory.bones_missing": "Con pesos en huesos que el esqueleto en uso no tiene: {names}.",
+ "armory.budget_ok": "Dentro del presupuesto: el percentil 95 del juego base es de {high} triángulos",
+ "armory.budget_high": "Por encima del percentil 95 del juego base, {high} triángulos",
+ "armory.budget_heavy": "Por encima de {heavy} triángulos, más pesado que 95 de cada 100 unidades de un mod grande",
+ "armory.delete_n_confirm": {
+  "one": "¿Quitar del modelo el objeto seleccionado?",
+  "many": "¿Quitar del modelo los {count} objetos seleccionados?",
+  "other": "¿Quitar del modelo los {count} objetos seleccionados?"
+ },
+ "armory.face_orientation": "Orientación de caras",
+ "armory.statistics": "Estadísticas",
+ "armory.head_as_one": "Cabeza como una pieza",
+ "armory.head_as_one_title": "Yelmo, almófar, cara, pelo y barba se mueven, giran y escalan juntos, sea cual sea el elegido",
+ "armory.key_grab": "Mover (G)",
+ "armory.key_rotate": "Rotar (R)",
+ "armory.key_scale": "Escalar (S)",
+ "armory.key_hide": "Ocultar la selección",
+ "armory.key_unhide_all": "Mostrar todo",
+ "armory.key_select_all": "Seleccionar todo",
+ "armory.key_deselect_all": "No seleccionar nada",
+ "armory.key_delete": "Eliminar la selección",
+ "armory.key_frame_selected": "Encuadrar la selección",
+ "armory.key_frame_all": "Encuadrar todo",
+ "armory.key_view_front": "Vista frontal",
+ "armory.key_view_back": "Vista trasera",
+ "armory.key_view_right": "Vista derecha",
+ "armory.key_view_left": "Vista izquierda",
+ "armory.key_view_top": "Vista superior",
+ "armory.key_view_bottom": "Vista inferior",
+ "armory.key_ortho": "Ortográfica o en perspectiva",
+ "armory.move": "Mover",
+ "armory.rotate": "Rotar",
+ "armory.scale": "Escalar",
+ "armory.uniform_scale": "Escalar los tres juntos",
+ "armory.nothing_selected": "Nada seleccionado",
+ "armory.ortho": "Ortográfica",
+ "armory.shortcuts": "Atajos…",
+ "armory.shortcuts_intro": "Haz clic en una tecla para cambiarla y pulsa la nueva (Esc conserva la anterior). Una tecla pertenece a una acción: dársela a otra se la quita a la primera.",
+ "armory.press_a_key": "Pulsa una tecla…",
+ "armory.no_key": "ninguna",
+ "armory.reset_keys": "Volver a las de Blender",
+ "armory.view_hint": "Arrastrar con el botón central orbita, Mayús desplaza, Ctrl o la rueda acercan, Alt+izquierdo sustituye al botón central. Un clic selecciona, Mayús añade, arrastrar dibuja un recuadro. G, R, S con X, Y o Z y un número; Intro conserva, Esc deshace. H oculta, Alt+H muestra.",
+ "armory.xform_hint": "X Y Z fijan un eje · escribe un número · Intro conserva · Esc deshace",
+ "armory.stat_objects": "Objetos {n}",
+ "armory.stat_vertices": "Vértices {n}",
+ "armory.stat_triangles": "Triángulos {n}",
+ "armory.stat_selected": "Triángulos seleccionados {n}"
 }
