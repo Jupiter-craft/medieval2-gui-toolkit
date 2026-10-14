@@ -300,7 +300,8 @@ function armExpBakeHtml(){
       <button onclick="armExpBrowse()">${tt('armory.browse')}</button></div>
     <div class="armexprow"><label>${tt('armory.exp_stem')}<input value="${esc(e.stem)}" oninput="armExp().stem=this.value"></label>
       <button class="primary" onclick="armExpBake()"${e.busy ? ' disabled' : ''}>${tt('armory.exp_bake')}</button></div>
-    <div class="count">${tt('armory.exp_bake_note')}</div>${done}`;
+    <div class="count">${tt('armory.exp_bake_note')}</div>
+    <div class="count">${tt('armory.exp_normals', {mode: typeof armNormModeLabel === 'function' ? armNormModeLabel(armNormals().mode) : ''})}</div>${done}`;
 }
 async function armExpBrowse(){
   let r;

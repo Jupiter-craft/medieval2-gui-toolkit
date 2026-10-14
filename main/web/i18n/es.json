@@ -11066,6 +11066,25 @@
  "eng.armbake.sheet_unreadable": "{path} no se puede decodificar",
  "armory.chk_no_weights": "{name} no tiene pesos de huesos en sus vértices: transferir pesos a él es lo primero.",
  "armory.chk_too_many_vertices": "{count} vértices: un archivo de malla .mesh admite como máximo 65.536.",
- "armory.exp_bake_note": "Escribe la malla .mesh, una textura .texture por hoja y un .png de cada una al lado. Los mapas de normales llegan en el siguiente paso de la hoja de ruta.",
- "armory.exp_auto_moved": "Elegido por usted: {n} bloques movidos a la otra hoja, donde había sitio. No se escaló nada."
+ "armory.exp_bake_note": "Escribe la malla .mesh, una textura .texture por hoja y un mapa de normales al lado de cada una, con un .png de cada hoja.",
+ "armory.exp_auto_moved": "Elegido por usted: {n} bloques movidos a la otra hoja, donde había sitio. No se escaló nada.",
+ "armory.exp_normals": "Mapas de normales: {mode}. Elíjalos en «Mapas de normales» del panel de objetos.",
+ "armory.normal_maps": "Mapas de normales",
+ "armory.normal_map": "Mapa de normales",
+ "armory.norm_skip": "Omitir (un mapa plano)",
+ "armory.norm_generic": "Genérico (un solo ajuste)",
+ "armory.norm_specialized": "Especializado (por material)",
+ "armory.norm_specialized_note": "Cada material tiene su ajuste; un objeto puede tener el suyo en sus propiedades.",
+ "armory.norm_strength": "Intensidad",
+ "armory.norm_blur": "Desenfoque",
+ "armory.norm_invert": "Invertir",
+ "armory.norm_preview": "Vista previa en el modelo",
+ "armory.norm_own": "Un ajuste propio",
+ "armory.norm_from_material": "De su material: {material}",
+ "armory.norm_skip_note": "Se escribe un mapa plano al lado de cada hoja, el que usa el kit de Blender.",
+ "armory.norm_objects": {
+  "one": "{count} objeto",
+  "many": "{count} de objetos",
+  "other": "{count} objetos"
+ }
 }

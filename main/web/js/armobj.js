@@ -90,7 +90,8 @@ function armPaintObjects(){
     ${p.objects.length ? '' : `<div class="empty armempty">${tt('armory.no_objects_yet')}</div>`}
     ${[...groups].map(([name, objs]) => armFoldHtml('g:' + name, name, objs, null)).join('')}
     ${p.collections.map(c => armFoldHtml('c:' + c.id, c.name, p.objects.filter(o => o.coll === c.id), c)).join('')}
-    <div id="armProps">${sel.length === 1 ? armPropsHtml(sel[0]) : sel.length ? `<div class="count armnote">${ttN('armory.n_selected', sel.length)}</div>` : ''}</div>`;
+    <div id="armProps">${sel.length === 1 ? armPropsHtml(sel[0]) : sel.length ? `<div class="count armnote">${ttN('armory.n_selected', sel.length)}</div>` : ''}</div>
+    ${p.objects.length && typeof armNormalsHtml === 'function' ? `<div class="armnorms">${armNormalsHtml()}</div>` : ''}`;
 }
 
 function armFoldHtml(key, name, objs, coll){
@@ -375,6 +376,7 @@ function armPropsHtml(o){
     ${layers ? `<div class="armlayers">${layers}</div>` : ''}
     <div class="armsect">${tt('armory.stamps')}</div>
     ${armStampsHtml(o)}
+    ${typeof armNormalObjHtml === 'function' ? armNormalObjHtml(o) : ''}
     <div class="armsect">${tt('armory.weights')}</div>
     <div class="armpropsrow"><span class="count">${o.weights ? tt('armory.weights_own', {mode: armWModeLabel(o.weights.mode)}) : tt('armory.weights_from_source')}</span></div>
     <div class="armpropsrow"><select id="armWMode">${['face', 'vertex', 'edge'].map(m => `<option value="${m}">${esc(armWModeLabel(m))}</option>`).join('')}</select>
@@ -533,14 +535,16 @@ function armPieceUvBox(live, pc){
 
 function armDyedTexture(o, pc){
   const stamps = o.stamps || [];
-  if(!o.dye && !stamps.length) return null;
+  // 95j: the normal map's preview is made from the same crop
+  const ns = typeof armNormalPreviewOn === 'function' && armNormalPreviewOn() ? armNormalSetting(o) : null;
+  if(!o.dye && !stamps.length && !ns) return null;
   const pi = (o.src || []).indexOf(pc);
   const key = `${o.id}:${pi}`;
   const live = ARM.assets.get(pc.asset);
   const img = live && (live.objImg ? live.objImg[pc.group] : live.img);
   if(!img) return null;
   const sig = JSON.stringify([o.dye, o.material, pc.asset, pc.group, pc.tris ? pc.tris.length : -1, live.uScale, img.width,
-                             stamps, stamps.map(st => armStampImage(st.path) ? 1 : 0)]);
+                             stamps, stamps.map(st => armStampImage(st.path) ? 1 : 0), ns]);
   let hit = ARM_DYE.get(key);
   if(hit && hit.sig === sig && !hit.stale) return hit;
   const W = img.width, H = img.height;
@@ -579,8 +583,15 @@ function armDyedTexture(o, pc){
     }
   }
   ctx.putImageData(im, 0, 0);
+  let nTex = null;
+  if(ns){
+    const nc = document.createElement('canvas'); nc.width = px[2]; nc.height = px[3];
+    nc.getContext('2d').putImageData(new ImageData(armNormalPixels(im.data, px[2], px[3], ns), px[2], px[3]), 0, 0);
+    nTex = armTexture(nc, 1);
+  }
   if(hit && hit.tex && ARM.gl) ARM.gl.deleteTexture(hit.tex);
-  hit = {sig, tex: armTexture(c, 1), crop, stale: false, canvas: c};
+  if(hit && hit.nTex && ARM.gl) ARM.gl.deleteTexture(hit.nTex);
+  hit = {sig, tex: armTexture(c, 1), nTex, crop, stale: false, canvas: c};
   ARM_DYE.set(key, hit);
   return hit;
 }

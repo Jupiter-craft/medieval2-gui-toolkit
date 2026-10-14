@@ -866,6 +866,104 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
             "auto": auto_note}
 
 
+
+# ---------------------------------------------------------------------------
+# normal maps (95j)
+
+#: Measured on 30 skins in Heirs of Elendil and the Americas campaign, each
+#: shipped normal map against its own diffuse: the map tilts AGAINST the
+#: lightness gradient in both x and y (correlations -0.58 and -0.82), and its
+#: spread is 1.27 times the gradient's (the median; 1.03 to 1.57 between the
+#: quartiles). Encoded as ``0.5 + n / 2``, that is a gain of 2.53 at strength 1.
+NORMAL_GAIN = 2.53
+#: A flat map: what the Blender kit ships, and *Skip*. The alpha is left
+#: empty, as the shipped maps all but leave it (a median of 0.01 to 0.03).
+NORMAL_FLAT = (128, 128, 255, 0)
+NORMAL_MODES = ("skip", "generic", "specialized")
+#: Generic's one setting, and Specialized's per material: metal keeps its
+#: fine scratches sharp and shallow, cloth and leather are softened and deeper,
+#: wood's grain is deepest, skin barely raised.
+NORMAL_GENERIC = {"strength": 1.0, "blur": 0.8, "invert": False}
+NORMAL_MATERIALS = {
+    "metal": {"strength": 0.7, "blur": 0.0, "invert": False},
+    "fabric": {"strength": 1.0, "blur": 1.0, "invert": False},
+    "leather": {"strength": 1.2, "blur": 0.8, "invert": False},
+    "wood": {"strength": 1.4, "blur": 0.5, "invert": False},
+    "skin": {"strength": 0.5, "blur": 1.5, "invert": False},
+    "hair": {"strength": 1.2, "blur": 0.0, "invert": False},
+    "bone": {"strength": 0.8, "blur": 0.8, "invert": False},
+    "other": {"strength": 1.0, "blur": 0.8, "invert": False},
+}
+
+
+def normal_setting(normals: Optional[dict], obj: dict) -> Optional[dict]:
+    """The setting an object's part of the map is made with; None for Skip.
+
+    ``armNormalSetting`` in armobj.js is the same choice."""
+    normals = normals or {}
+    mode = normals.get("mode") or "skip"
+    if mode == "generic":
+        return dict(NORMAL_GENERIC, **(normals.get("generic") or {}))
+    if mode != "specialized":
+        return None
+    mat = obj.get("material") or "other"
+    out = dict(NORMAL_MATERIALS.get(mat, NORMAL_MATERIALS["other"]),
+               **((normals.get("materials") or {}).get(mat) or {}))
+    own = obj.get("normal")
+    if own:
+        out.update({k: own[k] for k in ("strength", "blur", "invert") if k in own})
+    return out
+
+
+def _kernel(sigma: float) -> np.ndarray:
+    r = int(math.ceil(3 * sigma))
+    x = np.arange(-r, r + 1, dtype=np.float64)
+    k = np.exp(-x * x / (2 * sigma * sigma))
+    return k / k.sum()
+
+
+def _blur_height(h: np.ndarray, sigma: float) -> np.ndarray:
+    """A separable Gaussian, edges held, exactly as ``armBlurHeight`` does it."""
+    if sigma <= 0.05:
+        return h
+    k = _kernel(sigma)
+    r = len(k) // 2
+    p = np.pad(h, ((0, 0), (r, r)), mode="edge")
+    h = sum(k[i] * p[:, i:i + h.shape[1]] for i in range(len(k)))
+    p = np.pad(h, ((r, r), (0, 0)), mode="edge")
+    return sum(k[i] * p[i:i + h.shape[0], :] for i in range(len(k)))
+
+
+def normal_pixels(rgba: np.ndarray, setting: dict) -> np.ndarray:
+    """A tangent-space normal map of RGBA art: its lightness taken as height,
+    blurred by ``blur`` texels, tilted ``strength`` times the measured gain
+    against the slope (``invert`` turns it the other way)."""
+    rgb = rgba[..., :3].astype(np.float64) / 255.0
+    h = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
+    h = _blur_height(h, float(setting.get("blur") or 0))
+    p = np.pad(h, 1, mode="edge")
+    dx = (p[1:-1, 2:] - p[1:-1, :-2]) / 2
+    dy = (p[2:, 1:-1] - p[:-2, 1:-1]) / 2
+    s = float(setting.get("strength", 1.0)) * NORMAL_GAIN * (-1.0 if setting.get("invert") else 1.0)
+    nx, ny = -s * dx, -s * dy
+    ln = np.sqrt(nx * nx + ny * ny + 1.0)
+    out = np.empty(rgba.shape[:2] + (4,), np.uint8)
+    for i, c in enumerate((nx / ln, ny / ln, 1.0 / ln)):
+        out[..., i] = np.clip(np.floor((c * 0.5 + 0.5) * 255 + 0.5), 0, 255)
+    out[..., 3] = 0
+    return out
+
+
+def _write_sheet(out: Path, name: str, canvas: np.ndarray) -> List[str]:
+    from . import sprites
+    im = Image.fromarray(canvas, "RGBA")
+    im.save(out / f"{name}.png")
+    buf = io.BytesIO()
+    im.save(buf, "DDS", pixel_format="DXT5")
+    (out / f"{name}.texture").write_bytes(sprites.dds_to_texture(buf.getvalue()))
+    return [f"{name}.texture", f"{name}.png"]
+
+
 # ---------------------------------------------------------------------------
 # the bake
 
@@ -960,7 +1058,8 @@ def bake(project: dict, mod_of, settings: Optional[dict], out_dir: str, stem: st
     """The model and its new sheets, written to ``out_dir``.
 
     Writes ``<stem>.mesh``, ``<stem>.texture`` (and ``<stem>_attach.texture``
-    when the attachment sheet is used) with a ``.png`` of each beside it.
+    when the attachment sheet is used) and a ``_normal`` map for each (95j:
+    flat for *Skip*), with a ``.png`` of every sheet beside it.
     Refuses while a sheet still has blocks that do not fit.
     """
     stem = re.sub(r"[^A-Za-z0-9_\-]", "_", (stem or "").strip()) or "armory_model"
@@ -973,6 +1072,7 @@ def bake(project: dict, mod_of, settings: Optional[dict], out_dir: str, stem: st
         raise BakeError(_i18n.msg("eng.armbake.no_folder", "choose a folder to export to"))
     out.mkdir(parents=True, exist_ok=True)
     blocks, meshes, objs, per = st["blocks"], st["meshes"], st["objs"], st["per"]
+    normals = (settings or {}).get("normals") or project.get("normals") or {}
     # the sheets
     written = []
     sheet_files = {}
@@ -990,14 +1090,22 @@ def bake(project: dict, mod_of, settings: Optional[dict], out_dir: str, stem: st
             bx, by = min(size, x + w), min(size, y + h)
             canvas[ay:by, ax:bx] = px[ay - y:by - y, ax - x:bx - x]
         name = stem if s == "main" else stem + "_attach"
-        im = Image.fromarray(canvas, "RGBA")
-        im.save(out / f"{name}.png")
-        buf = io.BytesIO()
-        im.save(buf, "DDS", pixel_format="DXT5")
-        from . import sprites
-        (out / f"{name}.texture").write_bytes(sprites.dds_to_texture(buf.getvalue()))
-        written += [f"{name}.texture", f"{name}.png"]
+        written += _write_sheet(out, name, canvas)
         sheet_files[s] = name
+        # its normal map: each block's own part made from its baked art with
+        # its object's setting, the margin included; flat where no art is
+        nmap = np.empty_like(canvas)
+        nmap[:] = NORMAL_FLAT
+        for b in per[s]["blocks"]:
+            setting = normal_setting(normals, b.islands[0].obj)
+            if setting is None:
+                continue
+            fw = (b.h if b.rot else b.w) + 2 * margin
+            fh = (b.w if b.rot else b.h) + 2 * margin
+            x, y = max(0, b.x - margin), max(0, b.y - margin)
+            x1, y1 = min(size, b.x - margin + fw), min(size, b.y - margin + fh)
+            nmap[y:y1, x:x1] = normal_pixels(canvas[y:y1, x:x1], setting)
+        written += _write_sheet(out, name + "_normal", nmap)
     # the UVs: each vertex goes where its island's block went
     new_uv: Dict[int, Dict[int, Tuple[float, float]]] = {}
     for b in blocks:
@@ -1017,7 +1125,8 @@ def bake(project: dict, mod_of, settings: Optional[dict], out_dir: str, stem: st
     written.insert(0, f"{stem}.mesh")
     return {"folder": str(out), "files": written, "vertices": model.vertices,
             "triangles": model.triangles, "groups": len(model.groups),
-            "sheets": {s: per[s]["size"] for s in SHEETS if per[s]["size"]}}
+            "sheets": {s: per[s]["size"] for s in SHEETS if per[s]["size"]},
+            "normals": (normals.get("mode") or "skip")}
 
 
 def assemble(objs: List[dict], meshes: Dict[int, mesh.MeshFile],

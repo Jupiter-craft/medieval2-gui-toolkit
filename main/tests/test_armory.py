@@ -8,6 +8,8 @@
   * a real mod's catalogue and one entry as an asset;
   * the export (95i): the check, the dye against the page's, a stamp, and the
     reference horse packed and baked, every vertex reading the texel it read.
+  * normal maps (95j): the generator's direction and strength, the page's
+    preview against the bake, Skip flat and Specialized per material.
 """
 import io
 import json
@@ -387,6 +389,75 @@ if horse is not None:
                 miss += 1
         start += old.vertices
     check(f"each vertex reads the texel it read before, copied not resampled ({n - miss} of {n})", miss == 0)
+
+# ---------------------------------------------------------------------------
+print("\nNormal maps (95j)")
+
+flat = armbake.normal_pixels(np.full((8, 8, 4), 120, np.uint8), {"strength": 1, "blur": 0})
+check("flat art makes a flat map", (flat[..., :3] == [128, 128, 255]).all() and (flat[..., 3] == 0).all())
+ramp = np.zeros((8, 16, 4), np.uint8)
+ramp[..., :3] = (np.arange(16) * 16)[None, :, None]
+ramp[..., 3] = 255
+nm = armbake.normal_pixels(ramp, {"strength": 1, "blur": 0})
+check(f"art growing lighter to the right tilts the map against it, as the shipped maps do (red {nm[4, 8, 0]})",
+      nm[4, 8, 0] < 128 and nm[4, 8, 1] == 128)
+inv = armbake.normal_pixels(ramp, {"strength": 1, "blur": 0, "invert": True})
+check("invert turns it the other way", inv[4, 8, 0] > 128)
+weak = armbake.normal_pixels(ramp, {"strength": 0.5, "blur": 0})
+check("half the strength, half the tilt", abs((128 - weak[4, 8, 0]) * 2 - (128 - nm[4, 8, 0])) <= 2)
+
+nmode = {"mode": "specialized", "materials": {"metal": {"strength": 0.3}}}
+check("Specialized: a metal object takes metal's setting, changed by the user",
+      armbake.normal_setting(nmode, {"material": "metal"})["strength"] == 0.3
+      and armbake.normal_setting(nmode, {"material": "metal"})["blur"] == armbake.NORMAL_MATERIALS["metal"]["blur"])
+check("an object's own setting wins, and no material is 'other'",
+      armbake.normal_setting(nmode, {"material": "metal", "normal": {"strength": 2}})["strength"] == 2
+      and armbake.normal_setting(nmode, {})["strength"] == armbake.NORMAL_MATERIALS["other"]["strength"])
+check("Generic is one setting, Skip none",
+      armbake.normal_setting({"mode": "generic"}, {"material": "metal"}) == armbake.NORMAL_GENERIC
+      and armbake.normal_setting({"mode": "skip"}, {}) is None)
+
+if node:
+    js = "".join((ROOT / "web" / "js" / f).read_text(encoding="utf-8") for f in ("armobj.js", "armnormal.js"))
+    art = rng.integers(0, 256, size=(20, 20, 4), dtype=np.uint8)
+    sets = [{"strength": 1.0, "blur": 0}, {"strength": 1.4, "blur": 1.5}, {"strength": 0.7, "blur": 0.8, "invert": True}]
+    probe = ("const tt=x=>x,ttN=x=>x;" + js + ";const px=" + json.dumps(art.reshape(-1).tolist())
+             + ";const sets=" + json.dumps(sets) + ";console.log(JSON.stringify(sets.map(s=>Array.from(armNormalPixels(px,20,20,s)))))")
+    (tmp / "probe4.js").write_text(probe, encoding="utf-8")
+    out = subprocess.run([node, str(tmp / "probe4.js")], capture_output=True, text=True, timeout=60)
+    js_out = json.loads(out.stdout or "null") or []
+    py_out = [armbake.normal_pixels(art, s_).reshape(-1).tolist() for s_ in sets]
+    worst = max((max(abs(a - b) for a, b in zip(p, j)) for p, j in zip(py_out, js_out)), default=999)
+    check(f"the preview's normal map is the bake's, blur and all (worst {worst} of 255)",
+          len(js_out) == 3 and worst <= 1)
+
+if horse is not None:
+    got = armbake.bake(hproj, None, {}, str(tmp / "n_skip"), "h", image_of=im_of)
+    flat_sheet = np.asarray(Image.open(tmp / "n_skip" / "h_normal.png").convert("RGBA"))
+    check(f"Skip writes a flat normal map beside each sheet ({', '.join(f for f in got['files'] if 'normal' in f)})",
+          "h_normal.texture" in got["files"] and (flat_sheet[..., :3] == [128, 128, 255]).all())
+    hproj["normals"] = {"mode": "specialized"}
+    hproj["objects"][0]["material"] = "wood"
+    for o in hproj["objects"][1:]:
+        o["material"] = "skin"
+    st = {}
+    armbake.plan(hproj, None, {}, image_of=im_of, _state=st)
+    armbake.bake(hproj, None, {}, str(tmp / "n_spec"), "h", image_of=im_of)
+    specs = {sh: np.asarray(Image.open(tmp / "n_spec" / f"h{'' if sh == 'main' else '_attach'}_normal.png").convert("RGBA")).astype(int)
+             for sh in ("main", "attach") if st["per"][sh]["size"]}
+
+    def tilt(obj_id):
+        for sh, spec in specs.items():
+            for b in st["per"][sh]["blocks"]:
+                if b.islands[0].obj["id"] == obj_id and b.placed:
+                    w, h = (b.h, b.w) if b.rot else (b.w, b.h)
+                    return np.abs(spec[b.y:b.y + h, b.x:b.x + w, :2] - 128).mean()
+        return 0.0
+    wood_id = hproj["objects"][0]["id"]
+    skin_id = hproj["objects"][1]["id"]
+    check(f"Specialized: wood is cut deeper than skin ({tilt(wood_id):.1f} against {tilt(skin_id):.1f})",
+          tilt(wood_id) > tilt(skin_id) > 0)
+    hproj.pop("normals")
 
 # ---------------------------------------------------------------------------
 print("\nThe project")

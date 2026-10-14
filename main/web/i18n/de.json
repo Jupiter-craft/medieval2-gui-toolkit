@@ -10530,7 +10530,7 @@
  "armory.exp_auto_note": "Verschiebt Inseln auf das andere Sheet, wo es Platz hat, und verkleinert dann den Rest. Verkleinern kostet Qualität.",
  "armory.exp_bake": "Backen und exportieren",
  "armory.exp_bake_intro": "Die Sheets ({sheets}) werden Texel für Texel aus der Quelle jedes Teils kopiert; nur was Sie skaliert haben, wird neu abgetastet.",
- "armory.exp_bake_note": "Schreibt die .mesh, je Sheet eine .texture und daneben je eine .png. Normal Maps folgen im nächsten Schritt der Roadmap.",
+ "armory.exp_bake_note": "Schreibt die .mesh, je Sheet eine .texture und daneben je eine Normal Map, dazu von jedem Sheet eine .png.",
  "armory.exp_check_note": "Die UV- und Texturprüfungen des Kits entfallen: die Sheets werden neu gebacken.",
  "armory.exp_check_summary": "{objects} Objekte, {vertices} Vertices.",
  "armory.exp_col_area": "Fläche",
@@ -10593,5 +10593,23 @@
  "eng.armbake.sheet_unreadable": "{path} lässt sich nicht dekodieren",
  "armory.chk_no_weights": "{name} hat keine Knochengewichte an seinen Vertex-Punkten: übertragen Sie zuerst welche darauf.",
  "armory.stamp_rot": "Drehen",
- "armory.exp_auto_moved": "Für Sie gewählt: {n} Blöcke auf das andere Sheet verschoben, wo Platz war. Nichts wurde skaliert."
+ "armory.exp_auto_moved": "Für Sie gewählt: {n} Blöcke auf das andere Sheet verschoben, wo Platz war. Nichts wurde skaliert.",
+ "armory.exp_normals": "Normal Maps: {mode}. Wählen Sie sie unter „Normal Maps“ in der Objektliste.",
+ "armory.normal_maps": "Normal Maps",
+ "armory.normal_map": "Normal Map",
+ "armory.norm_skip": "Überspringen (flache Map)",
+ "armory.norm_generic": "Allgemein (eine Einstellung)",
+ "armory.norm_specialized": "Spezialisiert (je Material)",
+ "armory.norm_specialized_note": "Jedes Material hat seine Einstellung; ein Objekt kann in seinen Eigenschaften eine eigene haben.",
+ "armory.norm_strength": "Stärke",
+ "armory.norm_blur": "Weichzeichnen",
+ "armory.norm_invert": "Umkehren",
+ "armory.norm_preview": "Vorschau am Modell",
+ "armory.norm_own": "Eine eigene Einstellung",
+ "armory.norm_from_material": "Von seinem Material: {material}",
+ "armory.norm_objects": {
+  "one": "{count} Objekt",
+  "other": "{count} Objekte"
+ },
+ "armory.norm_skip_note": "Neben jedes Sheet wird eine flache Map geschrieben, die das Blender-Kit verwendet."
 }

@@ -2270,6 +2270,26 @@ metal, fabric, leather...). In Specialized, each object's part of the map can
 be edited and updates live in the side panel. Note for the user: the spec
 said Generic uses "the default settings from our blenderkit", and the kit's
 default is the flat map, so Generic needs its own settings.
+**Done 2026-10-14, not yet loaded in game**: `web/js/armnormal.js` and
+`armbake.normal_pixels`. **Measured first**: 30 skins in Heirs of Elendil and
+the Americas campaign, each shipped normal map against its own diffuse. The
+maps are tangent space, flat at (0.5, 0.5, 0.97), and follow the art's
+lightness: they tilt against its slope in both x and y (correlations -0.58
+and -0.82), with a spread 1.27 times the slope's (1.03 to 1.57 between the
+quartiles), which is the baseline: strength 1 is a gain of 2.53. Their alpha
+is all but empty (a median of 0.01 to 0.03), and is left empty. The choice
+sits on the project, under **Normal maps** at the foot of the objects panel:
+**Skip** writes a flat map, **Generic** one strength, blur and invert, and
+**Specialized** one per material in use (metal shallow and sharp, fabric and
+leather softened, wood deepest, skin barely raised, each changeable), with
+*A setting of its own* in an object's properties on top. **Preview on the
+model** draws the map in the viewport live: each object's own crop of its
+sheet, after its dyes and emblems, made into a normal map by the same
+arithmetic as the bake (the same bytes, blur and all) and lit through
+tangents worked out per pixel from how the UVs run. The bake writes
+`<name>_normal.texture` and `<name>_attach_normal.texture` with a `.png`
+of each, each block's part made from its baked art with its object's
+setting, flat where there is no art. `tests/test_armory` (67).
 
 **95k - the import unit menu.** Three choices: **Skip** (a new modeldb entry
 for this model only, choosing the folder and the mesh name); **Add to a

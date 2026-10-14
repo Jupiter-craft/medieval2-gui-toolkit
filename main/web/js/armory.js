@@ -32,17 +32,19 @@ const ARM = {
 const ARM_VERT = `
 attribute vec3 aPos; attribute vec3 aNormal; attribute vec2 aUv;
 uniform mat4 uProj, uView, uModel;
-varying vec3 vNormal; varying vec2 vUv;
+varying vec3 vNormal; varying vec2 vUv; varying vec3 vPos;
 void main(){
   vNormal = mat3(uModel) * aNormal;
   vUv = aUv;
-  gl_Position = uProj * uView * uModel * vec4(aPos, 1.0);
+  vec4 w = uModel * vec4(aPos, 1.0);
+  vPos = w.xyz;
+  gl_Position = uProj * uView * w;
 }`;
-const ARM_FRAG = `
+const ARM_FRAG = `#extension GL_OES_standard_derivatives : enable
 precision mediump float;
-varying vec3 vNormal; varying vec2 vUv;
-uniform sampler2D uTex;
-uniform float uHasTex, uUScale, uHi, uSel, uFlip, uXray;
+varying vec3 vNormal; varying vec2 vUv; varying vec3 vPos;
+uniform sampler2D uTex, uNTex;
+uniform float uHasTex, uUScale, uHi, uSel, uFlip, uXray, uHasN;
 uniform vec4 uCrop;
 ${V3_ENV}
 void main(){
@@ -52,6 +54,17 @@ void main(){
   vec4 base = uHasTex > 0.5 ? texture2D(uTex, st) : vec4(0.72, 0.66, 0.56, 1.0);
   if(uHasTex > 0.5 && base.a < 0.35) discard;
   vec3 n = normalize(vNormal) * (gl_FrontFacing ? 1.0 : uFlip);
+  if(uHasN > 0.5){
+    // 95j: the normal map's preview, its tangents worked out per pixel
+    // from how the UVs run across the surface (a cotangent frame)
+    vec3 dp1 = dFdx(vPos), dp2 = dFdy(vPos);
+    vec2 duv1 = dFdx(st), duv2 = dFdy(st);
+    vec3 dp2p = cross(dp2, n), dp1p = cross(n, dp1);
+    vec3 T = dp2p * duv1.x + dp1p * duv2.x, B = dp2p * duv1.y + dp1p * duv2.y;
+    float inv = inversesqrt(max(max(dot(T, T), dot(B, B)), 1e-12));
+    vec3 tn = texture2D(uNTex, st).xyz * 2.0 - 1.0;
+    n = normalize(T * inv * tn.x + B * inv * tn.y + n * tn.z);
+  }
   vec3 light = v3Env(n) * 0.62 + vec3(1.0, 0.96, 0.9) * 0.5 * max(dot(n, normalize(vec3(0.4, 0.8, 0.5))), 0.0)
              + vec3(0.62, 0.7, 0.85) * 0.2 * max(dot(n, normalize(vec3(-0.6, 0.2, -0.7))), 0.0);
   vec3 col = pow(clamp(base.rgb * light, 0.0, 1.0), vec3(0.78));
@@ -494,6 +507,7 @@ function armGl(){
   c.width = 640; c.height = 480;
   const gl = c.getContext('webgl', {antialias: true, alpha: false, preserveDrawingBuffer: true});
   if(!gl) return null;
+  gl.getExtension('OES_standard_derivatives');
   c.addEventListener('webglcontextlost', e => { e.preventDefault(); });
   c.addEventListener('webglcontextrestored', () => {
     ARM.gl = null; armGl();
@@ -513,7 +527,7 @@ function armGl(){
   ARM.prog = p;
   ARM.loc = {};
   for(const n of ['aPos', 'aNormal', 'aUv']) ARM.loc[n] = gl.getAttribLocation(p, n);
-  for(const n of ['uProj', 'uView', 'uModel', 'uTex', 'uHasTex', 'uUScale', 'uHi', 'uSel', 'uFlip', 'uXray', 'uCrop'])
+  for(const n of ['uProj', 'uView', 'uModel', 'uTex', 'uHasTex', 'uUScale', 'uHi', 'uSel', 'uFlip', 'uXray', 'uCrop', 'uNTex', 'uHasN'])
     ARM.loc[n] = gl.getUniformLocation(p, n);
   gl.enable(gl.DEPTH_TEST);
   return gl;
@@ -702,6 +716,9 @@ function armRender(objs, w, h, cam, opts){
     gl.uniform1f(L.uUScale, live.objTex ? 1.0 : (live.uScale || 0.5));
     gl.uniform4fv(L.uCrop, dyed ? dyed.crop : [0, 0, 1, 1]);
     if(tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(L.uTex, 0); }
+    const nTex = dyed && dyed.nTex && !o.plain ? dyed.nTex : null;
+    gl.uniform1f(L.uHasN, nTex ? 1 : 0);
+    if(nTex){ gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, nTex); gl.uniform1i(L.uNTex, 1); gl.activeTexture(gl.TEXTURE0); }
   };
   for(const ob of objs){
     // posed by the animation previewer (armanim.js): already in the game's
