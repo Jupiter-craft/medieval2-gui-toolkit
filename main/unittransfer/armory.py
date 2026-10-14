@@ -31,6 +31,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import math
 import re
 import struct
 import threading
@@ -45,7 +46,7 @@ from . import i18n as _i18n
 #: The image types an external model's textures may be in.
 IMAGE_SUFFIXES = (".png", ".tga", ".dds", ".jpg", ".jpeg", ".texture", ".bmp")
 #: The model files an external asset may be.
-EXTERNAL_SUFFIXES = (".obj", ".glb", ".gltf", ".dae")
+EXTERNAL_SUFFIXES = (".obj", ".glb", ".gltf", ".dae", ".mesh")
 
 #: Where the workbench keeps its project and what it unpacks out of a .glb.
 ARMORY_DIR = config.CONFIG_DIR / "armory"
@@ -642,7 +643,7 @@ def read_external(path_text: str) -> Tuple[str, mesh.MeshFile, dict]:
         raise ArmoryError(_i18n.msg("eng.armory.no_such_file", "{path} is not a file", path=str(path)))
     suffix = path.suffix.lower()
     if suffix not in EXTERNAL_SUFFIXES:
-        raise ArmoryError(_i18n.msg("eng.armory.not_a_model_file", "{name} is not a .obj, .glb, .gltf or .dae", name=path.name))
+        raise ArmoryError(_i18n.msg("eng.armory.not_a_model_file", "{name} is not a .obj, .glb, .gltf, .dae or .mesh", name=path.name))
     st = path.stat()
     stamp = (st.st_size, st.st_mtime_ns)
     key = str(path).lower()
@@ -651,13 +652,16 @@ def read_external(path_text: str) -> Tuple[str, mesh.MeshFile, dict]:
         if hit and hit[0] == stamp:
             return external_id(path), hit[1], hit[2]
     try:
-        if suffix == ".obj":
+        if suffix == ".mesh":
+            # a loose battle model, a Blender export's say, read as the game does
+            m, packed = mesh.read_mesh(path, layout=True), {}
+        elif suffix == ".obj":
             m, packed = _read_obj(path), {}
         elif suffix in (".glb", ".gltf"):
             m, packed = _read_gltf(path)
         else:
             m, packed = _read_dae(path), {}
-    except (ValueError, KeyError, IndexError, struct.error, ET.ParseError) as e:
+    except (ValueError, KeyError, IndexError, struct.error, ET.ParseError, mesh.MeshError) as e:
         raise ArmoryError(_i18n.msg("eng.armory.could_not_read_model", "{name} could not be read: {e}", name=path.name, e=e)) from e
     unpacked = ARMORY_DIR / "external" / external_id(path)[4:]
     if packed:
@@ -735,8 +739,402 @@ def load_project() -> dict:
         return {}
 
 
+PRESETS = ARMORY_DIR / "presets.json"
+
+
+def load_presets() -> list:
+    """The user's own recolour presets (95f), kept apart from any one model."""
+    try:
+        return json.loads(PRESETS.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+
+
+def save_presets(presets: list) -> None:
+    ARMORY_DIR.mkdir(parents=True, exist_ok=True)
+    PRESETS.write_text(json.dumps(presets, indent=1), encoding="utf-8")
+
+
 def save_project(project: dict) -> None:
     ARMORY_DIR.mkdir(parents=True, exist_ok=True)
     tmp = PROJECT.with_suffix(".tmp")
     tmp.write_text(json.dumps(project, indent=1), encoding="utf-8")
     tmp.replace(PROJECT)
+
+
+# ---------------------------------------------------------------------------
+# an object's geometry (95f): its pieces, moved, turned and scaled
+
+
+#: model meshes read once while their files are unchanged, by asset key
+_MESHES: Dict[str, tuple] = {}
+
+
+def asset_key(asset: dict) -> str:
+    """The page's own key for an asset (``armAssetKey`` in armory.js)."""
+    if asset.get("kind") == "external":
+        return "ext|" + (asset.get("path") or "").lower()
+    return f"{asset.get('mod')}|{asset.get('entry')}"
+
+
+def asset_mesh(asset: dict, mod_of) -> mesh.MeshFile:
+    """The first LOD of an asset, with what writing it back needs.
+
+    ``mod_of(name)`` is how the caller finds an installed mod by name.
+    """
+    if asset.get("kind") == "external":
+        _id, m, _tex = read_external(asset.get("path") or "")
+        return m
+    mod = mod_of(asset.get("mod") or "")
+    entry = mod.modeldb.by_name().get((asset.get("entry") or "").lower())
+    if entry is None or not entry.lods:
+        raise ArmoryError(_i18n.msg("eng.armory.no_such_entry", "{mod} has no model entry {name}", mod=asset.get("mod"), name=asset.get("entry")))
+    rel = entry.lods[0][0].replace("\\", "/").strip()
+    path, _where = gamepack.lookup(rel, mod)
+    if path is None or not path.is_file():
+        raise ArmoryError(_i18n.msg("eng.armory.mesh_not_found", "{rel} is in neither the mod, the game nor its packs", rel=rel))
+    st = path.stat()
+    key = asset_key(asset)
+    hit = _MESHES.get(key)
+    if hit and hit[0] == (str(path), st.st_size, st.st_mtime_ns):
+        return hit[1]
+    m = mesh.read_mesh(path, layout=True)
+    _MESHES[key] = ((str(path), st.st_size, st.st_mtime_ns), m)
+    return m
+
+
+def rotation(rx: float, ry: float, rz: float) -> List[List[float]]:
+    """Z * Y * X, degrees, the order ``armRot`` in armory.js multiplies in."""
+    a, b, c = (math.radians(v) for v in (rx, ry, rz))
+    ca, sa, cb, sb, cc, sc = math.cos(a), math.sin(a), math.cos(b), math.sin(b), math.cos(c), math.sin(c)
+    X = [[1, 0, 0], [0, ca, -sa], [0, sa, ca]]
+    Y = [[cb, 0, sb], [0, 1, 0], [-sb, 0, cb]]
+    Z = [[cc, -sc, 0], [sc, cc, 0], [0, 0, 1]]
+    mul = lambda p, q: [[sum(p[i][k] * q[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
+    return mul(Z, mul(Y, X))
+
+
+def piece_indices(m: mesh.MeshFile, piece: dict) -> List[int]:
+    """A piece's triangles as vertex indices into its source model."""
+    g = m.groups[int(piece.get("group", 0))]
+    tris = piece.get("tris")
+    if tris is None:
+        return list(g.indices)
+    ix = g.indices
+    return [ix[t * 3 + k] for t in tris if t * 3 + 2 < len(ix) for k in range(3)]
+
+
+def _xf(p, xf):
+    """A piece's own matrix (column-major, as the page keeps it) on a point."""
+    if not xf:
+        return p
+    x, y, z = p
+    return (xf[0] * x + xf[4] * y + xf[8] * z + xf[12],
+            xf[1] * x + xf[5] * y + xf[9] * z + xf[13],
+            xf[2] * x + xf[6] * y + xf[10] * z + xf[14])
+
+
+def object_mesh(obj: dict, assets: Dict[str, dict], mod_of) -> mesh.MeshFile:
+    """One object as a model of its own, in the place the page draws it.
+
+    Each piece takes only the vertices its triangles use, in index order, so
+    the page and this agree on which vertex is which. Bones are named per
+    vertex across pieces, a union in order of first use. An object with
+    ``weights`` of its own (transferred, 95f) wears them.
+    """
+    out = mesh.MeshFile(source=obj.get("name", ""), format="mesh")
+    weights, ids = array("f"), bytearray()
+    flat_all = array("H")
+    pts: List[Tuple[float, float, float]] = []
+    nrms: List[Tuple[float, float, float]] = []
+    for piece in obj.get("src") or []:
+        asset = assets.get(piece.get("asset"))
+        if asset is None:
+            continue
+        m = asset_mesh(asset, mod_of)
+        flat = piece_indices(m, piece)
+        used = sorted(set(flat))
+        remap = {old: new + len(pts) for new, old in enumerate(used)}
+        xf = piece.get("xf")
+        skinned = bool(m.weights) and len(m.bone_ids) == m.vertices * 4
+        for v in used:
+            pts.append(_xf((m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]), xf))
+            n = (m.normals[v * 3], m.normals[v * 3 + 1], m.normals[v * 3 + 2]) if m.normals else (0.0, 1.0, 0.0)
+            if xf:
+                n = _xf(n, list(xf[:12]) + [0, 0, 0, 1])
+            nrms.append(n)
+            out.uvs.extend((m.uvs[v * 2], m.uvs[v * 2 + 1]) if m.uvs else (0.0, 0.0))
+            if skinned:
+                b = m.bone_ids[v * 4:v * 4 + 4]
+                pair = []
+                for k in (2, 1):
+                    name = m.bones[b[k]] if b[k] < len(m.bones) else ""
+                    if name not in out.bones:
+                        out.bones.append(name)
+                    pair.append(out.bones.index(name))
+                weights.extend((m.weights[v * 2], m.weights[v * 2 + 1]))
+                ids += bytes((0, pair[1], pair[0], 0))
+            else:
+                weights.extend((0.0, 0.0))
+                ids += bytes(4)
+        flat_all.extend(remap[i] for i in flat)
+    # the object's own move, turn and scale, about the centre of what it
+    # holds counted by index, as armPivots counts it
+    if flat_all:
+        cx = sum(pts[i][0] for i in flat_all) / len(flat_all)
+        cy = sum(pts[i][1] for i in flat_all) / len(flat_all)
+        cz = sum(pts[i][2] for i in flat_all) / len(flat_all)
+    else:
+        cx = cy = cz = 0.0
+    t = obj.get("t") or [0, 0, 0]
+    r = rotation(*(obj.get("r") or [0, 0, 0]))
+    s = obj.get("s") or [1, 1, 1]
+    for x, y, z in pts:
+        x, y, z = (x - cx) * s[0], (y - cy) * s[1], (z - cz) * s[2]
+        out.positions.extend((r[0][0] * x + r[0][1] * y + r[0][2] * z + cx + t[0],
+                              r[1][0] * x + r[1][1] * y + r[1][2] * z + cy + t[1],
+                              r[2][0] * x + r[2][1] * y + r[2][2] * z + cz + t[2]))
+    inv = [1 / v if v else 0.0 for v in s]
+    for x, y, z in nrms:
+        x, y, z = x * inv[0], y * inv[1], z * inv[2]
+        nx = r[0][0] * x + r[0][1] * y + r[0][2] * z
+        ny = r[1][0] * x + r[1][1] * y + r[1][2] * z
+        nz = r[2][0] * x + r[2][1] * y + r[2][2] * z
+        ln = math.sqrt(nx * nx + ny * ny + nz * nz) or 1.0
+        out.normals.extend((nx / ln, ny / ln, nz / ln))
+    out.weights, out.bone_ids = weights, bytes(ids)
+    own = obj.get("weights")
+    if own and own.get("n") == len(pts):
+        raw = base64.b64decode(own["data"])
+        out.weights = array("f")
+        out.weights.frombytes(raw[:len(pts) * 8])
+        out.bone_ids = raw[len(pts) * 8:]
+        out.bones = list(own.get("bones") or [])
+    out.groups.append(mesh.MeshGroup(obj.get("name") or "part", obj.get("mesh") or "part",
+                                     flat_all, int(obj.get("flag") or 0)))
+    return out
+
+
+def has_weights(m: mesh.MeshFile) -> bool:
+    """Any vertex bound to a bone at all."""
+    return any(w > 0 for w in m.weights)
+
+
+# ---------------------------------------------------------------------------
+# bones (95g): a part from a skeleton that spells its bones another way
+
+
+def bone_remap(src: Sequence[str], target: Sequence[str]) -> Tuple[List[int], List[str]]:
+    """``(index into target per source bone, names not found)``.
+
+    The archer skeletons write ``bone_rhand``, the melee ones ``bone_Rhand``
+    (and ``bone_RThigh`` against ``bone_rthigh``): the same bone in another
+    case, which is all the Blender kit's rename between the two does. A bone
+    the target has not got at all maps to -1 and is named.
+    """
+    by_lower = {name.lower(): i for i, name in enumerate(target)}
+    out, missing = [], []
+    for name in src:
+        i = by_lower.get(name.lower(), -1)
+        out.append(i)
+        if i < 0 and name:
+            missing.append(name)
+    return out, missing
+
+
+# ---------------------------------------------------------------------------
+# transfer weights (95f)
+
+
+def _closest_on_triangle(p, a, b, c):
+    """The closest point to ``p`` on triangle ``abc``, as barycentric weights
+    (Ericson, *Real-Time Collision Detection*, 5.1.5)."""
+    dot = lambda u, v: u[0] * v[0] + u[1] * v[1] + u[2] * v[2]
+    ab = [b[i] - a[i] for i in range(3)]
+    ac = [c[i] - a[i] for i in range(3)]
+    ap = [p[i] - a[i] for i in range(3)]
+    d1, d2 = dot(ab, ap), dot(ac, ap)
+    if d1 <= 0 and d2 <= 0:
+        return (1.0, 0.0, 0.0)
+    bp = [p[i] - b[i] for i in range(3)]
+    d3, d4 = dot(ab, bp), dot(ac, bp)
+    if d3 >= 0 and d4 <= d3:
+        return (0.0, 1.0, 0.0)
+    vc = d1 * d4 - d3 * d2
+    if vc <= 0 and d1 >= 0 and d3 <= 0:
+        v = d1 / (d1 - d3)
+        return (1 - v, v, 0.0)
+    cp = [p[i] - c[i] for i in range(3)]
+    d5, d6 = dot(ab, cp), dot(ac, cp)
+    if d6 >= 0 and d5 <= d6:
+        return (0.0, 0.0, 1.0)
+    vb = d5 * d2 - d1 * d6
+    if vb <= 0 and d2 >= 0 and d6 <= 0:
+        w = d2 / (d2 - d6)
+        return (1 - w, 0.0, w)
+    va = d3 * d6 - d5 * d4
+    if va <= 0 and (d4 - d3) >= 0 and (d5 - d6) >= 0:
+        w = (d4 - d3) / ((d4 - d3) + (d5 - d6))
+        return (0.0, 1 - w, w)
+    den = 1.0 / (va + vb + vc)
+    v, w = vb * den, vc * den
+    return (1 - v - w, v, w)
+
+
+def transfer_weights(target: mesh.MeshFile, sources: Sequence[mesh.MeshFile],
+                     mode: str = "face", smooth: int = 5) -> Tuple[array, bytes, List[str]]:
+    """Weights for every vertex of ``target`` out of the nearest of ``sources``.
+
+    The Blender kit's *Transfer weights* (``qol_panel.py``): nearest face,
+    interpolated, by default, or the nearest vertex or edge; then ``smooth``
+    passes that average each vertex with its neighbours. Each vertex keeps
+    its two strongest bones, as the format holds. Returns ``(weights,
+    bone_ids, bones)`` laid out as :class:`~unittransfer.mesh.MeshFile` keeps
+    them.
+    """
+    bones: List[str] = []
+
+    def bone_of(src, b):
+        name = src.bones[b] if b < len(src.bones) else ""
+        if name not in bones:
+            bones.append(name)
+        return bones.index(name)
+
+    tris: List[Tuple[int, int, int]] = []
+    infl: List[Dict[int, float]] = []
+    pts: List[Tuple[float, float, float]] = []
+    for src in sources:
+        if not has_weights(src) or len(src.bone_ids) != src.vertices * 4:
+            continue
+        base = len(pts)
+        for v in range(src.vertices):
+            pts.append((src.positions[v * 3], src.positions[v * 3 + 1], src.positions[v * 3 + 2]))
+            b = src.bone_ids[v * 4:v * 4 + 4]
+            d: Dict[int, float] = {}
+            for k, w in ((2, src.weights[v * 2]), (1, src.weights[v * 2 + 1])):
+                if w > 0:
+                    j = bone_of(src, b[k])
+                    d[j] = d.get(j, 0.0) + w
+            infl.append(d)
+        for g in src.groups:
+            ix = g.indices
+            for t in range(0, len(ix) - 2, 3):
+                tris.append((base + ix[t], base + ix[t + 1], base + ix[t + 2]))
+    if not tris:
+        raise ArmoryError(_i18n.msg("eng.armory.no_weights_to_take", "nothing visible in the model has weights to take"))
+    # a grid over the source triangles, so each vertex looks only nearby
+    lo = [min(p[k] for p in pts) for k in range(3)]
+    hi = [max(p[k] for p in pts) for k in range(3)]
+    size = max(hi[k] - lo[k] for k in range(3)) or 1.0
+    cell = size / max(4, int(round(len(tris) ** (1 / 3))) * 2)
+    grid: Dict[Tuple[int, int, int], List[int]] = {}
+
+    def key(p):
+        return tuple(int(math.floor((p[k] - lo[k]) / cell)) for k in range(3))
+    for ti, (a, b, c) in enumerate(tris):
+        ka, kb, kc = key(pts[a]), key(pts[b]), key(pts[c])
+        for i in range(min(ka[0], kb[0], kc[0]), max(ka[0], kb[0], kc[0]) + 1):
+            for j in range(min(ka[1], kb[1], kc[1]), max(ka[1], kb[1], kc[1]) + 1):
+                for k in range(min(ka[2], kb[2], kc[2]), max(ka[2], kb[2], kc[2]) + 1):
+                    grid.setdefault((i, j, k), []).append(ti)
+    span = int(math.ceil(size / cell)) + 2
+
+    def near(p):
+        c0 = key(p)
+        best, best_d = None, float("inf")
+        for ring in range(span):
+            for i in range(c0[0] - ring, c0[0] + ring + 1):
+                for j in range(c0[1] - ring, c0[1] + ring + 1):
+                    for k in range(c0[2] - ring, c0[2] + ring + 1):
+                        if max(abs(i - c0[0]), abs(j - c0[1]), abs(k - c0[2])) != ring:
+                            continue
+                        for ti in grid.get((i, j, k), ()):
+                            a, b, c = tris[ti]
+                            if mode == "vertex":
+                                for vi, bary in ((a, (1.0, 0.0, 0.0)), (b, (0.0, 1.0, 0.0)), (c, (0.0, 0.0, 1.0))):
+                                    d = sum((pts[vi][q] - p[q]) ** 2 for q in range(3))
+                                    if d < best_d:
+                                        best, best_d = (ti, bary), d
+                                continue
+                            bary = _closest_on_triangle(p, pts[a], pts[b], pts[c])
+                            q = [bary[0] * pts[a][n] + bary[1] * pts[b][n] + bary[2] * pts[c][n] for n in range(3)]
+                            d = sum((q[n] - p[n]) ** 2 for n in range(3))
+                            if mode == "edge":
+                                # the nearest edge: the corner the point is
+                                # farthest from drops out
+                                k0 = min(range(3), key=lambda x: bary[x])
+                                rest = [bary[x] if x != k0 else 0.0 for x in range(3)]
+                                tot = sum(rest) or 1.0
+                                bary = tuple(x / tot for x in rest)
+                            if d < best_d:
+                                best, best_d = (ti, bary), d
+            if best is not None and math.sqrt(best_d) < ring * cell:
+                break
+        return best
+
+    n = target.vertices
+    per: List[Dict[int, float]] = []
+    for v in range(n):
+        hit = near((target.positions[v * 3], target.positions[v * 3 + 1], target.positions[v * 3 + 2]))
+        d: Dict[int, float] = {}
+        if hit is not None:
+            (a, b, c), bary = tris[hit[0]], hit[1]
+            for vi, w in zip((a, b, c), bary):
+                for bone, bw in infl[vi].items():
+                    d[bone] = d.get(bone, 0.0) + bw * w
+        per.append(d)
+    if smooth and target.groups:
+        nbr: List[set] = [set() for _ in range(n)]
+        for g in target.groups:
+            ix = g.indices
+            for t in range(0, len(ix) - 2, 3):
+                a, b, c = ix[t], ix[t + 1], ix[t + 2]
+                nbr[a].update((b, c))
+                nbr[b].update((a, c))
+                nbr[c].update((a, b))
+        for _ in range(smooth):
+            nxt = []
+            for v in range(n):
+                acc = dict(per[v])
+                for u in nbr[v]:
+                    for bone, w in per[u].items():
+                        acc[bone] = acc.get(bone, 0.0) + w
+                tot = sum(acc.values()) or 1.0
+                nxt.append({b: w / tot for b, w in acc.items()})
+            per = nxt
+    weights, ids = array("f"), bytearray()
+    for d in per:
+        top = sorted(d.items(), key=lambda kv: -kv[1])[:2]
+        while len(top) < 2:
+            top.append((top[0][0] if top else 0, 0.0))
+        tot = (top[0][1] + top[1][1]) or 1.0
+        weights.extend((top[0][1] / tot, top[1][1] / tot))
+        ids += bytes((0, top[1][0], top[0][0], 0))
+    return weights, bytes(ids), bones
+
+
+def project_assets(project: dict) -> Dict[str, dict]:
+    return {asset_key(a): a for a in project.get("assets") or []}
+
+
+def transfer_for(project: dict, obj_id: int, mode: str, mod_of) -> dict:
+    """The page's *Transfer weights* on one object, from every other visible
+    object in the model that has weights. The answer is stored on the object
+    as ``weights`` (base64 of the weights then the bone bytes)."""
+    assets = project_assets(project)
+    objs = project.get("objects") or []
+    target = next((o for o in objs if o.get("id") == obj_id), None)
+    if target is None:
+        raise ArmoryError(_i18n.msg("eng.armory.no_such_object", "that object is not in the model"))
+    clean = dict(target, weights=None)
+    tm = object_mesh(clean, assets, mod_of)
+    sources = []
+    for o in objs:
+        if o is target or o.get("hidden"):
+            continue
+        om = object_mesh(o, assets, mod_of)
+        if has_weights(om):
+            sources.append(om)
+    w, ids, bones = transfer_weights(tm, sources, mode=mode)
+    return {"n": tm.vertices, "bones": bones, "mode": mode,
+            "data": base64.b64encode(w.tobytes() + ids).decode("ascii")}

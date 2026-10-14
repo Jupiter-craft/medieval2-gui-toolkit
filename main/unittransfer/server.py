@@ -2716,6 +2716,16 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/armory/project":
                 armory.save_project(body.get("project") or {})
                 return self._json({"ok": True})
+            if u.path == "/api/armory/transfer_weights":
+                try:
+                    return self._json(armory.transfer_for(
+                        body.get("project") or {}, body.get("id"),
+                        body.get("mode") or "face", self.registry.get))
+                except (armory.ArmoryError, mesh.MeshError, KeyError) as e:
+                    return self._err(400, str(e))
+            if u.path == "/api/armory/presets":
+                armory.save_presets(body.get("presets") or [])
+                return self._json({"ok": True})
             if u.path == "/api/armory/allow_texture":
                 return self._json({"ok": armory.allow_texture(body.get("path") or "")})
             if u.path == "/api/browse_file":
@@ -5616,6 +5626,8 @@ class Handler(BaseHTTPRequestHandler):
         arg = lambda k: (q.get(k) or [""])[0]
         if path == "/api/armory/project":
             return self._json(armory.load_project())
+        if path == "/api/armory/presets":
+            return self._json({"presets": armory.load_presets()})
         if path == "/api/armory/external":
             try:
                 return self._json(armory.external_view(arg("path")))

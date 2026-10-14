@@ -833,6 +833,15 @@
   ],
   "armory.frame_all_title": [
    "frame"
+  ],
+  "armory.mat_bone": [
+   "bone"
+  ],
+  "armory.weights_own": [
+   "transfer"
+  ],
+  "armory.prefix_add": [
+   "add"
   ]
  },
  "ancillaries.a_character_holds_one_ancillary_per": "Ein Charakter hat pro Typ ein Gefolgsmitglied; das ist also das, was ein neues ersetzt",
@@ -10226,7 +10235,7 @@
  "armory.new_project_confirm": "Ein neues Modell beginnen? Die Objekte dieses Modells werden verworfen, die geladenen Assets ebenfalls.",
  "armory.loaded_assets": "Geladene Assets",
  "armory.import": "Importieren",
- "armory.no_assets_yet": "Noch nichts geladen. Importieren Sie Einheiten oder Modelleinträge aus jeder installierten Mod oder eine .obj-, .glb- oder .dae-Datei, um Teile daraus zu nehmen.",
+ "armory.no_assets_yet": "Noch nichts geladen. Importieren Sie Einheiten oder Modelleinträge aus jeder installierten Mod oder eine .obj-, .glb-, .dae- oder .mesh-Datei, um Teile daraus zu nehmen.",
  "armory.reading": "Wird gelesen…",
  "armory.as_list": "Liste",
  "armory.as_gallery": "Galerie",
@@ -10236,8 +10245,8 @@
  "armory.base": "Basis",
  "armory.remove_asset": "Dieses Asset entladen",
  "armory.remove_asset_confirm": {
-  "one": "{n} Objekt des Modells stammt aus diesem Asset und wird mit entfernt. Entladen?",
-  "other": "{n} Objekte des Modells stammen aus diesem Asset und werden mit entfernt. Entladen?"
+  "one": "{count} Objekt des Modells stammt aus diesem Asset und wird mit entfernt. Entladen?",
+  "other": "{count} Objekte des Modells stammen aus diesem Asset und werden mit entfernt. Entladen?"
  },
  "armory.skin": "Skin",
  "armory.sheet_main": "Haupt-Sheet",
@@ -10252,8 +10261,8 @@
  "armory.pull": "Übernehmen",
  "armory.already_in_model": "{name} ist bereits im Modell",
  "armory.pulled_n": {
-  "one": "{n} Objekt in das Modell übernommen",
-  "other": "{n} Objekte in das Modell übernommen"
+  "one": "{count} Objekt in das Modell übernommen",
+  "other": "{count} Objekte in das Modell übernommen"
  },
  "armory.objects": "Objekte",
  "armory.hide_show": "Ausblenden oder einblenden",
@@ -10263,7 +10272,7 @@
  "armory.from_a_mod": "Aus einer Mod",
  "armory.from_a_file": "Eine Datei auf dem Datenträger",
  "armory.from_the_library": "Aus der Asset-Bibliothek",
- "armory.file_intro": "Eine .obj-, .glb-, .gltf- oder .dae-Datei. Ihre Texturen werden im selben Ordner und in seinem Ordner textures gesucht; ein Objekt ohne gefundene Textur fragt nach einer.",
+ "armory.file_intro": "Eine .obj-, .glb-, .gltf- oder .dae-Datei oder ein einzelnes .mesh. Ihre Texturen werden im selben Ordner und in seinem Ordner textures gesucht; ein Objekt ohne gefundene Textur fragt nach einer.",
  "armory.file_placeholder": "Pfad einer Modelldatei einfügen oder durchsuchen",
  "armory.browse": "Durchsuchen…",
  "armory.file_title": "Ein zu importierendes Modell",
@@ -10275,13 +10284,13 @@
  "armory.role_upgrade": "Aufrüstung {n}",
  "armory.model_missing": "Diese Einheit nennt ein Modell, das die modeldb nicht hat",
  "armory.more_rows": {
-  "one": "…und {n} weiterer. Grenzen Sie die Suche ein, um ihn zu sehen.",
-  "other": "…und {n} weitere. Grenzen Sie die Suche ein, um sie zu sehen."
+  "one": "…und {count} weiterer. Grenzen Sie die Suche ein, um ihn zu sehen.",
+  "other": "…und {count} weitere. Grenzen Sie die Suche ein, um sie zu sehen."
  },
  "armory.nothing_matches": "Nichts passt.",
  "armory.n_picked": {
-  "one": "{n} Modell ausgewählt",
-  "other": "{n} Modelle ausgewählt"
+  "one": "{count} Modell ausgewählt",
+  "other": "{count} Modelle ausgewählt"
  },
  "armory.file_first": "Fügen Sie zuerst eine Datei ein oder wählen Sie eine.",
  "armory.pick_something": "Wählen Sie mindestens ein Modell zum Importieren.",
@@ -10297,11 +10306,130 @@
  "eng.armory.too_many_vertices": "{n:,} Vertices: ein .mesh erreicht höchstens 65.536",
  "eng.armory.no_objects": "keine Geometrie in dieser Datei",
  "eng.armory.no_such_file": "{path} ist keine Datei",
- "eng.armory.not_a_model_file": "{name} ist keine .obj-, .glb-, .gltf- oder .dae-Datei",
+ "eng.armory.not_a_model_file": "{name} ist keine .obj-, .glb-, .gltf-, .dae- oder .mesh-Datei",
  "eng.armory.could_not_read_model": "{name} konnte nicht gelesen werden: {e}",
  "armory.opt": "opt",
  "armory.asset_sub": {
-  "one": "{where} · {n} Objekt",
-  "other": "{where} · {n} Objekte"
+  "one": "{where} · {count} Objekt",
+  "other": "{where} · {count} Objekte"
+ },
+ "eng.armory.no_weights_to_take": "nichts Sichtbares im Modell hat Knochengewichte, die übernommen werden können",
+ "eng.armory.no_such_object": "dieses Objekt ist nicht im Modell",
+ "armory.blank": "＋ Leer",
+ "armory.blank_title": "Ein Objekt ohne Dreiecke: eine optionale Variante, die das Spiel wählen kann und die nichts zeigt, ein Soldat ohne Helm unter denen mit einem",
+ "armory.new_collection": "＋ Sammlung",
+ "armory.new_collection_title": "Eine eigene Sammlung, um gemeinsam auszublenden, einzublenden, zu exportieren oder zu löschen. Die ausgewählten Objekte kommen hinein.",
+ "armory.duplicate_object": "Duplizieren",
+ "armory.merge": "Zusammenführen",
+ "armory.merge_title": "Die ausgewählten Objekte zu einem verbinden, jedes Teil bleibt, wo es ist",
+ "armory.detail": "Detailansicht",
+ "armory.detail_title": "Das ausgewählte Objekt für sich, um seine Teile auszuwählen und abzutrennen",
+ "armory.n_selected": {
+  "one": "{count} Objekt ausgewählt",
+  "other": "{count} Objekte ausgewählt"
+ },
+ "armory.export": "exportieren",
+ "armory.export_coll_title": "Diese Sammlung mit dem Modell exportieren (95i schreibt nur, was angehakt ist)",
+ "armory.delete_collection": "Diese Sammlung löschen",
+ "armory.delete_collection_objects": {
+  "one": "Das {count} Objekt in {name} auch löschen? Abbrechen behält es, außerhalb der Sammlung.",
+  "other": "Die {count} Objekte in {name} auch löschen? Abbrechen behält sie, außerhalb der Sammlung."
+ },
+ "armory.collection_name": "Der Name der neuen Sammlung",
+ "armory.collection_default": "Sammlung {n}",
+ "armory.empty_object": "(leer)",
+ "armory.mat_none": "kein Material",
+ "armory.mat_metal": "Metall",
+ "armory.mat_fabric": "Stoff",
+ "armory.mat_leather": "Leder",
+ "armory.mat_wood": "Holz",
+ "armory.mat_skin": "Haut",
+ "armory.mat_hair": "Haar",
+ "armory.mat_bone": "Knochen",
+ "armory.mat_other": "anderes",
+ "armory.weights_transferred": "Seine Knochengewichte wurden aus dem Modell übertragen",
+ "armory.renamed": "{from} heißt jetzt {to}",
+ "armory.merged_n": {
+  "one": "{count} Objekt zusammengeführt",
+  "other": "{count} Objekte zu einem zusammengeführt"
+ },
+ "armory.working": "Wird bearbeitet…",
+ "armory.weights_done": {
+  "one": "Knochengewichte für {count} Vertex, aus {bones} Knochen",
+  "other": "Knochengewichte für {count} Vertices, aus {bones} Knochen"
+ },
+ "armory.group_type": "Gruppentyp",
+ "armory.mesh_name": "Mesh-Name",
+ "armory.optional": "Optional (opt): das Spiel zeigt es an manchen Soldaten",
+ "armory.fix_name": "Namen korrigieren",
+ "armory.fix_name_title": "Die Korrektur des Blender-Kits: aus name wird name__name, aus a_b wird a__b, aus hair1 wird hair__hair_1, ein angehängtes .001 entfällt",
+ "armory.prefix": "Präfix…",
+ "armory.prefix_add": "Hinzufügen",
+ "armory.prefix_swap": "Tauschen",
+ "armory.material": "Material",
+ "armory.collection": "Sammlung",
+ "armory.no_collection": "keine",
+ "armory.new_collection_option": "Neue Sammlung…",
+ "armory.recolour": "Umfärben",
+ "armory.preset": "Vorlage…",
+ "armory.dye_colour": "Die Farbe",
+ "armory.blend_multiply": "Multiplizieren",
+ "armory.blend_overlay": "Überlagern",
+ "armory.blend_softlight": "Weiches Licht",
+ "armory.blend_screen": "Negativ multiplizieren",
+ "armory.blend_hardlight": "Hartes Licht",
+ "armory.blend_keepshade": "Schattierung behalten",
+ "armory.strength": "Stärke",
+ "armory.keep_white": "Weiß behalten",
+ "armory.keep_white_title": "Reines Weiß bleibt weiß",
+ "armory.channels_title": "Innerhalb eines Objekts erhalten Stoff, Leder und der goldene Besatz je eine eigene Farbe. Metall wird nie getönt, außer durch eine Metallvorlage.",
+ "armory.chan_cloth": "Stoff",
+ "armory.chan_leather": "Leder",
+ "armory.chan_trim": "Besatz",
+ "armory.detect_layers": "Ebenen erkennen",
+ "armory.detect_title": "Die Farben des Teils in Ebenen ordnen, jede mit ihrem Anteil, und jede einzeln umfärben",
+ "armory.save_preset": "Als Vorlage speichern",
+ "armory.clear_dye": "Leeren",
+ "armory.layer_title": "Eine Ebene der Farben des Teils und ihr Anteil am Teil; wählen Sie eine Farbe, um sie umzufärben",
+ "armory.preset_name": "Der Name der Vorlage",
+ "armory.preset_metal": "Metall",
+ "armory.preset_rusted_metal": "Rostiges Metall",
+ "armory.preset_dark_leather": "Dunkles Leder",
+ "armory.preset_tan_leather": "Hellbraunes Leder",
+ "armory.preset_red_cloth": "Roter Stoff",
+ "armory.preset_blue_cloth": "Blauer Stoff",
+ "armory.preset_green_cloth": "Grüner Stoff",
+ "armory.preset_yellow_cloth": "Gelber Stoff",
+ "armory.preset_black_cloth": "Schwarzer Stoff",
+ "armory.preset_white_linen": "Weißes Leinen",
+ "armory.preset_purple_cloth": "Purpurner Stoff",
+ "armory.preset_brown_wool": "Braune Wolle",
+ "armory.weights": "Knochengewichte",
+ "armory.weights_own": "Eigene, übertragen über {mode}",
+ "armory.weights_from_source": "Wie sein Quellmodell sie hat",
+ "armory.wmode_face": "nächste Fläche",
+ "armory.wmode_vertex": "nächster Vertex",
+ "armory.wmode_edge": "nächste Kante",
+ "armory.transfer_weights": "Knochengewichte übertragen",
+ "armory.transfer_weights_title": "Die Knochengewichte dieses Objekts vom nächstgelegenen aller anderen sichtbaren Objekte übernehmen und dann fünfmal glätten, wie das Blender-Kit es tut",
+ "armory.clear_weights": "Leeren",
+ "armory.object_facts": "{tris} Dreiecke aus {pieces} Stücken",
+ "armory.no_pixels": "Dieses Teil hat zu wenige Pixel auf seinem Sheet, um sie zu ordnen.",
+ "armory.select_connected": "Verbundenes auswählen (L)",
+ "armory.select_connected_title": "Jedes Dreieck, das mit den gewählten verbunden ist, wie Blenders L. Klicken Sie zuerst ein Dreieck an.",
+ "armory.xray": "Röntgen",
+ "armory.xray_title": "Durch das Modell sehen und Vertices wählen: einen anklicken, Umschalt fügt hinzu, einen Rahmen ziehen",
+ "armory.clear_selection": "Auswahl leeren",
+ "armory.n_tris_selected": {
+  "one": "{count} Dreieck ausgewählt",
+  "other": "{count} Dreiecke ausgewählt"
+ },
+ "armory.split_off": "Abtrennen…",
+ "armory.leave_detail": "Detailansicht verlassen",
+ "armory.pick_a_triangle": "Klicken Sie zuerst ein Dreieck des Teils an.",
+ "armory.split_name": "Der Name des neuen Objekts (typ__name oder nur ein Name)",
+ "armory.split_done": {
+  "one": "{name}: {count} Dreieck abgetrennt",
+  "other": "{name}: {count} Dreiecke abgetrennt"
  }
 }

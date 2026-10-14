@@ -2157,6 +2157,41 @@ blank object for an empty variant. **Detail view and split**: open one
 object on its own, select its connected parts the way Blender's L does, or
 pick vertices by hand with an X-ray mode, and split the selection off into
 a new object, asking its name.
+**Done 2026-10-14**: `web/js/armobj.js`, and `armory.object_mesh`,
+`transfer_weights`, `bone_remap` on the server. An object now holds
+**pieces**: a whole group of an asset, some of its triangles (a split), each
+with a matrix of its own once merged; it turns and scales about the mean of
+its pieces' indices, counted the same way in the page and the server. The
+panel folds the objects by group type, each fold hiding and showing at once,
+and lists the user's **collections** below (hide, show, *export* ticked for
+95i, delete with or without their objects). The selected object's properties:
+group type and mesh name, opt, **Fix name** and **Prefix** (add or swap, the
+kit's 17 prefixes) exactly as `qol_panel.py` does them (checked in Node: `Cube`
+to `Cube__Cube`, `sword_blade` to `sword__blade`, `hair1`, `hair_1` and
+`hair__1` to `hair__hair_1`, `.001` dropped), a material (metal, fabric,
+leather, wood, skin, hair, bone, other), a collection. **Recolour** is
+previewed live from the object's own crop of its sheet: twelve generic
+presets (metal and rusted metal the only ones that reach grey pixels) and the
+user's own (`config/armory/presets.json`), six blend modes (multiply,
+overlay, soft light, screen, hard light, and keep shading, the target's colour
+at the pixel's own lightness), a strength, white kept, metal never tinted, and
+**channels** inside the object (cloth, leather, gold trim, told apart per
+pixel by hue, saturation and lightness) each with a colour of its own; the
+material picks which channel the object's colour dyes by default. **Detect
+layers** clusters the part's own pixels (its UV triangles filled as a mask)
+into up to five layers with their swatch and share, each recoloured whole.
+**Transfer weights** runs on the server, nearest face interpolated (or vertex
+or edge) from every other visible object with weights, then five smoothing
+passes; the reference horse's head, its weights taken away, gets its own
+strongest bone back on 95% of its vertices. **Duplicate**, **Merge** (each
+piece keeps where it stood) and **＋ Empty** (a group with no triangles, the
+variant that shows nothing). **Detail view**: the object alone, a click picks
+a triangle, **Select connected (L)** grows it through shared corners (by
+position, so a UV seam does not cut a part), **X-ray** shows the vertices to
+click or box-select, and **Split off** asks a name and keeps both parts where
+they were. A loose `.mesh` can now be imported as a file too. Found on the
+way: a project that came back from the server as `{}` gave every 95e object a
+null id; ids are repaired on load. `tests/test_armory` (33).
 
 **95g - the viewport.** In the middle, behaving like Blender: the object
 under the cursor highlights, and navigation and selection use Blender's

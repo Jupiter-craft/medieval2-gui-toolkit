@@ -3348,6 +3348,25 @@
   .armtilename{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .armtilefoot{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
   .pill.warn{background:rgba(224,179,65,.18);color:var(--warn)}
+  .armtools{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+  .armfoldbox{margin-bottom:4px}
+  .armfoldbox.coll{border-top:1px dashed var(--edge);padding-top:4px}
+  .armfoldhead{display:flex;gap:4px;align-items:center}
+  .armfoldname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .armexp{display:inline-flex;gap:3px;align-items:center}
+  .armswatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid var(--edge)}
+  .armswatch.big{width:18px;height:18px}
+  .armprops{border-top:1px solid var(--edge);margin-top:8px;padding-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+  .armpropsrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .armpropsrow label{display:flex;flex-direction:column;gap:2px;flex:1;min-width:110px}
+  .armpropsrow label.armcheck,.armpropsrow label.armchan,.armpropsrow label.armlayer{flex-direction:row;align-items:center;flex:0 0 auto;min-width:0;gap:4px}
+  .armpropsrow input[type=color]{width:34px;height:24px;padding:0 2px}
+  .armrange input{width:100%}
+  .armsect{font-weight:600;color:var(--accent);margin-top:4px}
+  .armlayers{display:flex;flex-direction:column;gap:3px}
+  .armlayer{display:flex;gap:6px;align-items:center}
+  .armdetailbar{position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+    background:rgba(20,23,28,.86);border:1px solid var(--edge);border-radius:7px;padding:5px 8px;font-size:12.5px}
   .armimp{padding:14px 16px;display:flex;flex-direction:column;gap:8px;max-height:84vh}
   .armimpctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .armimpctl input{flex:1;min-width:160px}
@@ -3564,6 +3583,7 @@
 <script src="js/viewer3d.js"></script>
 <script src="js/gallery.js"></script>
 <script src="js/armory.js"></script>
+<script src="js/armobj.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->
 <script src="js/v3anim.js"></script>
 <!-- M18: after viewer3d.js, which owns the matrix helpers it shares. -->

@@ -21,7 +21,7 @@
 
 const ARM = {
   gl: null, glCanvas: null, prog: null,
-  assets: new Map(),      // key -> {view, geo, buf, tex, uScale, pivots, err, loading}
+  assets: new Map(),      // key -> {view, geo, buf, tex, img, uScale, err, loading}
   cam: {yaw: 0.6, pitch: 0.25, dist: 4, target: [0, 1, 0]},
   hover: null, sel: new Set(),
   frameAsked: false, catalogue: {}, mods: null,
@@ -42,12 +42,14 @@ const ARM_FRAG = `
 precision mediump float;
 varying vec3 vNormal; varying vec2 vUv;
 uniform sampler2D uTex;
-uniform float uHasTex, uUScale, uHi, uSel, uFlip;
-uniform vec3 uTint; uniform float uTintOn;
+uniform float uHasTex, uUScale, uHi, uSel, uFlip, uXray;
+uniform vec4 uCrop;
 ${V3_ENV}
 void main(){
-  vec4 base = uHasTex > 0.5 ? texture2D(uTex, vec2(vUv.x * uUScale, vUv.y))
-                            : vec4(0.72, 0.66, 0.56, 1.0);
+  // uCrop: a dyed object's own crop of the sheet, (x, y, width, height)
+  // in the glued image's 0..1; the whole sheet otherwise
+  vec2 st = (vec2(vUv.x * uUScale, vUv.y) - uCrop.xy) / uCrop.zw;
+  vec4 base = uHasTex > 0.5 ? texture2D(uTex, st) : vec4(0.72, 0.66, 0.56, 1.0);
   if(uHasTex > 0.5 && base.a < 0.35) discard;
   vec3 n = normalize(vNormal) * (gl_FrontFacing ? 1.0 : uFlip);
   vec3 light = v3Env(n) * 0.62 + vec3(1.0, 0.96, 0.9) * 0.5 * max(dot(n, normalize(vec3(0.4, 0.8, 0.5))), 0.0)
@@ -55,14 +57,27 @@ void main(){
   vec3 col = pow(clamp(base.rgb * light, 0.0, 1.0), vec3(0.78));
   col = mix(col, vec3(0.36, 0.55, 0.94), uHi * 0.28);
   col = mix(col, vec3(0.97, 0.62, 0.18), uSel * 0.30);
-  gl_FragColor = vec4(col, 1.0);
+  // face orientation, Blender's colours: blue the front, red the back
+  if(uFlip < 0.0) col = mix(col, gl_FrontFacing ? vec3(0.2, 0.4, 1.0) : vec3(1.0, 0.15, 0.15), 0.55);
+  gl_FragColor = vec4(col, uXray > 0.5 ? 0.45 : 1.0);
 }`;
 
 /* --- the project ----------------------------------------------------------- */
 
 function armProj(){
-  if(!state.armProj) state.armProj = {v: 1, assets: [], objects: [], collections: [], base: null, nextId: 1};
-  return state.armProj;
+  const p = state.armProj = state.armProj || {};
+  // an empty project comes back from the server as {}; fill what it lacks
+  if(!p.v){ Object.assign(p, {v: 1, assets: p.assets || [], objects: p.objects || [],
+                              collections: p.collections || [], base: p.base || null}); }
+  if(!Number.isFinite(p.nextId)){
+    // ids lost to that (95e saved null ones) are given back in order
+    let top = 0;
+    for(const o of p.objects || []) if(Number.isFinite(o.id)) top = Math.max(top, o.id);
+    for(const c of p.collections || []) if(Number.isFinite(c.id)) top = Math.max(top, c.id);
+    p.nextId = top + 1;
+    for(const o of p.objects || []) if(!Number.isFinite(o.id)) o.id = p.nextId++;
+  }
+  return p;
 }
 function armSave(){
   clearTimeout(ARM.saveTimer);
@@ -87,8 +102,11 @@ async function renderArmory(){
     try{ state.armProj = await api.get('/api/armory/project'); }catch(e){ state.armProj = null; }
     const p = armProj();
     p.objects = p.objects || []; p.assets = p.assets || []; p.collections = p.collections || [];
+    // 95e kept one source per object; an object holds pieces from 95f on
+    for(const o of p.objects) if(!o.src){ o.src = [{asset: o.asset, group: o.group}]; delete o.asset; delete o.group; }
     if(stale('armory')) return;
     p.assets.forEach(a => armLoadAsset(a));
+    armLoadPresets().then(() => { if(state.mode === 'armory') armPaintObjects(); });
   }
   main.innerHTML = bmdbTabsHtml(tt('armory.tab_note')) + `<div class="armgrid" id="armGrid">
     <aside class="armleft" id="armLeft"></aside>
@@ -123,10 +141,18 @@ function armPaintFoot(){
   if(el && !el.dataset.filled){ el.dataset.filled = '1'; el.innerHTML = ''; }
 }
 function armObjTris(o){
-  const a = ARM.assets.get(o.asset);
-  const ob = a && a.view && a.view.objects[o.group];
-  return o.tris != null ? o.tris : (ob ? ob.triangles : 0);
+  let n = 0;
+  for(const pc of o.src || []){
+    if(pc.tris){ n += pc.tris.length; continue; }
+    const a = ARM.assets.get(pc.asset);
+    const ob = a && a.view && a.view.objects[pc.group];
+    n += ob ? ob.triangles : 0;
+  }
+  return n;
 }
+/* An object holds pieces: a whole group of an asset, or some of its
+   triangles (a split, 95f), each with a matrix of its own once merged. */
+const armUses = (o, key, group) => (o.src || []).some(pc => pc.asset === key && (group == null || pc.group === group));
 
 function armNew(){
   if(armProj().objects.length && !confirm(tt('armory.new_project_confirm'))) return;
@@ -187,7 +213,7 @@ function armAssetHtml(a){
       <span class="armcaret">${open ? '▾' : '▸'}</span>
       <span class="armname" title="${esc(a.kind === 'external' ? a.path : a.mesh || '')}">${esc(armAssetLabel(a))}</span>
       ${isBase ? `<span class="pill">${tt('armory.base')}</span>` : ''}
-      <span class="count">${v ? tt('armory.asset_sub', {where: sub, n: v.objects.length}) : sub}</span>
+      <span class="count">${v ? ttN('armory.asset_sub', v.objects.length, {where: sub}) : sub}</span>
       <button class="mini armx" onclick="event.stopPropagation();armRemoveAsset('${esc(key)}')" title="${esc(tt('armory.remove_asset'))}">✕</button>
     </div>${body}</div>`;
 }
@@ -221,7 +247,7 @@ function armDupOf(key, ob){
 }
 
 function armAssetObjHtml(a, key, ob, mode){
-  const inModel = armProj().objects.some(o => o.asset === key && o.group === ob.index);
+  const inModel = armProj().objects.some(o => armUses(o, key, ob.index));
   const dups = armDupOf(key, ob);
   const sheet = ob.sheets === 'attach' ? tt('armory.sheet_attach') : ob.sheets === 'both' ? tt('armory.sheet_both') : tt('armory.sheet_main');
   const tex = a.kind === 'external'
@@ -263,9 +289,9 @@ function armSetSkin(key, i){
 }
 function armRemoveAsset(key){
   const p = armProj();
-  const used = p.objects.filter(o => o.asset === key).length;
-  if(used && !confirm(tt('armory.remove_asset_confirm', {n: used}))) return;
-  p.objects = p.objects.filter(o => o.asset !== key);
+  const used = p.objects.filter(o => armUses(o, key)).length;
+  if(used && !confirm(ttN('armory.remove_asset_confirm', used))) return;
+  p.objects = p.objects.filter(o => !armUses(o, key));
   p.assets = p.assets.filter(a => armAssetKey(a) !== key);
   if(p.base === key) p.base = null;
   const live = ARM.assets.get(key);
@@ -281,7 +307,7 @@ function armPull(key, group){
   const live = ARM.assets.get(key);
   if(!live || !live.view) return;
   const ob = live.view.objects[group];
-  if(p.objects.some(o => o.asset === key && o.group === group)){
+  if(p.objects.some(o => armUses(o, key, group))){
     toast(tt('armory.already_in_model', {name: ob.mesh}));
     return;
   }
@@ -290,9 +316,9 @@ function armPull(key, group){
 }
 function armNewObject(key, ob){
   const p = armProj();
-  return {id: p.nextId++, asset: key, group: ob.index, name: ob.name, mesh: ob.mesh,
+  return {id: p.nextId++, src: [{asset: key, group: ob.index}], name: ob.name, mesh: ob.mesh,
           flag: ob.flag, hidden: false, coll: null, t: [0, 0, 0], r: [0, 0, 0], s: [1, 1, 1],
-          material: '', fingerprint: ob.fingerprint};
+          material: '', dye: null};
 }
 function armPullAll(key){
   const live = ARM.assets.get(key);
@@ -300,43 +326,11 @@ function armPullAll(key){
   const p = armProj();
   let added = 0;
   for(const ob of live.view.objects){
-    if(p.objects.some(o => o.asset === key && o.group === ob.index)) continue;
+    if(p.objects.some(o => armUses(o, key, ob.index))) continue;
     p.objects.push(armNewObject(key, ob)); added++;
   }
-  toast(tt('armory.pulled_n', {n: added}));
+  toast(ttN('armory.pulled_n', added));
   armSave(); armPaintAssets(); armPaintObjects(); armPaintBar(); armFrameAll();
-}
-
-/* --- the objects panel (95f grows it) ------------------------------------- */
-
-function armPaintObjects(){
-  const el = document.getElementById('armRight');
-  if(!el) return;
-  const p = armProj();
-  el.innerHTML = `<div class="armhead"><b>${tt('armory.objects')}</b>
-      <span class="count">${p.objects.length}</span></div>
-    ${p.objects.length ? `<div class="armrows">${p.objects.map(o => `
-      <div class="armrow${ARM.sel.has(o.id) ? ' sel' : ''}${o.hidden ? ' off' : ''}" onclick="armSelect(${o.id}, event)">
-        <button class="mini armeye" onclick="event.stopPropagation();armHide(${o.id})" title="${esc(tt('armory.hide_show'))}">${o.hidden ? '◌' : '●'}</button>
-        <span class="armrowname"><b>${esc(o.name)}</b> ${esc(o.mesh)}${o.flag ? ` <i class="count">${tt('armory.opt')}</i>` : ''}</span>
-        <button class="mini armx" onclick="event.stopPropagation();armDeleteObject(${o.id})" title="${esc(tt('armory.delete_object'))}">✕</button>
-      </div>`).join('')}</div>`
-      : `<div class="empty armempty">${tt('armory.no_objects_yet')}</div>`}`;
-}
-function armSelect(id, ev){
-  if(!(ev && (ev.shiftKey || ev.ctrlKey))) ARM.sel.clear();
-  if(ARM.sel.has(id) && ev && (ev.shiftKey || ev.ctrlKey)) ARM.sel.delete(id); else ARM.sel.add(id);
-  armPaintObjects(); armFrame();
-}
-function armHide(id){
-  const o = armObj(id); if(!o) return;
-  o.hidden = !o.hidden; armSave(); armPaintObjects(); armPaintBar(); armFrame();
-}
-function armDeleteObject(id){
-  const p = armProj();
-  p.objects = p.objects.filter(o => o.id !== id);
-  ARM.sel.delete(id);
-  armSave(); armPaintObjects(); armPaintAssets(); armPaintBar(); armFrame();
 }
 
 /* --- loading an asset ------------------------------------------------------ */
@@ -357,7 +351,6 @@ async function armLoadAsset(a){
     const r = await fetch(url, {cache: 'no-store'});
     if(!r.ok) throw await httpAnswer(r);
     live.geo = v3Parse(await r.arrayBuffer());
-    live.pivots = armPivots(live.geo);
     armUpload(live);
     armLoadSkin(a, live);
   }catch(e){ live.err = errText(e); }
@@ -366,18 +359,53 @@ async function armLoadAsset(a){
   return live;
 }
 
-/* every group's centre, which is what it turns and scales about */
-function armPivots(geo){
-  const out = [];
-  for(const g of geo.groups){
-    let x = 0, y = 0, z = 0, n = 0;
-    for(let i = g.start; i < g.start + g.count; i++){
-      const v = geo.indices[i];
-      x += geo.positions[v*3]; y += geo.positions[v*3+1]; z += geo.positions[v*3+2]; n++;
-    }
-    out.push(n ? [x/n, y/n, z/n] : [0, 0, 0]);
+/* Calls fn(vertex) for each index of a piece, every `step`-th one. */
+function armPieceEach(live, pc, fn, step){
+  const g = live.geo.groups[pc.group];
+  if(!g) return;
+  const I = live.geo.indices, k = step || 1;
+  if(pc.tris){
+    for(const t of pc.tris) for(let c = 0; c < 3; c += k) fn(I[g.start + t*3 + c]);
+  }else for(let i = g.start; i < g.start + g.count; i += k) fn(I[i]);
+}
+/* An object's centre, which it turns and scales about: the mean of its
+   pieces' indices where they stand, the way armory.object_mesh counts it. */
+const ARM_PIVOT = new WeakMap();
+function armPivot(o){
+  const sig = JSON.stringify(o.src || []);
+  const hit = ARM_PIVOT.get(o);
+  if(hit && hit.sig === sig && hit.ready) return hit.p;
+  let x = 0, y = 0, z = 0, n = 0, ready = true;
+  for(const pc of o.src || []){
+    const live = ARM.assets.get(pc.asset);
+    if(!live || !live.geo){ ready = false; continue; }
+    const P = live.geo.positions, m = pc.xf;
+    armPieceEach(live, pc, v => {
+      let px = P[v*3], py = P[v*3+1], pz = P[v*3+2];
+      if(m){ const q = [m[0]*px + m[4]*py + m[8]*pz + m[12], m[1]*px + m[5]*py + m[9]*pz + m[13], m[2]*px + m[6]*py + m[10]*pz + m[14]]; px = q[0]; py = q[1]; pz = q[2]; }
+      x += px; y += py; z += pz; n++;
+    });
   }
-  return out;
+  const p = n ? [x/n, y/n, z/n] : [0, 0, 0];
+  ARM_PIVOT.set(o, {sig, p, ready});
+  return p;
+}
+/* A split piece's own index buffer, made once per triangle list. */
+const ARM_SUB = new WeakMap();
+function armPieceBuffer(live, pc){
+  let hit = ARM_SUB.get(pc);
+  if(hit && hit.tris === pc.tris) return hit;
+  const gl = armGl();
+  const g = live.geo.groups[pc.group], I = live.geo.indices;
+  const idx = new Uint16Array(pc.tris.length * 3);
+  pc.tris.forEach((t, i) => { idx[i*3] = I[g.start + t*3]; idx[i*3+1] = I[g.start + t*3+1]; idx[i*3+2] = I[g.start + t*3+2]; });
+  if(hit && hit.buf) gl.deleteBuffer(hit.buf);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  hit = {buf, count: idx.length, tris: pc.tris};
+  ARM_SUB.set(pc, hit);
+  return hit;
 }
 
 function armObjTexture(a, group){
@@ -429,6 +457,7 @@ async function armLoadSkin(a, live){
       try{
         const img = await armImage('/api/armory/texture?path=' + enc(file));
         live.objTex[ob.index] = armTexture(img, 1);
+        (live.objImg = live.objImg || {})[ob.index] = img;
       }catch(e){ live.objTex[ob.index] = null; }
     }
     armFrame(); armThumbsPaint(true);
@@ -449,6 +478,7 @@ async function armLoadSkin(a, live){
     }
     if(same) live.uScale = 1.0;
     live.tex = armTexture(img, live.uScale);
+    live.img = img;
   }catch(e){ live.tex = null; }
   armFrame(); armThumbsPaint(true);
 }
@@ -480,7 +510,7 @@ function armGl(){
   ARM.prog = p;
   ARM.loc = {};
   for(const n of ['aPos', 'aNormal', 'aUv']) ARM.loc[n] = gl.getAttribLocation(p, n);
-  for(const n of ['uProj', 'uView', 'uModel', 'uTex', 'uHasTex', 'uUScale', 'uHi', 'uSel', 'uFlip', 'uTint', 'uTintOn'])
+  for(const n of ['uProj', 'uView', 'uModel', 'uTex', 'uHasTex', 'uUScale', 'uHi', 'uSel', 'uFlip', 'uXray', 'uCrop'])
     ARM.loc[n] = gl.getUniformLocation(p, n);
   gl.enable(gl.DEPTH_TEST);
   return gl;
@@ -588,6 +618,8 @@ function armFrame(){
 }
 
 function armVisibleObjects(){
+  // the detail view (armobj.js) shows its one object and nothing else
+  if(ARM.detail) return armProj().objects.filter(o => o.id === ARM.detail.id);
   return armProj().objects.filter(o => !o.hidden && !armCollHidden(o));
 }
 function armCollHidden(o){
@@ -599,17 +631,17 @@ function armCollHidden(o){
 function armBounds(objs){
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for(const o of objs){
-    const live = ARM.assets.get(o.asset);
-    if(!live || !live.geo) continue;
-    const g = live.geo.groups[o.group];
-    if(!g) continue;
-    const m = armObjMatrix(o, live.pivots[o.group]);
-    const P = live.geo.positions, I = live.geo.indices;
-    for(let i = g.start; i < g.start + g.count; i += 3){
-      const v = I[i];
-      const x = P[v*3], y = P[v*3+1], z = P[v*3+2];
-      const w = [m[0]*x + m[4]*y + m[8]*z + m[12], m[1]*x + m[5]*y + m[9]*z + m[13], m[2]*x + m[6]*y + m[10]*z + m[14]];
-      for(let k = 0; k < 3; k++){ if(w[k] < lo[k]) lo[k] = w[k]; if(w[k] > hi[k]) hi[k] = w[k]; }
+    const om = armObjMatrix(o, armPivot(o));
+    for(const pc of o.src || []){
+      const live = ARM.assets.get(pc.asset);
+      if(!live || !live.geo) continue;
+      const m = pc.xf ? armMul(om, pc.xf) : om;
+      const P = live.geo.positions;
+      armPieceEach(live, pc, v => {
+        const x = P[v*3], y = P[v*3+1], z = P[v*3+2];
+        const w = [m[0]*x + m[4]*y + m[8]*z + m[12], m[1]*x + m[5]*y + m[9]*z + m[13], m[2]*x + m[6]*y + m[10]*z + m[14]];
+        for(let k = 0; k < 3; k++){ if(w[k] < lo[k]) lo[k] = w[k]; if(w[k] > hi[k]) hi[k] = w[k]; }
+      }, 3);
     }
   }
   return lo[0] === Infinity ? null : [lo, hi];
@@ -657,30 +689,43 @@ function armRender(objs, w, h, cam, opts){
   gl.uniformMatrix4fv(L.uProj, false, new Float32Array(cam.proj));
   gl.uniformMatrix4fv(L.uView, false, new Float32Array(cam.view));
   gl.uniform1f(L.uFlip, o.faceOrient ? -1 : 1);
+  if(!o.plain && ARM.xray){ gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
   for(const ob of objs){
-    const live = ARM.assets.get(ob.asset);
-    if(!live || !live.buf || !live.geo) continue;
-    const g = live.geo.groups[ob.group];
-    if(!g) continue;
-    const m = armMul(ARM_MIRROR, armObjMatrix(ob, live.pivots[ob.group]));
-    gl.uniformMatrix4fv(L.uModel, false, new Float32Array(m));
-    const tex = live.objTex ? live.objTex[ob.group] : live.tex;
-    gl.uniform1f(L.uHasTex, tex ? 1 : 0);
-    gl.uniform1f(L.uUScale, live.objTex ? 1.0 : (live.uScale || 0.5));
-    if(tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(L.uTex, 0); }
-    gl.uniform1f(L.uHi, !o.plain && ARM.hover === ob.id ? 1 : 0);
-    gl.uniform1f(L.uSel, !o.plain && ARM.sel.has(ob.id) ? 1 : 0);
-    gl.uniform1f(L.uTintOn, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.pos);
-    gl.enableVertexAttribArray(L.aPos); gl.vertexAttribPointer(L.aPos, 3, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.nrm);
-    gl.enableVertexAttribArray(L.aNormal); gl.vertexAttribPointer(L.aNormal, 3, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.uv);
-    gl.enableVertexAttribArray(L.aUv); gl.vertexAttribPointer(L.aUv, 2, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, live.buf.idx);
-    gl.drawElements(gl.TRIANGLES, g.count, gl.UNSIGNED_SHORT, g.start * 2);
+    const om = armMul(ARM_MIRROR, armObjMatrix(ob, armPivot(ob)));
+    for(const pc of ob.src || []){
+      const live = ARM.assets.get(pc.asset);
+      if(!live || !live.buf || !live.geo) continue;
+      const g = live.geo.groups[pc.group];
+      if(!g) continue;
+      gl.uniformMatrix4fv(L.uModel, false, new Float32Array(pc.xf ? armMul(om, pc.xf) : om));
+      // a dyed object draws from its own crop of the sheet (armobj.js)
+      const dyed = typeof armDyedTexture === 'function' ? armDyedTexture(ob, pc) : null;
+      const tex = dyed ? dyed.tex : live.objTex ? live.objTex[pc.group] : live.tex;
+      gl.uniform1f(L.uHasTex, tex ? 1 : 0);
+      gl.uniform1f(L.uUScale, live.objTex ? 1.0 : (live.uScale || 0.5));
+      gl.uniform4fv(L.uCrop, dyed ? dyed.crop : [0, 0, 1, 1]);
+      if(tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(L.uTex, 0); }
+      gl.uniform1f(L.uHi, !o.plain && ARM.hover === ob.id ? 1 : 0);
+      gl.uniform1f(L.uSel, !o.plain && ARM.sel.has(ob.id) ? 1 : 0);
+      gl.uniform1f(L.uXray, !o.plain && ARM.xray ? 1 : 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.pos);
+      gl.enableVertexAttribArray(L.aPos); gl.vertexAttribPointer(L.aPos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.nrm);
+      gl.enableVertexAttribArray(L.aNormal); gl.vertexAttribPointer(L.aNormal, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.uv);
+      gl.enableVertexAttribArray(L.aUv); gl.vertexAttribPointer(L.aUv, 2, gl.FLOAT, false, 0, 0);
+      if(pc.tris){
+        const sub = armPieceBuffer(live, pc);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sub.buf);
+        gl.drawElements(gl.TRIANGLES, sub.count, gl.UNSIGNED_SHORT, 0);
+      }else{
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, live.buf.idx);
+        gl.drawElements(gl.TRIANGLES, g.count, gl.UNSIGNED_SHORT, g.start * 2);
+      }
+    }
   }
   gl.disable(gl.SCISSOR_TEST);
+  gl.disable(gl.BLEND); gl.depthMask(true);
   return true;
 }
 
@@ -712,7 +757,7 @@ function armThumbsPaint(fresh){
     const key = k.slice(0, cut), group = +k.slice(cut + 1);
     const live = ARM.assets.get(key);
     if(!live || !live.geo || !live.buf) continue;
-    const ob = {id: -1, asset: key, group, t: [0,0,0], r: [0,0,0], s: [1,1,1]};
+    const ob = {id: -1, src: [{asset: key, group}], t: [0,0,0], r: [0,0,0], s: [1,1,1]};
     const b = armBounds([ob]);
     if(!b) continue;
     const [lo, hi] = b;
@@ -734,23 +779,34 @@ function armThumbsPaint(fresh){
 
 function armInstallControls(c){
   let drag = null;
+  c.tabIndex = 0;
   c.addEventListener('pointerdown', e => {
-    drag = {x: e.clientX, y: e.clientY, button: e.button, moved: false};
+    c.focus({preventScroll: true});
+    if(typeof armPointerDown === 'function' && armPointerDown(e)) return;
+    drag = {x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, button: e.button, moved: false};
     c.setPointerCapture(e.pointerId);
   });
   c.addEventListener('pointermove', e => {
-    if(!drag) return;
+    if(!drag){ if(typeof armHoverAt === 'function') armHoverAt(e); return; }
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-    if(Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+    if(Math.abs(e.clientX - drag.x0) + Math.abs(e.clientY - drag.y0) > 3) drag.moved = true;
     drag.x = e.clientX; drag.y = e.clientY;
+    if(drag.button === 0 && typeof armBoxDrag === 'function' && armBoxDrag(drag, e)) return;
+    if(!drag.moved) return;
     if(drag.button === 1 && e.shiftKey || drag.button === 2) armPan(dx, dy);
-    else{
+    else if(drag.button === 0 || drag.button === 1){
       ARM.cam.yaw -= dx * 0.01;
       ARM.cam.pitch = Math.max(-1.5, Math.min(1.5, ARM.cam.pitch + dy * 0.01));
     }
     armFrame();
   });
-  c.addEventListener('pointerup', () => { drag = null; });
+  c.addEventListener('pointerup', e => {
+    const d = drag; drag = null;
+    if(!d) return;
+    if(d.box && typeof armBoxEnd === 'function'){ armBoxEnd(d, e); return; }
+    if(!d.moved && d.button === 0 && typeof armClick === 'function') armClick(e);
+  });
+  c.addEventListener('pointerleave', () => { if(typeof armHoverAt === 'function') armHoverAt(null); });
   c.addEventListener('contextmenu', e => e.preventDefault());
   c.addEventListener('wheel', e => {
     e.preventDefault();
@@ -869,7 +925,7 @@ function armImportRows(){
         <b>${esc(e.name)}</b> <span class="count">${esc(e.mesh)} · ${esc(e.skeletons.join(', '))}</span></label>`;
     }
   }
-  if(total > shown) html += `<div class="count">${tt('armory.more_rows', {n: total - shown})}</div>`;
+  if(total > shown) html += `<div class="count">${ttN('armory.more_rows', total - shown)}</div>`;
   el.innerHTML = html || `<div class="count">${tt('armory.nothing_matches')}</div>`;
 }
 function armImportPick(k, on, input){
@@ -880,14 +936,14 @@ function armImportPick(k, on, input){
 }
 function armImportCount(){
   const el = document.getElementById('armImpCount');
-  if(el && state.armImp.tab === 'mod') el.textContent = tt('armory.n_picked', {n: state.armImp.picked.size});
+  if(el && state.armImp.tab === 'mod') el.textContent = ttN('armory.n_picked', state.armImp.picked.size);
   else if(el) el.textContent = '';
 }
 
 async function armImportBrowse(){
   let r;
   try{ r = await api.post('/api/browse_file', {title: tt('armory.file_title'),
-    filter: 'Models|*.obj;*.glb;*.gltf;*.dae'}); }
+    filter: 'Models|*.obj;*.glb;*.gltf;*.dae;*.mesh'}); }
   catch(e){ toast(errText(e)); return; }
   if(r && r.path){
     state.armImp.path = r.path;

@@ -137,6 +137,76 @@ first = m.bones[m.bone_ids[4 + 2]]
 check(f"and the heavier one's bone is in the third byte ({first})", first == "bone_head")
 
 # ---------------------------------------------------------------------------
+print("\nObjects (95f)")
+
+if horse is not None:
+    shutil.copy(horse_path, tmp / "horse.mesh")
+    # the reference horse, loose on disk, stands in for an asset
+    assets = {"ext|" + str(tmp / "horse.mesh").lower(): {"kind": "external", "path": str(tmp / "horse.mesh")}}
+    key = next(iter(assets))
+    src = armory.asset_mesh(assets[key], None)
+    whole = {"id": 1, "name": "Body", "mesh": "b", "src": [{"asset": key, "group": 1}],
+             "t": [0, 0, 0], "r": [0, 0, 0], "s": [1, 1, 1]}
+    om = armory.object_mesh(whole, assets, None)
+    g = src.groups[1]
+    check(f"an object of one whole group has its triangles ({om.triangles} of {g.triangles})",
+          om.triangles == g.triangles)
+    check("and only the vertices they use", om.vertices == len(set(g.indices)))
+    moved = dict(whole, t=[0.5, 0, 0], s=[2, 2, 2], r=[0, 90, 0])
+    mm = armory.object_mesh(moved, assets, None)
+    c0 = [sum(om.positions[i::3]) / om.vertices for i in range(3)]
+    c1 = [sum(mm.positions[i::3]) / mm.vertices for i in range(3)]
+    check("moved by its own t, about its own centre", abs(c1[0] - c0[0] - 0.5) < 0.05 and abs(c1[1] - c0[1]) < 0.05)
+    lo0, hi0 = om.bounds()
+    lo1, hi1 = mm.bounds()
+    check("scaled 2 and turned 90 about y: x and z swap their extents, doubled",
+          abs((hi1[0] - lo1[0]) - 2 * (hi0[2] - lo0[2])) < 0.02
+          and abs((hi1[2] - lo1[2]) - 2 * (hi0[0] - lo0[0])) < 0.02)
+    half = dict(whole, src=[{"asset": key, "group": 1, "tris": list(range(0, g.triangles, 2))}])
+    check("a split piece holds only its triangles",
+          armory.object_mesh(half, assets, None).triangles == len(range(0, g.triangles, 2)))
+    xf = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 2, 0, 1]
+    up = dict(whole, src=[{"asset": key, "group": 1, "xf": xf}])
+    cu = armory.object_mesh(up, assets, None).bounds()
+    check("a merged piece keeps its own matrix (2 up)", abs(cu[0][1] - lo0[1] - 2) < 1e-4)
+
+    # transfer weights: the horse's head, its weights taken away, takes them
+    # back from the rest of the horse
+    head_i = next(i for i, gg in enumerate(horse.groups) if gg.name == "Head")
+    project = {"assets": list(assets.values()), "objects": [
+        {"id": i + 1, "name": gg.name, "mesh": gg.texture_group, "src": [{"asset": key, "group": i}],
+         "t": [0, 0, 0], "r": [0, 0, 0], "s": [1, 1, 1]} for i, gg in enumerate(src.groups)]}
+    own = armory.object_mesh(project["objects"][head_i], assets, None)
+    got = armory.transfer_for(project, head_i + 1, "face", None)
+    check(f"weights transferred for every vertex ({got['n']})", got["n"] == own.vertices)
+    project["objects"][head_i]["weights"] = got
+    back = armory.object_mesh(project["objects"][head_i], assets, None)
+    first = [back.bones[back.bone_ids[v * 4 + 2]] for v in range(back.vertices)]
+    was = [own.bones[own.bone_ids[v * 4 + 2]] for v in range(own.vertices)]
+    agree = sum(a.lower() == b.lower() for a, b in zip(first, was)) / len(was)
+    check(f"and the head's strongest bone comes back as it was on {agree:.0%} of them", agree > 0.7)
+
+    remap, missing = armory.bone_remap(["bone_RThigh", "bone_Rhand", "bone_tail"],
+                                       ["bone_rthigh", "bone_rhand", "bone_pelvis"])
+    check("bones match across the archer and melee spellings", remap == [0, 1, -1] and missing == ["bone_tail"])
+
+import subprocess
+node = shutil.which("node")
+if node:
+    js = (ROOT / "web" / "js" / "armobj.js").read_text(encoding="utf-8")
+    probe = ("const tt=x=>x,ttN=x=>x;" + js + ";console.log(JSON.stringify(["
+             "armFixName('Cube'),armFixName('sword_blade'),armFixName('hair1'),armFixName('hair_1'),"
+             "armFixName('hair__1'),armFixName('Body__body_01.001'),armChannel(0.5,0.5,0.52),"
+             "armChannel(0.95,0.95,0.95),armChannel(0.8,0.1,0.1)]))")
+    (tmp / "probe.js").write_text(probe, encoding="utf-8")
+    out = subprocess.run([node, str(tmp / "probe.js")], capture_output=True, text=True, timeout=60)
+    got = __import__("json").loads(out.stdout or "null")
+    check(f"the Blender kit's name fix, in the page ({got})",
+          got and got[:6] == ["Cube__Cube", "sword__blade", "hair__hair_1", "hair__hair_1",
+                              "hair__hair_1", "Body__body_01"])
+    check("grey is metal, white is white, red is cloth", got and got[6:] == ["metal", "white", "cloth"])
+
+# ---------------------------------------------------------------------------
 print("\nThe project")
 armory.save_project({"v": 1, "objects": [{"id": 1}]})
 check("a project saves and loads back", armory.load_project() == {"v": 1, "objects": [{"id": 1}]})
