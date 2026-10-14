@@ -35,7 +35,7 @@ const CARD_KIND_ICON={card:'🃏',info:'🖼'};
 async function loadCards(){
   const mod=state.src;
   const job=newJob();
-  main.innerHTML=bmdbTabsHtml(tt('cards.data_ui_units_data_ui_unit'))+
+  main.innerHTML=bmdbTabsHtml(tt('cards.data_ui_units_data_ui_unit'))+cardsSubTabsHtml()+
     `<div class="empty" style="max-width:460px;margin:60px auto">
       <div class="progress-track"><div class="progress-fill" id="jobFill" style="width:0%"></div></div>
       <div class="count" style="margin-top:8px"><b id="jobPct">0%</b>
@@ -92,11 +92,20 @@ const cdRows=(list)=>{const q=cdQuery(); return list.filter(r=>cdMatch(r,q));};
 const cdShownNote=(shown,all)=>shown.length===all.length?''
   :`<div class="count" style="margin-top:6px">${tt('cards.of_shown_the_rest_are_filtered',{shown_n:shown.length,all_n:all.length})}</div>`;
 
+/* 95m: the tab in two, Generate (cardgen.js) and Clean up (this file). */
+function cardsSubTabsHtml(){
+  const sub=state.cardsSub||'generate';
+  return `<div class="mftabs cdsub">
+    <button class="mftab${sub==='generate'?' on':''}" onclick="cardsSub('generate')">${tt('cards.sub_generate')}</button>
+    <button class="mftab${sub==='clean'?' on':''}" onclick="cardsSub('clean')">${tt('cards.sub_clean')}</button></div>`;
+}
+function cardsSub(s){state.cardsSub=s;s==='generate'?renderCardGen():(state.cards?renderCards():loadCards());}
 function renderCards(){
+  if((state.cardsSub||'generate')==='generate')return renderCardGen();
   if(!state.cards||state.cards.a.mod!==state.src)return loadCards();
   const c=state.cards,a=c.a;
   count.textContent=ttN('cards.files_total',a.kinds.reduce((n,k)=>n+k.file_count,0));
-  main.innerHTML=bmdbTabsHtml(tt('cards.data_ui_units_data_ui_unit'))+`
+  main.innerHTML=bmdbTabsHtml(tt('cards.data_ui_units_data_ui_unit'))+cardsSubTabsHtml()+`
     <div class="dbhead">
       <h2>${tt('cards.unit_and_info_cards',{mod:esc(a.mod)})}</h2>
       <span class="count">${ttN('cards.mod_units_summary',a.units,{kinds:a.kinds.map(k=>ttN('cards.kind_files',k.file_count,{label:esc(k.label)})).join(' · '),x:MB(cdFreeable())})}</span>

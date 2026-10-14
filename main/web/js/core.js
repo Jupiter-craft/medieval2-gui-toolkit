@@ -1828,7 +1828,7 @@ function render(){
   if(state.mode==='stratmap')return state.stm?renderStratmap():loadStratmap();
   if(state.mode==='casmodels')return renderCasModels();
   if(state.mode==='armory')return renderArmory();
-  if(state.mode==='cards')return state.cards?renderCards():loadCards();
+  if(state.mode==='cards')return (state.cardsSub||'generate')==='generate'?renderCardGen():state.cards?renderCards():loadCards();
   if(state.mode==='campmap')return state.cmap?renderCampmap():loadCampmap();
   if(state.mode==='buildings')return renderBuildings();
   if(state.mode==='strings')return state.str?renderStrings():loadStrings();

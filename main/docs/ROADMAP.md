@@ -422,8 +422,8 @@ and their lettered pieces are commits. Build the majors in this order.
 | Major | Phase | Feature | Pieces | Line |
 |---|---|---|---|---|
 | **0. Six reports** (done 2026-10-14) | **98** | Six reports of 2026-10-13: the Spanish wording, a Ko-fi link, the Strat map 3D panel losing its model, building art that needs a refresh, texture paths that point somewhere else, vanilla files read from the game's packs (and the shipped building art dropped) | 98a-98f | both |
-| **I. Models Editor and Armory Studio** (next) | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
-| **II. Campaign map** | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
+| **I. Models Editor and Armory Studio** (done 2026-10-14) | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
+| **II. Campaign map** (next) | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
 | | 96b-96d | Two layout faults (the green box, the bottom gap), ports and the capital by icon with one port per region, the garrison in the settlement editor | 96b, 96c, 96d | beta |
 | | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
 | | 96e4 | A new region wizard; many towns at once with auto-garrison | one | beta |
@@ -2349,6 +2349,36 @@ unit with preset poses, or play an animation and pause it; light it (level,
 direction, amount, type, ambient); render at 10x and scale down with the
 blur, colour and sharpen steps and the outline. A live preview of the card
 in HD at the top right and the finished pixel card at the bottom right.
+**Done 2026-10-14**: `web/js/cardgen.js`, `armory.save_card`,
+`/api/armory/cards/save`. The Unit cards tab opens on **Generate**, with
+**Clean up** (the menu that was there, `cards.js`) beside it. The maker draws
+the model Armory Studio holds (one variant of each group type unless *every*
+is asked for), through the same renderer, read without the Armory tab being
+opened (`armEnsureLoaded`). **Pose**: the six presets, each a frame of the
+real animation of that name from the loaded entries' skeletons (guard
+`stand_a_idle`, spear brace `ready`, archer draw `attack_missile_hold`
+halfway, riding a horse-riding skeleton's idle, march `walk`, T-pose the
+bind pose), said plainly when no loaded skeleton has one, or any animation
+stopped anywhere on a scrubber. **Light**: one lamp, a sun or a point,
+placed about the camera's own direction as the kit's lamp stays beside its
+camera, with direction, height, amount, level and an ambient (a card mode in
+the viewport's shader). **Render** orthographic at 10x the card (up to 40x),
+from a camera with turn, tilt, the kit's ortho scale 1.2 and a height; a
+second pass draws the silhouette, grown by the outline's width (0.30 card
+pixels) into the black line art. **Scale down**: blurred, drawn down at the
+card's size, then exposure, brightness, contrast, gamma, saturation and hue,
+and a 0.2 sharpen. The HD render is at the top right, the pixel card at the
+bottom right at 4x. Sizes: unit card 48x64, large 68x90, info card 180x230,
+or the user's own. **Save the card** writes `#<name>.tga` (or
+`<name>_info.tga`) and a `.png` under `config/armory/cards/<name>/`, and
+**Give it to the unit** plans and applies the unit editor's own card import,
+which copies it to every owning faction's folder through the edit door (so
+My Changes shows it and Undo takes it back); *Save the HD render* keeps the
+large one. Armory Studio's export (95k) opens the maker on the model and
+unit it just wrote. `tests/test_armory` (95).
+
+**Phase 95 is finished** (major I), 2026-10-14. Left for it: a written model
+loaded in game (95d on).
 
 **Answered 2026-10-06**: parts may come from any installed mod, not only the
 active one (the user: "yes it can from from different mods too"), the way the

@@ -397,7 +397,7 @@ function armExpModHtml(){
   }
   html += `<div class="armexprow"><button onclick="armExpModPlan()">${tt('armory.exp_plan')}</button>
       <button class="primary" onclick="armExpModApply()"${m.plan && m.plan.ok ? '' : ' disabled'}>${tt('armory.exp_write')}</button>
-      <button class="mini" disabled title="${esc(tt('armory.exp_cards_later'))}">${tt('armory.exp_cards')}</button></div>`;
+      <button class="mini" onclick="armExpCards()" title="${esc(tt('armory.exp_cards_later'))}">${tt('armory.exp_cards')}</button></div>`;
   if(m.plan) html += m.plan.steps.map((st, i) => `<div class="armissue ${st.errors.length ? 'error' : 'ok'}">
       <b>${m.plan.steps.length > 1 ? `${i + 1}. ` : ''}${armExpModStepTitle(st, m)}</b>
       ${st.lines.slice(1).map(l => `<div class="count">${esc(l)}</div>`).join('')}
@@ -437,4 +437,15 @@ async function armExpModApply(){
     toast(tt('armory.exp_written_mod', m.written));
   }catch(err){ e.err = errText(err); }
   e.busy = false; armExportPaint();
+}
+
+/* The unit card maker (95m) on this model, for the unit it went into. */
+function armExpCards(){
+  const m = armExpMod(), c = cg();
+  const unit = m.written && m.choice !== 'skip' ? m.written.name : m.unit;
+  if(unit) c.unit = unit;
+  if(!c.name) c.name = (m.choice === 'new' ? m.new_type : m.name || armExp().stem || '').replace(/[^A-Za-z0-9_\-]/g, '_');
+  closeModal();
+  state.cardsSub = 'generate';
+  setAppMode('cards');
 }

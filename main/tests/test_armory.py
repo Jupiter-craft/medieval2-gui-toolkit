@@ -14,6 +14,8 @@
     unit's new soldier model and a new unit from a template, each undoable.
   * the asset library (95l): kept once by place or by bytes, saved whole, and
     sorted by the units that wear each entry.
+  * unit cards (95m): a card saved as the game names it, the outline's growth
+    and the finish's colour steps.
 """
 import io
 import json
@@ -580,6 +582,45 @@ if game_k.is_dir() and AMER is not None and AMER.is_dir():
     check(f"an entry sorts by the units that wear it ({u.type}: {f1['type']} {f1['class']}, {len(f1['faction'])} factions)",
           u.category.lower() in f1["type"] and u.class_type.lower() in f1["class"] and f1["faction"])
     check("a file has none of those", fac[2] == {"class": [], "type": [], "faction": [], "tier": []})
+
+# ---------------------------------------------------------------------------
+print("\nUnit cards, Generate (95m)")
+
+import base64 as _b64
+buf = io.BytesIO()
+Image.new("RGBA", (48, 64), (120, 40, 40, 255)).save(buf, "PNG")
+url = "data:image/png;base64," + _b64.b64encode(buf.getvalue()).decode()
+got = armory.save_card("Elf Guard", "card", url)
+check(f"a unit card is saved as the game names it ({Path(got['path']).name})",
+      Path(got["path"]).name == "#Elf_Guard.tga" and Image.open(got["path"]).size == (48, 64))
+got = armory.save_card("Elf Guard", "info", url)
+check("an info card as <name>_info.tga, with a .png beside it",
+      Path(got["path"]).name == "Elf_Guard_info.tga" and Path(got["path"]).with_suffix(".png").is_file())
+try:
+    armory.save_card("", "card", url)
+    refused = False
+except armory.ArmoryError:
+    refused = True
+check("a card with no name is refused", refused)
+if node:
+    js = (ROOT / "web" / "js" / "cardgen.js").read_text(encoding="utf-8")
+    probe = ("const tt=x=>x,ttN=x=>x,state={},ARM={};" + js + r""";
+const m = new Uint8Array(9 * 9); m[4 * 9 + 4] = 1;
+const g = cgDilate(m, 9, 9, 2); let n = 0; for(const v of g) n += v;
+const d = new Uint8ClampedArray([100, 150, 200, 255]);
+cgFinish(d, 1, 1, {exposure: 0, brightness: 0, contrast: 1, gamma: 1, saturation: 1, hue: 0, sharpen: 0});
+const e = new Uint8ClampedArray([100, 150, 200, 255]);
+cgFinish(e, 1, 1, {exposure: 0, brightness: 0, contrast: 1, gamma: 1, saturation: 0, hue: 0, sharpen: 0});
+console.log(JSON.stringify({n, same: Array.from(d), grey: Array.from(e)}));
+""")
+    (tmp / "probe5.js").write_text(probe, encoding="utf-8")
+    out = subprocess.run([node, str(tmp / "probe5.js")], capture_output=True, text=True, timeout=60)
+    got = json.loads(out.stdout or "null") or {}
+    check(f"the outline grows the silhouette by its width (a pixel grown by 2 covers {got.get('n')})", got.get("n") == 25)
+    check(f"the finish at its neutral settings leaves a pixel alone ({got.get('same')})",
+          got.get("same") and max(abs(a - b) for a, b in zip(got["same"], [100, 150, 200, 255])) <= 1)
+    grey = got.get("grey") or [0, 1, 2]
+    check(f"and saturation 0 makes it grey ({grey})", max(grey[:3]) - min(grey[:3]) <= 1)
 
 # ---------------------------------------------------------------------------
 print("\nThe project")

@@ -1154,3 +1154,36 @@ def transfer_for(project: dict, obj_id: int, mode: str, mod_of) -> dict:
     w, ids, bones = transfer_weights(tm, sources, mode=mode)
     return {"n": tm.vertices, "bones": bones, "mode": mode,
             "data": base64.b64encode(w.tobytes() + ids).decode("ascii")}
+
+
+# ---------------------------------------------------------------------------
+# unit cards (95m): what the card maker drew, kept as the game reads it
+
+
+
+def save_card(name: str, kind: str, png_data_url: str) -> dict:
+    """A card the page drew, written as ``.tga`` (and ``.png``) under
+    ``config/armory/cards/<name>/``: ``#<name>.tga`` for a unit card,
+    ``<name>_info.tga`` for an info card, ``<name>_<w>x<h>`` for another size
+    and ``<name>_hd.png`` for the HD render. The unit editor's card import
+    takes the ``.tga`` from there into every owning faction's folder."""
+    import io
+    from PIL import Image
+    safe = re.sub(r"[^A-Za-z0-9_\-]", "_", (name or "").strip())
+    if not safe:
+        raise ArmoryError(_i18n.msg("eng.armory.card_needs_name", "give the card a name"))
+    head, _, b64 = (png_data_url or "").partition(",")
+    if "image/png" not in head or not b64:
+        raise ArmoryError(_i18n.msg("eng.armory.card_not_png", "the card did not come as a PNG"))
+    img = Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGBA")
+    folder = ARMORY_DIR / "cards" / safe
+    folder.mkdir(parents=True, exist_ok=True)
+    if kind == "hd":
+        out = folder / f"{safe}_hd.png"
+        img.save(out)
+        return {"path": str(out), "kind": kind, "size": list(img.size)}
+    stem = {"card": f"#{safe}", "info": f"{safe}_info"}.get(kind, f"{safe}_{img.width}x{img.height}")
+    img.save(folder / f"{stem}.png")
+    out = folder / f"{stem}.tga"
+    img.save(out)
+    return {"path": str(out), "kind": kind, "size": list(img.size)}

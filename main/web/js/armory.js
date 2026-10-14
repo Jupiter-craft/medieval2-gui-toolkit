@@ -45,6 +45,8 @@ precision mediump float;
 varying vec3 vNormal; varying vec2 vUv; varying vec3 vPos;
 uniform sampler2D uTex, uNTex;
 uniform float uHasTex, uUScale, uHi, uSel, uFlip, uXray, uHasN;
+uniform float uCard, uMask, uLAmt, uAmb, uLevel, uPoint;
+uniform vec3 uLDir, uLPos;
 uniform vec4 uCrop;
 ${V3_ENV}
 void main(){
@@ -68,6 +70,14 @@ void main(){
   vec3 light = v3Env(n) * 0.62 + vec3(1.0, 0.96, 0.9) * 0.5 * max(dot(n, normalize(vec3(0.4, 0.8, 0.5))), 0.0)
              + vec3(0.62, 0.7, 0.85) * 0.2 * max(dot(n, normalize(vec3(-0.6, 0.2, -0.7))), 0.0);
   vec3 col = pow(clamp(base.rgb * light, 0.0, 1.0), vec3(0.78));
+  if(uCard > 0.5){
+    // 95m: the card maker's one lamp, a sun or a point, and an ambient
+    vec3 L = uPoint > 0.5 ? uLPos - vPos : uLDir;
+    float att = uPoint > 0.5 ? 1.0 / (1.0 + 0.08 * dot(L, L)) : 1.0;
+    float k = max(dot(n, normalize(L)), 0.0) * uLAmt * att;
+    col = clamp(base.rgb * (uAmb + k) * uLevel, 0.0, 1.0);
+  }
+  if(uMask > 0.5){ gl_FragColor = vec4(1.0); return; }
   col = mix(col, vec3(0.36, 0.55, 0.94), uHi * 0.28);
   col = mix(col, vec3(0.97, 0.62, 0.18), uSel * 0.30);
   // face orientation, Blender's colours: blue the front, red the back
@@ -108,18 +118,25 @@ function armObj(id){ return armProj().objects.find(o => o.id === id); }
 
 /* --- the tab --------------------------------------------------------------- */
 
+/* The project and its assets, read once a session; the card maker (95m)
+   draws the same model without the tab being opened. */
+async function armEnsureLoaded(){
+  if(ARM.loaded) return;
+  ARM.loaded = true;
+  try{ state.armProj = await api.get('/api/armory/project'); }catch(e){ state.armProj = null; }
+  const p = armProj();
+  p.objects = p.objects || []; p.assets = p.assets || []; p.collections = p.collections || [];
+  // 95e kept one source per object; an object holds pieces from 95f on
+  for(const o of p.objects) if(!o.src){ o.src = [{asset: o.asset, group: o.group}]; delete o.asset; delete o.group; }
+  ARM.loading = Promise.all(p.assets.map(a => armLoadAsset(a)));
+  armLoadPresets().then(() => { if(state.mode === 'armory') armPaintObjects(); });
+}
+
 async function renderArmory(){
   count.textContent = '';
   if(!ARM.loaded){
-    ARM.loaded = true;
-    try{ state.armProj = await api.get('/api/armory/project'); }catch(e){ state.armProj = null; }
-    const p = armProj();
-    p.objects = p.objects || []; p.assets = p.assets || []; p.collections = p.collections || [];
-    // 95e kept one source per object; an object holds pieces from 95f on
-    for(const o of p.objects) if(!o.src){ o.src = [{asset: o.asset, group: o.group}]; delete o.asset; delete o.group; }
+    await armEnsureLoaded();
     if(stale('armory')) return;
-    p.assets.forEach(a => armLoadAsset(a));
-    armLoadPresets().then(() => { if(state.mode === 'armory') armPaintObjects(); });
   }
   main.innerHTML = bmdbTabsHtml(tt('armory.tab_note')) + `<div class="armgrid" id="armGrid">
     <aside class="armleft" id="armLeft"></aside>
@@ -529,7 +546,8 @@ function armGl(){
   ARM.prog = p;
   ARM.loc = {};
   for(const n of ['aPos', 'aNormal', 'aUv']) ARM.loc[n] = gl.getAttribLocation(p, n);
-  for(const n of ['uProj', 'uView', 'uModel', 'uTex', 'uHasTex', 'uUScale', 'uHi', 'uSel', 'uFlip', 'uXray', 'uCrop', 'uNTex', 'uHasN'])
+  for(const n of ['uProj', 'uView', 'uModel', 'uTex', 'uHasTex', 'uUScale', 'uHi', 'uSel', 'uFlip', 'uXray', 'uCrop', 'uNTex', 'uHasN',
+                  'uCard', 'uMask', 'uLAmt', 'uAmb', 'uLevel', 'uPoint', 'uLDir', 'uLPos'])
     ARM.loc[n] = gl.getUniformLocation(p, n);
   gl.enable(gl.DEPTH_TEST);
   return gl;
@@ -709,6 +727,15 @@ function armRender(objs, w, h, cam, opts){
   gl.uniformMatrix4fv(L.uProj, false, new Float32Array(cam.proj));
   gl.uniformMatrix4fv(L.uView, false, new Float32Array(cam.view));
   gl.uniform1f(L.uFlip, o.faceOrient ? -1 : 1);
+  // the card maker's light (cardgen.js); the viewport's own otherwise
+  const lt = o.light;
+  gl.uniform1f(L.uCard, lt ? 1 : 0);
+  gl.uniform1f(L.uMask, o.mask ? 1 : 0);
+  if(lt){
+    gl.uniform1f(L.uLAmt, lt.amount); gl.uniform1f(L.uAmb, lt.ambient); gl.uniform1f(L.uLevel, lt.level);
+    gl.uniform1f(L.uPoint, lt.point ? 1 : 0);
+    gl.uniform3fv(L.uLDir, lt.dir); gl.uniform3fv(L.uLPos, lt.pos || [0, 0, 0]);
+  }
   if(!o.plain && ARM.xray){ gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
   const bindTex = (live, pc, ob) => {
     // a dyed object draws from its own crop of the sheet (armobj.js)
@@ -718,19 +745,20 @@ function armRender(objs, w, h, cam, opts){
     gl.uniform1f(L.uUScale, live.objTex ? 1.0 : (live.uScale || 0.5));
     gl.uniform4fv(L.uCrop, dyed ? dyed.crop : [0, 0, 1, 1]);
     if(tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(L.uTex, 0); }
-    const nTex = dyed && dyed.nTex && !o.plain ? dyed.nTex : null;
+    const nTex = dyed && dyed.nTex && (!o.plain || o.card) ? dyed.nTex : null;
     gl.uniform1f(L.uHasN, nTex ? 1 : 0);
     if(nTex){ gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, nTex); gl.uniform1i(L.uNTex, 1); gl.activeTexture(gl.TEXTURE0); }
   };
   for(const ob of objs){
     // posed by the animation previewer (armanim.js): already in the game's
     // space, its own move, turn and scale in it
-    const posed = !o.plain && typeof armAnimGeoFor === 'function' ? armAnimGeoFor(ob) : null;
+    // a card (95m) is drawn plain, but posed
+    const posed = (!o.plain || o.card) && typeof armAnimGeoFor === 'function' ? armAnimGeoFor(ob) : null;
     if(posed){
       gl.uniformMatrix4fv(L.uModel, false, new Float32Array(ARM_MIRROR));
-      gl.uniform1f(L.uHi, ARM.hover === ob.id ? 1 : 0);
-      gl.uniform1f(L.uSel, ARM.sel.has(ob.id) ? 1 : 0);
-      gl.uniform1f(L.uXray, ARM.xray ? 1 : 0);
+      gl.uniform1f(L.uHi, !o.plain && ARM.hover === ob.id ? 1 : 0);
+      gl.uniform1f(L.uSel, !o.plain && ARM.sel.has(ob.id) ? 1 : 0);
+      gl.uniform1f(L.uXray, !o.plain && ARM.xray ? 1 : 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, posed.glPos);
       gl.enableVertexAttribArray(L.aPos); gl.vertexAttribPointer(L.aPos, 3, gl.FLOAT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, posed.glNrm);

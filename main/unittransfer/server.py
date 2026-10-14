@@ -2731,6 +2731,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
             if u.path == "/api/armory/allow_texture":
                 return self._json({"ok": armory.allow_texture(body.get("path") or "")})
+            if u.path == "/api/armory/cards/save":
+                # 95m: a card the maker drew, as the game reads it
+                try:
+                    return self._json(armory.save_card(body.get("name") or "", body.get("kind") or "card",
+                                                       body.get("png") or ""))
+                except (armory.ArmoryError, OSError, ValueError) as e:
+                    return self._err(400, str(e))
             if u.path == "/api/armory/library":
                 # 95l: the library as the page edited it (names, notes, collections)
                 try:

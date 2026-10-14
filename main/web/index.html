@@ -3426,6 +3426,17 @@
   .armlibnotes{width:100%;min-height:54px}
   .armlibnote{padding-left:4px}
   .armlibpick{display:flex;gap:6px;align-items:baseline;padding:3px 0}
+  /* 95m: unit cards, Generate (cardgen.js) */
+  .cdsub{margin:6px 0}
+  .cggrid{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:12px;align-items:start}
+  .cgctl{display:flex;flex-direction:column;gap:6px;max-height:calc(100vh - 190px);overflow:auto}
+  .cgctl fieldset{border:1px solid var(--edge);border-radius:7px;padding:5px 8px;display:flex;flex-direction:column;gap:4px}
+  .cgrange{display:grid;grid-template-columns:110px 1fr 44px;gap:6px;align-items:center}
+  .cgout{display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+  .cghd canvas{max-width:100%;max-height:52vh;background:repeating-conic-gradient(#2a2f37 0 25%,#323844 0 50%) 0 0/16px 16px;border:1px solid var(--edge)}
+  .cgcard{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .cgcard canvas{image-rendering:pixelated;background:repeating-conic-gradient(#2a2f37 0 25%,#323844 0 50%) 0 0/16px 16px;border:1px solid var(--edge)}
+  @media (max-width:900px){.cggrid{grid-template-columns:1fr}.cgout{align-items:flex-start}}
   .armstamp{border:1px solid var(--edge);border-radius:6px;padding:4px 6px;margin-bottom:4px}
   /* 95j: normal maps (armnormal.js) */
   .armnorms{margin-top:8px;border-top:1px solid var(--edge);padding-top:6px}
@@ -3642,6 +3653,7 @@
 <script src="js/armanim.js"></script>
 <script src="js/armexport.js"></script>
 <script src="js/armlib.js"></script>
+<script src="js/cardgen.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->
 <script src="js/v3anim.js"></script>
 <!-- M18: after viewer3d.js, which owns the matrix helpers it shares. -->
