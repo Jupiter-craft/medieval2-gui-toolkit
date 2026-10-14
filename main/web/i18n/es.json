@@ -3533,7 +3533,6 @@
  "core.special_thanks": "Agradecimientos especiales",
  "core.sponsored_by": "Patrocinado por",
  "core.sprites": "Sprites",
- "core.strat_map": "Mapa estratégico",
  "core.strat_map_models": "Modelos del mapa estratégico",
  "core.strings": "Textos",
  "core.testing": "Pruebas",
@@ -10617,7 +10616,6 @@
  },
  "eng.cas.w_text_latin1": "{value} tiene un carácter que un .cas no puede guardar (se escribe en Latin-1)",
  "eng.cas.w_text_long": "un nombre de {n:,} caracteres es más largo de lo que admite el lector",
- "stratview.all_model_files": "Todos los archivos de modelos estratégicos",
  "editor.bring_them_in": "Traerlas aquí",
  "editor.no_file_at_this_path": "No hay ningún archivo en data/{path} en este mod",
  "editor.textures_coming_in": "✓ Al guardar se copian a {tex} y la entrada apunta allí. Si ya hay un archivo con el mismo nombre, se usa tal cual y no se sobrescribe.",
@@ -10654,5 +10652,10 @@
  "bmdb.role_soldier": "soldado",
  "bmdb.role_officer": "oficial {n}",
  "bmdb.role_upgrade": "mejora {n}",
- "bmdb.no_entry_called": "No hay ninguna entrada de modelo llamada {name} en este mod"
+ "bmdb.no_entry_called": "No hay ninguna entrada de modelo llamada {name} en este mod",
+ "core.strat_models": "Modelos estratégicos",
+ "core.cas_models": "Modelos CAS",
+ "core.cas_models_hint": "cada .cas bajo data/models_strat: asentamientos, edificios y lo demás que dibuja el mapa de campaña",
+ "stratmap.cas_models_title": "{src} - modelos CAS",
+ "stratmap.cas_models_intro": "Cada archivo .cas bajo data/models_strat. El juego elige los asentamientos y edificios de las carpetas por nivel y cultura, así que ninguna entrada los nombra; elige uno para dibujarlo junto a la lista."
 }

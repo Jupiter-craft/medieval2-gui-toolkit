@@ -3286,7 +3286,6 @@
  "core.special_thanks": "Besonderer Dank",
  "core.sponsored_by": "Gefördert von",
  "core.sprites": "Sprites",
- "core.strat_map": "Kampagnenkarte",
  "core.strat_map_models": "Modelle der Kampagnenkarte",
  "core.strings": "Strings",
  "core.testing": "Tests",
@@ -10148,7 +10147,6 @@
  },
  "eng.cas.w_text_latin1": "{value} enthält ein Zeichen, das eine .cas nicht halten kann (sie wird in Latin-1 geschrieben)",
  "eng.cas.w_text_long": "ein Name mit {n:,} Zeichen ist länger, als der Leser annimmt",
- "stratview.all_model_files": "Alle Strategiemodell-Dateien",
  "editor.bring_them_in": "Hineinholen",
  "editor.no_file_at_this_path": "Keine Datei unter data/{path} in dieser Mod",
  "editor.textures_coming_in": "✓ Beim Speichern werden diese nach {tex} kopiert und der Eintrag zeigt dorthin. Eine gleichnamige Datei, die dort schon liegt, wird so verwendet, wie sie ist, und nicht überschrieben.",
@@ -10184,5 +10182,10 @@
  "bmdb.role_officer": "Offizier {n}",
  "bmdb.no_entry_called": "Kein Modelleintrag namens {name} in dieser Mod",
  "bmdb.view_units_title": "Die Modelle nach der Einheit gruppiert, die sie verwendet: ihr Soldat, ihre Offiziere und ihre Rüstungs-Aufrüstungen in einer Reihe",
- "bmdb.role_upgrade": "Aufrüstung {n}"
+ "bmdb.role_upgrade": "Aufrüstung {n}",
+ "core.strat_models": "Strategiemodelle",
+ "core.cas_models": "CAS-Modelle",
+ "core.cas_models_hint": "jede .cas unter data/models_strat: Siedlungen, Gebäude und alles andere, was die Kampagnenkarte zeichnet",
+ "stratmap.cas_models_title": "{src} - CAS-Modelle",
+ "stratmap.cas_models_intro": "Jede .cas-Datei unter data/models_strat. Siedlungen und Gebäude wählt das Spiel nach Stufe und Kultur aus den Ordnern, daher nennt sie kein Eintrag; wähle eine aus, um sie neben der Liste zu zeichnen."
 }

@@ -2069,6 +2069,15 @@ characters out of `descr_model_strat.txt`, whose 3D button shows **that
 agent's model** in the docked viewer, not full screen. **CAS models**: the
 buildings and settlement models, moved there from where the 3D button opens
 them today.
+**Done 2026-10-14**: the Models Editor's tabs are Model entries, Sprites,
+**Strat models**, **CAS models** and Unit cards. Strat models is the
+`descr_model_strat.txt` list it was, and the 🧊 on an entry's card now closes
+the card and draws in the docked panel (it opened the full-screen viewer).
+CAS models (`casmodels`, `renderCasModels` in `stratmap.js`) is the list of
+every `.cas` under `data/models_strat` that 98c folded under the model, now a
+column of its own the page's length, beside the same docked viewer; closing
+the panel there only empties it. The fold and its setting are gone. Heirs of
+Elendil: 631 files.
 
 **95d - write a `.mesh`.** `mesh.write_mesh(model)` produces the boost
 archive from a `MeshFile`, its class bookkeeping derived from what is

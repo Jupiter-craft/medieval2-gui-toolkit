@@ -137,14 +137,24 @@ const STM_PREV_HOST = 'stmV3Host';
 //: time you open a tab is one that mostly does not get opened.
 const stmPrevOn = () => state.settings.stratmap_preview !== false;
 
-//: The folded file list under the model. Closed until it is opened, and then
-//: open every time after, until it is closed again.
-const stmBrowseOpen = () => state.settings.stratmap_browse_open === true;
-function stmBrowseToggle(open){
-  if(open) cmodLoad();
-  if(open === stmBrowseOpen()) return;
-  state.settings.stratmap_browse_open = open;
-  api.post('/api/settings', {stratmap_browse_open: open});
+/* ======================= CAS MODELS - 95c =================================
+   The second half of what was the Strat map tab: every .cas under
+   data/models_strat, the settlements and buildings that no descr_model_strat
+   entry names (the game picks them by level and culture out of the folder
+   tree), as a list beside the same docked viewer. Strat models keeps the
+   agents and characters. */
+function renderCasModels(){
+  if(!stmPrevNode) stmPrevMake('', '');
+  stmPrevDetach();
+  count.textContent = '';
+  main.innerHTML = bmdbTabsHtml('data/models_strat') + `<div class="bmsplit" id="stmSplit">
+    <div class="bmmain">
+      <div class="dbhead"><h2>${tt('stratmap.cas_models_title', {src: esc(state.src)})}</h2></div>
+      <div class="count" style="margin-top:4px">${tt('stratmap.cas_models_intro')}</div>
+      <div class="stmbrowse casbrowse" id="cmodBrowse"></div>
+    </div>
+  </div>`;
+  stmPrevAttach();
 }
 
 function stmPrevDetach(){
@@ -157,7 +167,8 @@ function stmPrevAttach(){
   split.appendChild(stmPrevNode);
   splitInstall(split, stmPrevNode, 'stratmap_prev_px', avail => Math.round(avail / 2));
   stmPrevBar();
-  if(stmBrowseOpen()) cmodLoad();   // the file browser, walked once per mod
+  // the CAS models tab's file list, walked once per mod
+  if(document.getElementById('cmodBrowse')) cmodLoad();
   stmPrevMount();
 }
 //: Build the panel without painting - `renderStratmap` opens it too, and
@@ -168,14 +179,10 @@ function stmPrevMake(rel, what){
     stmPrevNode = document.createElement('aside');
     stmPrevNode.className = 'bmprev';
     stmPrevNode.id = 'stmPrevCol';
-    // 98c: the model first and the file list folded under it. Above the view,
-    // the list arrived after the model had drawn and pushed it out of sight.
+    // 95c: the model alone. The list of every .cas file (98c folded it under
+    // the model) is the CAS models tab's own column now.
     stmPrevNode.innerHTML = `<div class="edprevbar" id="stmPrevBar"></div>
-      <div class="edprevbody" id="${STM_PREV_HOST}"></div>
-      <details class="bmloose"${stmBrowseOpen() ? ' open' : ''} ontoggle="stmBrowseToggle(this.open)">
-        <summary>${tt('stratview.all_model_files')}</summary>
-        <div class="stmbrowse" id="cmodBrowse"></div>
-      </details>`;
+      <div class="edprevbody" id="${STM_PREV_HOST}"></div>`;
   }
   if(rel){ stmPrevRel = rel; stmPrevWhat = what || rel.split('/').pop(); }
 }
@@ -202,6 +209,8 @@ function stmPrevClose(){
   if(typeof v3 !== 'undefined' && v3 && v3.host === STM_PREV_HOST) v3Unmount();
   stmPrevDetach();
   stmPrevNode = null; stmPrevRel = ''; stmPrevWhat = '';
+  // in CAS models the viewer IS the tab, so closing it only empties it
+  if(state.mode === 'casmodels') return renderCasModels();
   state.settings.stratmap_preview = false;
   api.post('/api/settings', {stratmap_preview: false});
   renderStratmap();
@@ -277,7 +286,7 @@ async function openStratEntry(name){
             // is the part of that decision nothing else could show.
             f.exists&&f.kind.indexOf('texture')<0
               ?` <button class="db3d" title="${ttA('stratmap.draw_this_model')}"
-                 onclick="v3OpenCas('${q1(esc(state.src))}','${q1(esc(f.rel))}')">🧊</button>`:''}</span>
+                 onclick="closeModal();stmPrevOpen('${q1(esc(f.rel))}','${q1(esc(r.name))}')">🧊</button>`:''}</span>
         </div>`).join('')||`<div class="count">${tt('common.none')}</div>`}</div>
         ${r.factions.length?`<div class="count" style="margin-top:6px">${tt('stratmap.texture_factions',{x:r.factions.map(f=>`<code>${esc(f)}</code>`).join(' ')})}</div>`:''}
       </fieldset>
