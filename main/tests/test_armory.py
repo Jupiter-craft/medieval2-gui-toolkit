@@ -12,6 +12,8 @@
     preview against the bake, Skip flat and Specialized per material.
   * into a mod (95k): role templates measured on a mod, and a new entry, a
     unit's new soldier model and a new unit from a template, each undoable.
+  * the asset library (95l): kept once by place or by bytes, saved whole, and
+    sorted by the units that wear each entry.
 """
 import io
 import json
@@ -540,6 +542,44 @@ if horse is not None and AMER is not None and AMER.is_dir():
     check("and the unit it came from is unchanged", after.edu.by_type()[unit_k].soldier_model.lower() == "armory_foot")
 else:
     print("  no mod installed to write into; skipped")
+
+# ---------------------------------------------------------------------------
+print("\nThe asset library (95l)")
+
+from unittransfer import armlib
+lib = armlib.load()
+check("an empty library to start", lib == {"items": [], "collections": [], "categories": []})
+a1 = armlib.add(lib, {"kind": "entry", "mod": "americas", "entry": "peasants", "file_hash": "abc", "name": "Peasants"})
+a2 = armlib.add(lib, {"kind": "entry", "mod": "americas", "entry": "peasants"})
+a3 = armlib.add(lib, {"kind": "entry", "mod": "teutonic", "entry": "farmers", "file_hash": "abc"})
+a4 = armlib.add(lib, {"kind": "external", "path": "C:/m/Shield.glb"})
+check("a model is kept once, with its own name", a1.get("item", {}).get("name") == "Peasants" and a1["item"]["id"] == 1)
+check("the same entry again is refused as the same", a2.get("why") == "same" and a2["same"]["id"] == 1)
+check("so is another entry whose model file is byte for byte the same", a3.get("why") == "art")
+check("a file is named by its file name", a4.get("item", {}).get("name") == "Shield.glb")
+lib["collections"].append({"id": 1, "name": "Elves"})
+lib["items"][0]["collections"] = [1]
+lib["items"][0]["notes"] = "good shield"
+armlib.save(lib)
+check("names, notes and collections save and load back", armlib.load() == lib)
+try:
+    armlib.check_lib({"nope": 1})
+    refused = False
+except armory.ArmoryError:
+    refused = True
+check("something that is not a library is not saved", refused)
+
+if game_k.is_dir() and AMER is not None and AMER.is_dir():
+    amer = Mod(AMER)
+    u = next(x for x in amer.edu.units if x.category and x.class_type
+             and amer.modeldb.by_name().get((x.soldier_model or "").lower()))
+    lib2 = {"items": [{"id": 1, "kind": "entry", "mod": "americas", "entry": u.soldier_model},
+                      {"id": 2, "kind": "external", "path": "x.obj"}], "collections": [], "categories": []}
+    fac = armlib.facets(lib2, lambda n: amer)
+    f1 = fac[1]
+    check(f"an entry sorts by the units that wear it ({u.type}: {f1['type']} {f1['class']}, {len(f1['faction'])} factions)",
+          u.category.lower() in f1["type"] and u.class_type.lower() in f1["class"] and f1["faction"])
+    check("a file has none of those", fac[2] == {"class": [], "type": [], "faction": [], "tier": []})
 
 # ---------------------------------------------------------------------------
 print("\nThe project")

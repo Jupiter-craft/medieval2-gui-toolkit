@@ -3417,6 +3417,15 @@
   .armexpchoice{align-items:baseline}
   .armexpwarn{color:#d9a43a;font-size:12.5px}
   .armwide{width:320px;max-width:100%}
+  /* 95l: the asset library (armlib.js) */
+  .armlib{display:flex;flex-direction:column;gap:8px}
+  .armlibrows{max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
+  .armlibgroup{border:1px solid var(--edge);border-radius:7px;padding:4px 6px;background:var(--panel2)}
+  .armlibrow{border-top:1px solid var(--edge);padding:5px 2px;display:flex;flex-direction:column;gap:4px}
+  .armlibname{width:240px;font-weight:600}
+  .armlibnotes{width:100%;min-height:54px}
+  .armlibnote{padding-left:4px}
+  .armlibpick{display:flex;gap:6px;align-items:baseline;padding:3px 0}
   .armstamp{border:1px solid var(--edge);border-radius:6px;padding:4px 6px;margin-bottom:4px}
   /* 95j: normal maps (armnormal.js) */
   .armnorms{margin-top:8px;border-top:1px solid var(--edge);padding-top:6px}
@@ -3632,6 +3641,7 @@
 <script src="js/armview.js"></script>
 <script src="js/armanim.js"></script>
 <script src="js/armexport.js"></script>
+<script src="js/armlib.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->
 <script src="js/v3anim.js"></script>
 <!-- M18: after viewer3d.js, which owns the matrix helpers it shares. -->

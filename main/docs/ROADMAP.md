@@ -2327,6 +2327,20 @@ one undone.
 later, each with a name and notes of the user's own beside its code name,
 and custom collections and categories. By default the categories are unit
 class, unit type, faction and tier.
+**Done 2026-10-14**: `unittransfer/armlib.py`, `web/js/armlib.js`,
+`/api/armory/library` (read, save) and `/api/armory/library/add`. The library
+is `config/armory/library.json`: each item where its model is (a mod's entry,
+or a file), a name of the user's own beside its code name, notes, and the
+user's own collections and categories, never the art. **＋ Library** on a
+loaded asset keeps it; one already kept is refused, by its place or, for the
+same model file in another mod or under another entry, by its bytes (the 95e
+hash). **Library** in the bar opens it grouped by unit class, unit type,
+faction or tier (worked out from the units of its mod that wear each entry,
+as soldier, officer or armour upgrade, and the factions it has a skin for),
+by collection or category, or not at all; the find box repaints only the rows
+under it; each item renames, takes notes, ticks its collections and
+categories, and loads. The import dialog's *From the asset library* tab picks
+items to load. `tests/test_armory` (89).
 
 **95m - Unit cards in two.** The Unit cards tab splits into **Generate**,
 the card maker as a system of its own, and **Clean up**, the menu that is

@@ -148,6 +148,7 @@ function armPaintBar(){
     <span class="count">${tt('armory.bar_counts', {objects: p.objects.length, tris: tris.toLocaleString()})}</span>
     <span style="flex:1"></span>
     <button class="mini" onclick="armFrameAll()" title="${esc(tt('armory.frame_all_title'))}">${tt('armory.frame_all')}</button>
+    <button class="mini" onclick="armLibOpen()" title="${esc(tt('armory.lib_open_title'))}">${tt('armory.lib_open')}</button>
     <button class="mini" onclick="armNew()">${tt('armory.new_project')}</button>
     <button class="mini primary" onclick="armExportOpen()"${p.objects.length ? '' : ' disabled'} title="${esc(tt('armory.export_title'))}">${tt('armory.export_button')}</button>`;
 }
@@ -228,6 +229,7 @@ function armAssetHtml(a){
       <span class="armname" title="${esc(a.kind === 'external' ? a.path : a.mesh || '')}">${esc(armAssetLabel(a))}</span>
       ${isBase ? `<span class="pill">${tt('armory.base')}</span>` : ''}
       <span class="count">${v ? ttN('armory.asset_sub', v.objects.length, {where: sub}) : sub}</span>
+      <button class="mini" onclick="event.stopPropagation();armLibAddAsset('${esc(key)}')" title="${esc(tt('armory.lib_add_title'))}">${tt('armory.lib_add')}</button>
       <button class="mini armx" onclick="event.stopPropagation();armRemoveAsset('${esc(key)}')" title="${esc(tt('armory.remove_asset'))}">✕</button>
     </div>${body}</div>`;
 }
@@ -995,6 +997,7 @@ function armImportPick(k, on, input){
 function armImportCount(){
   const el = document.getElementById('armImpCount');
   if(el && state.armImp.tab === 'mod') el.textContent = ttN('armory.n_picked', state.armImp.picked.size);
+  else if(el && state.armImp.tab === 'library') el.textContent = ttN('armory.n_picked', (state.armImp.libPicked || new Set()).size);
   else if(el) el.textContent = '';
 }
 

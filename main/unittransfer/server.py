@@ -706,7 +706,7 @@ from typing import Dict, List, Optional
 from . import (bmdb, buildings, cards, cleaner, codeview, config, dupes, edit,
                modflags, modfiles, sounds, stratmap)
 from . import mapgen, mapnew, mapresize
-from . import armory, armbake, armunit, loosemesh, meshfolder, modeldb, modeltext
+from . import armory, armbake, armlib, armunit, loosemesh, meshfolder, modeldb, modeltext
 from . import ancillaries, areaeffects, campimport, edbimport, mapbundle, osmmap, osmsites, settlemodel, heroabilities, hordestart, walls, characters, projectzip, campaint, campdb, campevents, campfiles, campmap, campnew, campstrat, cas, casanim, animedit, animpack, animslot, animview, modelexport, launchcheck, packhouse, settlemech, fileswap, factionsites, sidefiles, banners, changesets, health, climatenew, guilds, mapcheck, mapfe, mapquery, mapterrain, mercpools, regiondel, edusort, factionaudit, factionclone, factions, images, mesh, minorfiles, namekeys, portrecords, rawtext, rebelpools, renames, soundbanks, soundscripts, spawns, sprites, stratcamp, stratchar, stratedit, stratobj, strings, traits, triggers, winconds
 from . import eop as _eop
 from . import logutil
@@ -2731,6 +2731,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
             if u.path == "/api/armory/allow_texture":
                 return self._json({"ok": armory.allow_texture(body.get("path") or "")})
+            if u.path == "/api/armory/library":
+                # 95l: the library as the page edited it (names, notes, collections)
+                try:
+                    armlib.save(armlib.check_lib(body.get("library")))
+                except armory.ArmoryError as e:
+                    return self._err(400, str(e))
+                return self._json({"ok": True})
+            if u.path == "/api/armory/library/add":
+                lib = armlib.load()
+                got = armlib.add(lib, body.get("item") or {})
+                if "item" in got:
+                    armlib.save(lib)
+                return self._json(dict(got, **armlib.view(self.registry.get)))
             if u.path in ("/api/armory/install/plan", "/api/armory/install/apply"):
                 # 95k: the baked model into a mod, through the edit and
                 # transfer doors, so My Changes shows it and Undo takes it back
@@ -5663,6 +5676,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"presets": armory.load_presets()})
         if path == "/api/armory/keys":
             return self._json({"keys": armory.load_keys()})
+        if path == "/api/armory/library":
+            return self._json(armlib.view(self.registry.get))
         if path == "/api/armory/external":
             try:
                 return self._json(armory.external_view(arg("path")))
