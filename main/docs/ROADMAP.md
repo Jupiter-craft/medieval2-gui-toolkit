@@ -423,7 +423,8 @@ and their lettered pieces are commits. Build the majors in this order.
 |---|---|---|---|---|
 | **0. Six reports** (done 2026-10-14) | **98** | Six reports of 2026-10-13: the Spanish wording, a Ko-fi link, the Strat map 3D panel losing its model, building art that needs a refresh, texture paths that point somewhere else, vanilla files read from the game's packs (and the shipped building art dropped) | 98a-98f | both |
 | **I. Models Editor and Armory Studio** (done 2026-10-14) | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
-| **II. Campaign map** (next) | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
+| **I b. Armory Studio after its first use** (next) | **99** | Fifteen requests of 2026-10-15: Pull keeping its place, face orientation as Blender colours it, the card maker's gap, side panels and the top menu that fold, a themed scrollbar, import as a gallery, rename in place, undo and redo, T-pose, a view gizmo, a crop to the UVs exactly, moving the unit in the card maker, the Blender kit's IK rig and pose library, saved sessions with backups | 99a-99o | both |
+| **II. Campaign map** | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
 | | 96b-96d | Two layout faults (the green box, the bottom gap), ports and the capital by icon with one port per region, the garrison in the settlement editor | 96b, 96c, 96d | beta |
 | | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
 | | 96e4 | A new region wizard; many towns at once with auto-garrison | one | beta |
@@ -435,6 +436,10 @@ and their lettered pieces are commits. Build the majors in this order.
 | **IV. Interface** | 90 | A layout that fits the window at every interface size | 90a-90c | both |
 | | 93 | Two reports on getting around | 93a-93b | both |
 | **V. Translations** | 88 | The remaining catalogues through 88d's workflow: 88e French, 88h Portuguese (Brazil), 88i Polish, 88l Turkish, 88m Russian, 88o Simplified Chinese with the CJK fonts and line breaking, 88p Traditional Chinese, 88q Japanese, 88r Korean | nine catalogues | both |
+
+**Phase 99 put next on 2026-10-15** (the user: "Add these as immediate next
+phase"): fifteen requests after the first model out of Armory Studio, ahead
+of major II.
 
 **Phase 98 put first on 2026-10-13** (the user: "Add all these into our
 roadmap as immediate next phase"): six reports, ahead of major I.
@@ -2549,6 +2554,126 @@ character and agent drawn as its strat model (`descr_model_strat.txt` and the
 level's and culture's strat model (`settlemodel.py`), on its tile. Placing an
 agent and moving one work in 3D (97a). Many models at once, so share one
 loaded model per kind and drop detail with distance.
+
+# Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
+
+Sent by the user on 2026-10-15, after the first model out of Armory Studio
+(Phase 95) went into a mod and the crash it caused was fixed (`cd6921a1`).
+The user: "Add these as immediate next phase". It goes **before major II**.
+**The user's own words win over anything in this write-up**; they are quoted
+with each piece. The pieces are in build order: the faults first, then what
+the whole interface gets, then the larger features.
+
+**99a - Pull keeps the page where it was.** "When pressing pull it scrolls
+up a little." Pulling a part in (the button or a double click in Loaded
+assets) repaints the panel, and the panel's scroll moves. Keep the scroll of
+the asset list, and of the objects panel the part lands in, where it was.
+
+**99b - Face orientation the way Blender colours it.** "Face orientation is
+i think inverted in red and blue color refer to blender." Blender paints a
+face's front blue and its back red. The viewport mirrors x into the game's
+left-handed space (`ARM_MIRROR`), which turns every winding round, so
+`gl_FrontFacing` is very likely the wrong way round in that view. Check
+against Blender on one model whose fronts are known (the reference horse
+through the toolkit's own `.glb` export), then swap the colours if so.
+
+**99c - The card maker's gap.** "Also the unit card maker seems to have a
+large gap in the middle fix that." The Generate layout (`.cggrid`) leaves
+the space between the controls and the two cards empty: the HD render and
+the card should use the width.
+
+**99d - The side panels open and close at will.** "I want the side menus to
+be expanded on will and collapsible." Armory Studio's Loaded assets (left)
+and Objects (right) each fold to a strip and open again, the viewport taking
+the room, and remember how they were left.
+
+**99e - The top menu folds too, everywhere.** "Make top menu also
+collapsible make this universal." The top bar (the mode, the mod, Settings,
+Log) and the tab strips under it fold away and come back, in every mode,
+remembered.
+
+**99f - A softer scrollbar, everywhere.** "Make the scroll bar a softer
+looking scrollbar that matches our theme and not the default scroll bar,
+make this universal around the project." One themed scrollbar (thin, the
+theme's colours, a rounded thumb that brightens on hover) for every
+scrolling area of the page, in light and dark, through the shared styles in
+`web/index.html`, with nothing set per panel.
+
+**99g - Import as a gallery.** "I want the import assets to be gallery view
+as well." The import dialog's lists (a mod's units, its model entries, the
+asset library) get the List / Gallery choice the Model entries tab has, the
+tiles drawn the way 95a draws them (one WebGL context, only the tiles on
+screen fetched).
+
+**99h - Rename in place.** "I should be able to rename the objects and their
+classifications too directly by double clicking them." A double click on an
+object's row edits its mesh name in place, and on a group's fold header
+edits the group type (the classification) for every object in it; Enter
+keeps, Esc puts back, and the kit's name rules apply as *Fix names* does.
+
+**99i - Undo and redo.** "I should be able to undo and redo." Ctrl+Z and
+Ctrl+Shift+Z (and Ctrl+Y) in Armory Studio, over every change to the
+project: pulls, moves, turns and scales, renames, dyes, emblems, splits,
+merges, deletes, hides, collections, weights, normal settings. Each step a
+snapshot of the project (it holds no art, so a step is small), a drag or a
+slider being one step; the shortcuts editable as 95g's are.
+
+**99j - T-pose.** "An option to go to T pose i.e. disable animations." A
+toggle in the viewport, beside the animation window, that turns animation
+off and stands every part in its bind pose, and back on where it was.
+
+**99k - The view gizmo.** "X Y Z view at top sphere like blender has in top
+right." Blender's navigation gizmo at the top right of the viewport: the
+three axes as coloured balls (X red, Y green, Z blue, the negative ends
+hollow) turning with the view; a click on one looks down that axis, a drag
+orbits.
+
+**99l - Crop to the UVs exactly.** "I want you to make the cropping algo
+even better it should only crop exactly the uv instead of a rectangle." The
+bake (95i) copies and packs each island as its bounding rectangle, and folds
+islands whose rectangles overlap into one: the corners of a rectangle that no
+triangle covers take room on the sheet for nothing (the peasants: 295 islands
+in 24 blocks). Copy only the texels under the UV triangles, grown by the
+margin, and pack the islands by their shapes (a mask per island, placed so
+masks never overlap), so islands nest into each other's empty corners. Art
+that overlaps in the source is still packed once. The dye preview's crop
+(95f) goes the same way.
+
+**99m - Move and turn the unit in the card maker.** "In the unit card maker
+i want to be able to move the unit around and rotate it like in blender too."
+The card maker's HD view takes 95g's mouse and keys (middle drag orbits,
+Shift pans, the wheel zooms, G and R with an axis), moving the model in the
+frame and the card following.
+
+**99n - Dynamic poses and an IK rig, as the Blender kit has.** "Also i dont
+want the default poses like that i want there to be more dynamic poses and
+ik rig like we have in our blender toolkits unit card function." The kit
+(`Reference/Medieval-2-Toolkit/...`; check upstream first) poses a card
+through an IK control rig (`tasks/control_rig.py`, the layouts in
+`control_rig_data.py`: IK_Infantry, IK_Archer, IK_Dwarf) and a pose library
+(`tasks/pose_library.py`, `assets/Poses.blend`: 231 pose assets, about 180
+of them on the rig's controller bones, sorted into catalogs: IK Full 1H, 2H,
+Archer, Crossbow, Javelin, Mounted, Polearm, Spears, the dwarf set, and IK
+Bodyparts arms, head, legs and posture). Here: the rig's controllers in the
+card maker's view (feet, hands, pelvis, the poles), solved as two-bone IK
+chains onto the Med2 skeleton and dragged with the mouse; the library's
+poses offered as a browser by catalog, applied whole or by body part; the
+six presets of 95m kept as a start. **To find out first**: how to read the
+poses out of `Poses.blend`, a binary Blender file (read its actions with a
+reader of Blender's file format, or export them once to JSON through
+Blender), and whether that data may ship with the toolkit (the kit is the
+user's own).
+
+**99o - Saved sessions and backups.** "I should be able to save units im
+working on as saved sessions that i can continue as i please, also include
+periodic backups as well in case of crash and needing to revert." Armory
+Studio's project, today one file (`config/armory/project.json`), becomes
+named sessions: save the one open under a name, open another, carry on where
+it was left, duplicate and delete them. Each session is backed up on its own
+every few minutes while it changes (a set number kept), and a list of its
+backups with their times reverts it to any of them, as does reopening after
+a crash. The export dialog's settings, the camera and the card maker's
+settings ride with the session.
 
 # Phase 98 - six reports, scheduled 2026-10-13, first in the schedule
 
