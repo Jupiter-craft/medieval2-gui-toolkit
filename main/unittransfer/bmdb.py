@@ -952,8 +952,15 @@ def overview(mod: Mod, progress: Progress = None) -> dict:
             "skeletons": sorted({a.primary_skeleton for a in e.animations if a.primary_skeleton}),
         })
     report(100, "done")
+    # 95b: the same models grouped by the unit that uses them, for Unit entries
+    units = [{"type": u.type, "category": (u.category or "").lower(),
+              "class": (getattr(u, "class_type", "") or "").lower(),
+              "soldier": (u.soldier_model or "").lower(),
+              "officers": [o.lower() for o in u.officers],
+              "upgrades": [a.lower() for a in u.armour_ug_models]}
+             for u in mod.edu.units if u.soldier_model]
     return {"mod": mod.name, "count": len(entries), "names": len(rows),
-            "entries": rows, "all_factions": edit.all_mod_factions(mod)}
+            "entries": rows, "units": units, "all_factions": edit.all_mod_factions(mod)}
 
 
 def skeleton_index(mod: Mod) -> dict:

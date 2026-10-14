@@ -2054,6 +2054,15 @@ skeletons to filter on.
 row per unit, the soldier model and each officer model side by side with
 enough space between them never to overlap, and the row scrolling sideways
 when it is wider than the screen. Same gallery tiles and toggles as 95a.
+**Done 2026-10-14**: a third view, **Units**, beside List and Gallery
+(`bmdb_view: units`). `bmdb.overview` sends each unit's soldier, officers and
+armour upgrades; a row is the unit's name, category and class, then its tiles
+labelled soldier, officer n, upgrade n, in a strip that scrolls sideways. A
+model named by a unit and missing from the modeldb is a dashed tile. The
+gallery now keys its tiles by element, so one model under many units loads
+once and draws in each. The filters choose units by their soldier entry, and
+the search box also finds a unit by its type. Heirs of Elendil: 477 units,
+2,377 tiles, 3 missing models.
 
 **95c - Strat map split in two.** **Strat models**: the agents and
 characters out of `descr_model_strat.txt`, whose 3D button shows **that

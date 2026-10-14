@@ -10648,5 +10648,11 @@
  "bmdb.filter_skeleton": "Esqueleto",
  "bmdb.filter_any": "cualquiera",
  "bmdb.filter_no_unit": "ninguna unidad lo usa",
- "bmdb.gallery_spin_title": "Rota despacio cada modelo de la galería"
+ "bmdb.gallery_spin_title": "Rota despacio cada modelo de la galería",
+ "bmdb.view_units": "Unidades",
+ "bmdb.view_units_title": "Los modelos agrupados por la unidad que los usa: su soldado, sus oficiales y sus mejoras de armadura en una fila",
+ "bmdb.role_soldier": "soldado",
+ "bmdb.role_officer": "oficial {n}",
+ "bmdb.role_upgrade": "mejora {n}",
+ "bmdb.no_entry_called": "No hay ninguna entrada de modelo llamada {name} en este mod"
 }

@@ -10178,5 +10178,11 @@
  "bmdb.filter_skeleton": "Skelett",
  "bmdb.filter_any": "beliebig",
  "bmdb.filter_no_unit": "keine Einheit verwendet es",
- "bmdb.gallery_spin_title": "Jedes Modell der Galerie langsam rotieren lassen"
+ "bmdb.gallery_spin_title": "Jedes Modell der Galerie langsam rotieren lassen",
+ "bmdb.view_units": "Einheiten",
+ "bmdb.role_soldier": "Soldat",
+ "bmdb.role_officer": "Offizier {n}",
+ "bmdb.no_entry_called": "Kein Modelleintrag namens {name} in dieser Mod",
+ "bmdb.view_units_title": "Die Modelle nach der Einheit gruppiert, die sie verwendet: ihr Soldat, ihre Offiziere und ihre Rüstungs-Aufrüstungen in einer Reihe",
+ "bmdb.role_upgrade": "Aufrüstung {n}"
 }

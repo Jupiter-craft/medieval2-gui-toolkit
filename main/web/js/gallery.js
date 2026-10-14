@@ -35,7 +35,8 @@ const GAL_VARY_MS = 2600;       // auto variation: a new soldier this often
 
 let gal = null;                 // {canvas, gl, prog, loc, mod, models, ...}
 
-const galOn = () => state.settings.bmdb_view === 'gallery';
+const galOn = () => ['gallery', 'units'].includes(state.settings.bmdb_view);
+const galUnits = () => state.settings.bmdb_view === 'units';
 const galSpinOn = () => state.settings.gallery_spin !== false;
 const galVaryOn = () => state.settings.gallery_vary !== false;
 
@@ -43,7 +44,7 @@ function galSet(key, value){
   state.settings[key] = value;
   api.post('/api/settings', {[key]: value});
 }
-function galView(on){ galSet('bmdb_view', on ? 'gallery' : 'list'); render(); }
+function galView(how){ galSet('bmdb_view', how); render(); }
 function galToggle(key){
   galSet(key, !(key === 'gallery_spin' ? galSpinOn() : galVaryOn()));
   if(gal) gal.dirty = true;
@@ -55,9 +56,11 @@ function galBarHtml(){
   return `<span class="galbar" id="galBar">${galBarInner()}</span>`;
 }
 function galBarInner(){
-  const on = galOn();
-  return `<button class="${on?'':'on'}" onclick="galView(false)">${tt('bmdb.view_list')}</button>
-    <button class="${on?'on':''}" onclick="galView(true)">${tt('bmdb.view_gallery')}</button>
+  const on = galOn(), units = galUnits();
+  return `<button class="${on?'':'on'}" onclick="galView('list')">${tt('bmdb.view_list')}</button>
+    <button class="${on&&!units?'on':''}" onclick="galView('gallery')">${tt('bmdb.view_gallery')}</button>
+    <button class="${units?'on':''}" onclick="galView('units')"
+      title="${ttA('bmdb.view_units_title')}">${tt('bmdb.view_units')}</button>
     ${on?`<button class="${galSpinOn()?'on':''}" onclick="galToggle('gallery_spin')"
         title="${ttA('bmdb.gallery_spin_title')}">${tt('bmdb.gallery_spin')}</button>
       <button class="${galVaryOn()?'on':''}" onclick="galToggle('gallery_vary')"
@@ -70,9 +73,27 @@ function galBarPaint(){
 
 /* ---- the tiles ---------------------------------------------------------- */
 
+function galTileHtml(n, showing, role){
+  return `<div class="gtile${n === showing ? ' showing' : ''}" data-name="${esc(n)}" title="${esc(n)}">
+    <canvas></canvas><span class="gname">${role ? `<b>${esc(role)}</b> ` : ''}${esc(n)}</span></div>`;
+}
 function galTilesHtml(names, showing){
-  return `<div class="galgrid">${names.map(n => `<div class="gtile${n === showing ? ' showing' : ''}"
-      data-name="${esc(n)}" title="${esc(n)}"><canvas></canvas><span class="gname">${esc(n)}</span></div>`).join('')}</div>`;
+  return `<div class="galgrid">${names.map(n => galTileHtml(n, showing)).join('')}</div>`;
+}
+/* 95b: one row per unit, its soldier and every officer side by side, then its
+   armour upgrades; the row scrolls sideways rather than wrap, so a unit stays
+   one line however many models it has. */
+function galUnitsHtml(units, showing, known){
+  return `<div class="galunits">${units.map(u => {
+    const tiles = [[u.soldier, tt('bmdb.role_soldier')]]
+      .concat(u.officers.map((o, i) => [o, tt('bmdb.role_officer', {n: i + 1})]))
+      .concat(u.upgrades.map((a, i) => [a, tt('bmdb.role_upgrade', {n: i + 1})]));
+    return `<div class="gunit"><div class="gulabel"><b>${esc(u.type)}</b>
+        <span class="count">${esc([u.category, u.class].filter(Boolean).join(' · '))}</span></div>
+      <div class="gurow">${tiles.map(([n, role]) => known.has(n) ? galTileHtml(n, showing, role)
+        : `<div class="gtile gmissing" title="${ttA('bmdb.no_entry_called', {name: esc(n)})}">
+            <canvas></canvas><span class="gname"><b>${esc(role)}</b> ${esc(n)}</span></div>`).join('')}</div></div>`;
+  }).join('')}</div>`;
 }
 
 /* Called after the page under it is (re)written: the tiles are new elements
@@ -87,14 +108,14 @@ function galMount(host, onPick){
   gal.watch = new IntersectionObserver(seen => {
     for(const s of seen){
       const name = s.target.dataset.name;
-      if(s.isIntersecting){ gal.tiles.set(name, s.target); galWant(name); }
-      else gal.tiles.delete(name);
+      if(s.isIntersecting){ gal.tiles.set(s.target, name); galWant(name); }
+      else gal.tiles.delete(s.target);
     }
     gal.dirty = true;
     galPump();
     galLoop();
   }, {rootMargin: '300px 0px'});
-  host.querySelectorAll('.gtile').forEach(t => {
+  host.querySelectorAll('.gtile[data-name]').forEach(t => {
     gal.watch.observe(t);
     t.onclick = () => onPick(t.dataset.name);
   });
@@ -162,7 +183,8 @@ function galWant(name){
 function galPump(){
   if(!gal) return;
   // the tiles on screen first, newest scroll first
-  gal.queue = gal.queue.filter(m => m.status === 'queued' && gal.tiles.has(m.name));
+  const want = new Set(gal.tiles.values());
+  gal.queue = gal.queue.filter(m => m.status === 'queued' && want.has(m.name));
   while(gal.busy < GAL_LOADS && gal.queue.length){
     const m = gal.queue.shift();
     gal.busy++;
@@ -243,7 +265,8 @@ function galRandomize(m){
 function galEvict(){
   const held = [...gal.models.values()].filter(m => m.status === 'ready');
   if(held.length <= GAL_KEEP) return;
-  held.filter(m => !gal.tiles.has(m.name))
+  const want = new Set(gal.tiles.values());
+  held.filter(m => !want.has(m.name))
       .sort((a, b) => a.used - b.used)
       .slice(0, held.length - GAL_KEEP)
       .forEach(m => { galFree(m); m.geo = m.tex = m.att = null; m.status = 'idle'; });
@@ -299,7 +322,7 @@ function galFrame(now){
   if(spin){ gal.yaw += 0.012; gal.dirty = true; }
   if(galVaryOn() && now - gal.varyAt > GAL_VARY_MS){
     gal.varyAt = now;
-    gal.tiles.forEach((_t, name) => {
+    new Set(gal.tiles.values()).forEach(name => {
       const m = gal.models.get(name);
       if(m && m.status === 'ready') galRandomize(m);
     });
@@ -307,7 +330,7 @@ function galFrame(now){
   }
   if(gal.dirty){
     gal.dirty = false;
-    gal.tiles.forEach((tile, name) => {
+    gal.tiles.forEach((name, tile) => {
       const m = gal.models.get(name);
       if(!m) return;
       m.used = now;
@@ -316,7 +339,7 @@ function galFrame(now){
     });
   }
   // keep going while something moves or is still on its way
-  const pending = [...gal.tiles.keys()].some(n => {
+  const pending = [...gal.tiles.values()].some(n => {
     const m = gal.models.get(n);
     return m && (m.status === 'queued' || m.status === 'loading');
   });

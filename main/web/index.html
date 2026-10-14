@@ -1972,6 +1972,15 @@
   .gtile .gname{font-size:11px;padding:3px 6px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     font-family:ui-monospace,Consolas,monospace}
   .gtile.gnone canvas{opacity:.25}
+  .gtile.gmissing{cursor:default;border-style:dashed;opacity:.6}
+  .gtile .gname b{color:var(--dim);font-weight:600}
+  /* 95b: Unit entries, a row per unit that scrolls sideways */
+  .galunits{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+  .gunit{display:grid;grid-template-columns:170px 1fr;gap:10px;align-items:start;
+    border-bottom:1px solid var(--edge);padding-bottom:10px}
+  .gulabel{display:flex;flex-direction:column;gap:3px;font-size:12px;overflow-wrap:anywhere}
+  .gurow{display:flex;gap:10px;overflow-x:auto;min-width:0;padding-bottom:4px}
+  .gurow .gtile{flex:0 0 150px}
   /* ---- cleanup dialog ---- */
   .clsec{border:1px solid var(--edge);border-radius:8px;margin-bottom:12px;background:var(--panel2)}
   .clsec>.h{display:flex;gap:9px;align-items:center;padding:9px 11px;cursor:pointer}

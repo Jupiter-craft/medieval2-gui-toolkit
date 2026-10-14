@@ -78,7 +78,8 @@ function renderBmdb(){
       ${galBarHtml()}
     </div>
     ${bmFilterHtml()}
-    ${!rows.length?`<div class="empty">${tt('bmdb.no_entries_match')}</div>`
+    ${galUnits()?bmUnitsHtml(rows,qq)
+      :!rows.length?`<div class="empty">${tt('bmdb.no_entries_match')}</div>`
       :galOn()?galTilesHtml(rows.map(r=>r.name),bmPrevEntry)
       :`<div class="dblist">${rows.map(bmdbRow).join('')}</div>`}
     </div>
@@ -105,6 +106,17 @@ function bmFilterHtml(){
   return `<div class="bmfilters">${BM_FILTERS.map(box).join('')}
     <label class="chk"><input type="checkbox" ${f.nounit?'checked':''}
       onchange="bmFilterSet('nounit',this.checked)"> ${tt('bmdb.filter_no_unit')}</label></div>`;
+}
+/* 95b: the units whose soldier entry survived the filters (or whose type the
+   search box names), each with its models. */
+function bmUnitsHtml(rows,qq){
+  const pass=new Set(rows.map(r=>r.name));
+  const known=new Set(state.bmdb.entries.map(e=>e.name));
+  const plain=!Object.keys(state.bmdbF||{}).length&&!unusedOnly.checked;
+  const units=(state.bmdb.units||[]).filter(u=>pass.has(u.soldier)
+    ||(qq&&plain&&u.type.toLowerCase().includes(qq)));
+  return units.length?galUnitsHtml(units,bmPrevEntry,known)
+    :`<div class="empty">${tt('bmdb.no_entries_match')}</div>`;
 }
 function bmFilterSet(k,v){
   const f=state.bmdbF||(state.bmdbF={});
