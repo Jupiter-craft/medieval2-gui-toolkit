@@ -10616,5 +10616,6 @@
   "other": "battle_models.modeldb de {mod}: {count} reparaciones"
  },
  "eng.cas.w_text_latin1": "{value} tiene un carácter que un .cas no puede guardar (se escribe en Latin-1)",
- "eng.cas.w_text_long": "un nombre de {n:,} caracteres es más largo de lo que admite el lector"
+ "eng.cas.w_text_long": "un nombre de {n:,} caracteres es más largo de lo que admite el lector",
+ "stratview.all_model_files": "Todos los archivos de modelos estratégicos"
 }

@@ -8367,6 +8367,7 @@
 "stratmap.used_by": "used by {used_by}{used_by2}",
 "stratmap.view_in_3d": "🧊 View in 3D",
 "stratmap.where_the_removed_assets_go": "Where the removed assets go",
+"stratview.all_model_files": "All strat model files",
 "stratview.castle_general_symbol": "castle, general, symbol…",
 "stratview.finding_the_models": "finding the models…",
 "stratview.kb": "{name}<span class=\"count\">{bytes} KB</span>",

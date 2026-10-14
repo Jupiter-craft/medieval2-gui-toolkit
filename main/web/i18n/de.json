@@ -10147,5 +10147,6 @@
   "other": "battle_models.modeldb von {mod}: {count} Reparaturen"
  },
  "eng.cas.w_text_latin1": "{value} enthält ein Zeichen, das eine .cas nicht halten kann (sie wird in Latin-1 geschrieben)",
- "eng.cas.w_text_long": "ein Name mit {n:,} Zeichen ist länger, als der Leser annimmt"
+ "eng.cas.w_text_long": "ein Name mit {n:,} Zeichen ist länger, als der Leser annimmt",
+ "stratview.all_model_files": "Alle Strategiemodell-Dateien"
 }

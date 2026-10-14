@@ -136,6 +136,16 @@ const STM_PREV_HOST = 'stmV3Host';
 //: time you open a tab is one that mostly does not get opened.
 const stmPrevOn = () => state.settings.stratmap_preview !== false;
 
+//: The folded file list under the model. Closed until it is opened, and then
+//: open every time after, until it is closed again.
+const stmBrowseOpen = () => state.settings.stratmap_browse_open === true;
+function stmBrowseToggle(open){
+  if(open) cmodLoad();
+  if(open === stmBrowseOpen()) return;
+  state.settings.stratmap_browse_open = open;
+  api.post('/api/settings', {stratmap_browse_open: open});
+}
+
 function stmPrevDetach(){
   if(stmPrevNode && stmPrevNode.parentNode)
     stmPrevNode.parentNode.removeChild(stmPrevNode);
@@ -146,7 +156,7 @@ function stmPrevAttach(){
   split.appendChild(stmPrevNode);
   splitInstall(split, stmPrevNode, 'stratmap_prev_px', avail => Math.round(avail / 2));
   stmPrevBar();
-  cmodLoad();              // the file browser, walked once per mod
+  if(stmBrowseOpen()) cmodLoad();   // the file browser, walked once per mod
   stmPrevMount();
 }
 //: Build the panel without painting - `renderStratmap` opens it too, and
@@ -157,9 +167,14 @@ function stmPrevMake(rel, what){
     stmPrevNode = document.createElement('aside');
     stmPrevNode.className = 'bmprev';
     stmPrevNode.id = 'stmPrevCol';
+    // 98c: the model first and the file list folded under it. Above the view,
+    // the list arrived after the model had drawn and pushed it out of sight.
     stmPrevNode.innerHTML = `<div class="edprevbar" id="stmPrevBar"></div>
-      <div class="stmbrowse" id="cmodBrowse"></div>
-      <div class="edprevbody" id="${STM_PREV_HOST}"></div>`;
+      <div class="edprevbody" id="${STM_PREV_HOST}"></div>
+      <details class="bmloose"${stmBrowseOpen() ? ' open' : ''} ontoggle="stmBrowseToggle(this.open)">
+        <summary>${tt('stratview.all_model_files')}</summary>
+        <div class="stmbrowse" id="cmodBrowse"></div>
+      </details>`;
   }
   if(rel){ stmPrevRel = rel; stmPrevWhat = what || rel.split('/').pop(); }
 }

@@ -24,8 +24,9 @@
    the viewing changed: a click still hands the file to `v3MountCas`, and the
    decoding, the orbit and the framing are Phase 15's.
 
-   Nothing is read off the disk until the panel is open, because a mod's model
-   list is a directory walk.
+   Nothing is read off the disk until the list's fold is opened, because a
+   mod's model list is a directory walk. 98c put the fold under the model: above
+   it, a list that arrived after the model had drawn pushed it off the page.
    ===================================================================== */
 
 function cmodNew(mod){

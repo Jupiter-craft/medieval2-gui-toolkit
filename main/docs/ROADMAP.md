@@ -2352,7 +2352,12 @@ a folded list under it, closed by default, its rows in a scrolling box of
 bounded height, the same pattern as the BMDB panel's folded lists. Its open
 or closed state is remembered. The same screenshot shows rows marked `1 not
 shipped`; those files are in the base game's packs, and 98f is what lets them
-be drawn.
+be drawn. **Done 2026-10-14**: the view first, the list in a fold under it
+(`stratview.all_model_files`), closed until opened and remembered in the
+setting `stratmap_browse_open`; the directory walk waits for the fold. The cap
+is `min(320px, 38vh)` on `.stmbrowse`, because the old `max-height:38%` had no
+panel height to take a share of and so held nothing. 631 files in Heirs of
+Elendil sit in a 274 px box with the model drawn above.
 
 **98d - building art that needs a refresh.** The user: "Building arts change
 requires a refresh on subsequent art updates Sometimes." A second replace of
