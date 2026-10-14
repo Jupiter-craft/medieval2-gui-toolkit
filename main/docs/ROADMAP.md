@@ -2227,6 +2227,39 @@ the other sheet, listing each with the share of the sheet it takes; scaling
 islands down with a margin and a recommended margin; or lowering the bleed.
 Only then bake, **losing no quality** (copy the source texels, resample only
 what was scaled on request). Dyes can be applied here.
+**Done 2026-10-14, not yet loaded in game**: `unittransfer/armbake.py`,
+`web/js/armexport.js`, `/api/armory/check`, `/api/armory/uv`,
+`/api/armory/bake`. **Export…** in the bar opens three steps. *Check* takes
+everything visible or the collections chosen (those ticked *export* first)
+and runs the kit's checks that still apply: an empty name, a name not in the
+kit's form (with *Fix names*, the kit's own fix, and `_opt` at the end of a
+mesh name made the optional flag), two objects of one name, no weights, an
+external part with no sheet, more than 65,536 vertices, and a ranged
+skeleton (by the entries' skeleton names, `MTW2_HR_Bow` and the like, or the
+one the previewer plays) with no `primaryactive0` or `secondaryactive0`.
+Errors hold the export back. *UVs and packing*: each object's triangles joined
+through shared vertices are its islands, measured in its source's own texels
+(an entry's main sheet for u 0..1, its attachment sheet for 1..2, the two
+glued where an island crosses; an external file's one image), with the sheet
+size each needs. Islands whose art overlaps in one source, dyed the same way,
+fold into one block (the peasants: 295 islands in 24 blocks), so the same art
+is never packed twice. Blocks go where they came from, or where there is more
+room for a file's parts, or where the list or a block's own *Move to* puts
+them, and are packed by a skyline with quarter turns, a margin as a share of
+the sheet round each, never scaled unless asked; *Smallest that fits* picks
+512 to 4096. A sheet that runs out of room lists what did not fit with its
+share of the sheet, and offers *Choose for me* (move blocks where the other
+sheet has room, then scale the rest as one, saying so), moving blocks, a
+scale per object or per sheet with the margin a scaled sheet should keep, and
+the margin itself. *Bake* copies each block's texels, its margin bleeding the
+source's own art, resamples only a scaled block, and writes `<name>.mesh`, a
+DXT5 `<name>.texture` per sheet and a `.png` of each. The dyes are
+`armDyePixels` in numpy (the same bytes on six dyes and 576 pixels), and
+**the coat of arms stamper** (the objects panel, *Coat of arms and emblems*)
+places an image by a share of the part's own box on its sheet, sized, turned,
+blended by the dye's modes or laid on, with an opacity, previewed live and
+baked the same way. On the reference horse every one of 3,435 vertices reads
+on its new sheet the texel it read before. `tests/test_armory` (57).
 
 **95j - normal maps.** A new normal map for each sheet from the material
 choices in 95f, with a preview of the unit wearing it. Measure the normal

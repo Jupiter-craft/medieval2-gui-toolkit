@@ -373,6 +373,8 @@ function armPropsHtml(o){
       <button class="mini" onclick="armSavePreset(${o.id})"${o.dye ? '' : ' disabled'}>${tt('armory.save_preset')}</button>
       <button class="mini" onclick="armDyeClear(${o.id})"${o.dye ? '' : ' disabled'}>${tt('armory.clear_dye')}</button></div>
     ${layers ? `<div class="armlayers">${layers}</div>` : ''}
+    <div class="armsect">${tt('armory.stamps')}</div>
+    ${armStampsHtml(o)}
     <div class="armsect">${tt('armory.weights')}</div>
     <div class="armpropsrow"><span class="count">${o.weights ? tt('armory.weights_own', {mode: armWModeLabel(o.weights.mode)}) : tt('armory.weights_from_source')}</span></div>
     <div class="armpropsrow"><select id="armWMode">${['face', 'vertex', 'edge'].map(m => `<option value="${m}">${esc(armWModeLabel(m))}</option>`).join('')}</select>
@@ -530,13 +532,15 @@ function armPieceUvBox(live, pc){
 }
 
 function armDyedTexture(o, pc){
-  if(!o.dye) return null;
+  const stamps = o.stamps || [];
+  if(!o.dye && !stamps.length) return null;
   const pi = (o.src || []).indexOf(pc);
   const key = `${o.id}:${pi}`;
   const live = ARM.assets.get(pc.asset);
   const img = live && (live.objImg ? live.objImg[pc.group] : live.img);
   if(!img) return null;
-  const sig = JSON.stringify([o.dye, o.material, pc.asset, pc.group, pc.tris ? pc.tris.length : -1, live.uScale, img.width]);
+  const sig = JSON.stringify([o.dye, o.material, pc.asset, pc.group, pc.tris ? pc.tris.length : -1, live.uScale, img.width,
+                             stamps, stamps.map(st => armStampImage(st.path) ? 1 : 0)]);
   let hit = ARM_DYE.get(key);
   if(hit && hit.sig === sig && !hit.stale) return hit;
   const W = img.width, H = img.height;
@@ -561,13 +565,115 @@ function armDyedTexture(o, pc){
   const ctx = c.getContext('2d', {willReadFrequently: true});
   ctx.drawImage(img, px[0], px[1], px[2], px[3], 0, 0, px[2], px[3]);
   const im = ctx.getImageData(0, 0, px[2], px[3]);
-  const centers = o.dye.pattern && Object.keys(o.dye.pattern.colors || {}).length ? o.dye.pattern.centers : null;
-  armDyePixels(im.data, o.dye, o.material, centers);
+  if(o.dye){
+    const centers = o.dye.pattern && Object.keys(o.dye.pattern.colors || {}).length ? o.dye.pattern.centers : null;
+    armDyePixels(im.data, o.dye, o.material, centers);
+  }
+  if(box && stamps.length){
+    // the part's art in this crop's pixels, which is where armbake.py
+    // places a stamp too: a share of the box, its centre and its width
+    const ab = [(box[0] - crop[0]) * W, (box[1] - crop[1]) * H, (box[2] - crop[0]) * W, (box[3] - crop[1]) * H];
+    for(const st of stamps){
+      const simg = armStampImage(st.path);
+      if(simg) armStampPixels(im.data, px[2], px[3], st, simg, ab);
+    }
+  }
   ctx.putImageData(im, 0, 0);
   if(hit && hit.tex && ARM.gl) ARM.gl.deleteTexture(hit.tex);
   hit = {sig, tex: armTexture(c, 1), crop, stale: false, canvas: c};
   ARM_DYE.set(key, hit);
   return hit;
+}
+
+/* --- coat of arms and emblems (95i) ---------------------------------------------
+
+   An image stamped onto an object's art: its centre and width a share of the
+   part's own box on its sheet, turned, blended as the dye's modes or laid on
+   as it is, and baked in by armbake.py's stamp_pixels the same way. */
+
+const ARM_STAMP_BLENDS = ['normal'].concat(ARM_BLENDS);
+const ARM_STAMP_IMG = new Map();   // path -> Image, or 'loading', or null
+function armStampImage(path){
+  const hit = ARM_STAMP_IMG.get(path);
+  if(hit instanceof Image) return hit;
+  if(hit === undefined && path){
+    ARM_STAMP_IMG.set(path, 'loading');
+    // the server serves only an image it was given, and forgets on a restart
+    api.post('/api/armory/allow_texture', {path}).catch(() => ({}))
+      .then(() => armImage('/api/armory/texture?hd=1&path=' + enc(path)))
+      .then(img => { ARM_STAMP_IMG.set(path, img); armFrame(); })
+      .catch(() => ARM_STAMP_IMG.set(path, null));
+  }
+  return null;
+}
+function armStampsHtml(o){
+  const blendLabel = b => b === 'normal' ? tt('armory.blend_normal') : armBlendLabel(b);
+  const rows = (o.stamps || []).map((st, i) => {
+    const sl = (key, label, min, max, k) => `<label class="armrange">${label}<input type="range" min="${min}" max="${max}"
+        value="${Math.round((st[key] == null ? 0 : st[key]) * k)}" oninput="armStampSet(${o.id},${i},'${key}',this.value/${k},true)"></label>`;
+    return `<div class="armstamp">
+      <div class="armpropsrow"><span class="armname" title="${esc(st.path)}">${esc(st.path.split(/[\\/]/).pop())}</span>
+        <button class="mini armx" onclick="armStampDel(${o.id},${i})" title="${esc(tt('armory.stamp_remove'))}">✕</button></div>
+      <div class="armpropsrow">${sl('x', tt('armory.stamp_x'), 0, 100, 100)}${sl('y', tt('armory.stamp_y'), 0, 100, 100)}</div>
+      <div class="armpropsrow">${sl('size', tt('armory.stamp_size'), 2, 150, 100)}${sl('rot', tt('armory.stamp_rot'), -180, 180, 1)}</div>
+      <div class="armpropsrow">${sl('opacity', tt('armory.stamp_opacity'), 0, 100, 100)}
+        <select onchange="armStampSet(${o.id},${i},'blend',this.value)">${ARM_STAMP_BLENDS.map(b =>
+          `<option value="${b}"${(st.blend || 'normal') === b ? ' selected' : ''}>${esc(blendLabel(b))}</option>`).join('')}</select></div>
+    </div>`;
+  }).join('');
+  return rows + `<div class="armpropsrow"><button class="mini" onclick="armStampAdd(${o.id})" title="${esc(tt('armory.stamp_add_title'))}">${tt('armory.stamp_add')}</button></div>`;
+}
+async function armStampAdd(id){
+  const o = armObj(id); if(!o) return;
+  let r;
+  try{ r = await api.post('/api/browse_file', {title: tt('armory.stamp_pick_title'),
+    filter: 'Images|*.png;*.tga;*.dds;*.jpg;*.jpeg;*.texture;*.bmp'}); }
+  catch(e){ toast(errText(e)); return; }
+  if(!r || !r.path) return;
+  const ok = await api.post('/api/armory/allow_texture', {path: r.path}).catch(() => ({}));
+  if(!ok.ok){ toast(tt('armory.not_an_image')); return; }
+  ARM_STAMP_IMG.delete(r.path);
+  (o.stamps = o.stamps || []).push({path: r.path, x: 0.5, y: 0.5, size: 0.3, rot: 0, blend: 'normal', opacity: 1});
+  armDyeChanged(o); armSave(); armPaintObjects();
+}
+function armStampSet(id, i, key, v, live){
+  const o = armObj(id); if(!o || !o.stamps || !o.stamps[i]) return;
+  o.stamps[i][key] = key === 'blend' ? v : +v;
+  armDyeChanged(o);
+  if(live){ clearTimeout(ARM.dyeTimer); ARM.dyeTimer = setTimeout(() => { armSave(); }, 300); return; }
+  armSave(); armPaintObjects();
+}
+function armStampDel(id, i){
+  const o = armObj(id); if(!o || !o.stamps) return;
+  o.stamps.splice(i, 1);
+  if(!o.stamps.length) delete o.stamps;
+  armDyeChanged(o); armSave(); armPaintObjects();
+}
+/* One stamp onto RGBA pixels (w x h); box is the part's art in them. */
+function armStampPixels(data, w, h, st, img, box){
+  const bw = Math.max(1, box[2] - box[0]), bh = Math.max(1, box[3] - box[1]);
+  const sw = Math.max(1, Math.round(bw * (st.size == null ? 0.3 : st.size)));
+  const sh = Math.max(1, Math.round(sw * img.height / Math.max(1, img.width)));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', {willReadFrequently: true});
+  x.translate(box[0] + bw * (st.x == null ? 0.5 : st.x), box[1] + bh * (st.y == null ? 0.5 : st.y));
+  x.rotate((st.rot || 0) * Math.PI / 180);
+  x.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+  const L = x.getImageData(0, 0, w, h).data;
+  const op = st.opacity == null ? 1 : st.opacity, mode = st.blend || 'normal';
+  for(let i = 0; i < L.length; i += 4){
+    const a = L[i+3] / 255 * op;
+    if(!a) continue;
+    const b = [data[i] / 255, data[i+1] / 255, data[i+2] / 255], s = [L[i] / 255, L[i+1] / 255, L[i+2] / 255];
+    let o;
+    if(mode === 'keepshade'){
+      const lum = 0.299 * b[0] + 0.587 * b[1] + 0.114 * b[2];
+      const tl = Math.max(0.04, 0.299 * s[0] + 0.587 * s[1] + 0.114 * s[2]);
+      o = s.map(v => v * lum / tl);
+    }else if(mode === 'normal') o = s;
+    else o = b.map((v, j) => armBlend(mode, v, s[j]));
+    for(let j = 0; j < 3; j++) data[i+j] = Math.max(0, Math.min(255, Math.floor((b[j] + (o[j] - b[j]) * a) * 255 + 0.5)));
+  }
 }
 
 /* --- the pattern detector ------------------------------------------------------ */

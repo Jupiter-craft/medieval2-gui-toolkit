@@ -5,9 +5,12 @@
     come back as the same triangles, and a hand-written COLLADA file with Z up
     and a skin is read into the game's space with its two strongest weights;
   * duplicates: the same art through an .obj's six decimals still matches;
-  * a real mod's catalogue and one entry as an asset.
+  * a real mod's catalogue and one entry as an asset;
+  * the export (95i): the check, the dye against the page's, a stamp, and the
+    reference horse packed and baked, every vertex reading the texel it read.
 """
 import io
+import json
 import shutil
 import sys
 import zipfile
@@ -236,6 +239,156 @@ console.log(JSON.stringify({trip, keys, t1: o1.t.map(v => Math.round(v * 1000) /
         print("          " + out.stderr.strip().splitlines()[-1][:120])
 
 # ---------------------------------------------------------------------------
+print("\nExport: check, UV packing and the bake (95i)")
+
+from unittransfer import armbake
+import numpy as np
+
+names = ["Cube", "sword_blade", "hair1", "hair_1", "hair__1", "Body__body_01.001", "Body__b__opt"]
+check("the kit's name fix, in Python as in the page",
+      [armbake.fix_name(n) for n in names] == ["Cube__Cube", "sword__blade", "hair__hair_1", "hair__hair_1",
+                                               "hair__hair_1", "Body__body_01", "Body__b"])
+
+scoped = {"objects": [{"id": 1}, {"id": 2, "hidden": True}, {"id": 3, "coll": 9}, {"id": 4, "coll": 8}],
+          "collections": [{"id": 9, "export": True}, {"id": 8, "hidden": True}]}
+check("everything visible goes, a hidden object or collection does not",
+      [o["id"] for o in armbake.in_scope(scoped, {})] == [1, 3])
+check("or only the collections ticked for export",
+      [o["id"] for o in armbake.in_scope(scoped, {"mode": "collections"})] == [3])
+
+# the dye in Python against the page's own armDyePixels, pixel for pixel
+rng = np.random.default_rng(95)
+px = rng.integers(0, 256, size=(24, 24, 4), dtype=np.uint8)
+px[..., 3] = 255
+px[0, :6, :3] = [[250, 250, 250], [128, 128, 132], [200, 170, 40], [120, 70, 30], [40, 60, 160], [255, 255, 255]]
+dyes = [
+    {"color": [150, 24, 24], "blend": "keepshade", "strength": 1, "keepWhite": True},
+    {"color": [30, 90, 200], "blend": "overlay", "strength": 0.6, "keepWhite": False, "metal": True, "desat": 0.3,
+     "channels": {"trim": {"on": True, "color": [220, 190, 60]}, "leather": {"on": True, "color": [90, 50, 20]}}},
+    {"color": [10, 120, 40], "blend": "softlight", "strength": 0.8,
+     "pattern": {"centers": [[40, 40, 40], [200, 200, 200], [120, 60, 200]], "colors": {"1": [200, 30, 30]}}},
+]
+for blend in ("multiply", "screen", "hardlight"):
+    dyes.append({"color": [70, 140, 210], "blend": blend, "strength": 1})
+mats = ["", "fabric", "leather", "metal", "", ""]
+py_out = [armbake.dye_pixels(px, d, m)[..., :3].reshape(-1).tolist() for d, m in zip(dyes, mats)]
+check("grey is metal, white is white, gold is trim, brown is leather, blue is cloth",
+      armbake.channels(px[0:1, :5, :3].astype(float) / 255).tolist()[0] == [0, 1, 2, 3, 4])
+if node:
+    js = (ROOT / "web" / "js" / "armobj.js").read_text(encoding="utf-8")
+    probe = ("const tt=x=>x,ttN=x=>x;" + js + ";const px=" + json.dumps(px.reshape(-1).tolist())
+             + ";const dyes=" + json.dumps(dyes) + ";const mats=" + json.dumps(mats) + ";"
+             "console.log(JSON.stringify(dyes.map((d,i)=>{const a=Uint8ClampedArray.from(px);"
+             "const c=d.pattern&&Object.keys(d.pattern.colors||{}).length?d.pattern.centers:null;"
+             "armDyePixels(a,d,mats[i],c);const o=[];for(let k=0;k<a.length;k+=4)o.push(a[k],a[k+1],a[k+2]);return o;})))")
+    (tmp / "probe3.js").write_text(probe, encoding="utf-8")
+    out = subprocess.run([node, str(tmp / "probe3.js")], capture_output=True, text=True, timeout=60)
+    js_out = json.loads(out.stdout or "null") or []
+    worst = max((max(abs(a - b) for a, b in zip(p, j)) for p, j in zip(py_out, js_out)), default=999)
+    check(f"the bake dyes as the preview does, six dyes on 576 pixels (worst {worst} of 255)",
+          len(js_out) == len(py_out) and worst <= 1)
+
+# a stamp lands where it is put: a red square, half the box wide, centred
+base = np.zeros((100, 100, 4), np.uint8)
+base[..., 3] = 255
+stamped = armbake.stamp_pixels(base, Image.new("RGBA", (10, 10), (255, 0, 0, 255)),
+                               {"x": 0.5, "y": 0.5, "size": 0.5, "rot": 0, "blend": "normal", "opacity": 1},
+                               (20, 20, 80, 80))
+red = np.argwhere(stamped[..., 0] > 200)
+check(f"an emblem is stamped at its place and size ({red.min(0).tolist()} to {red.max(0).tolist()})",
+      red.min(0).tolist() == [35, 35] and red.max(0).tolist() == [64, 64])
+half = armbake.stamp_pixels(base, Image.new("RGBA", (10, 10), (255, 0, 0, 255)),
+                            {"x": 0.5, "y": 0.5, "size": 0.5, "blend": "normal", "opacity": 0.5}, (20, 20, 80, 80))
+check("and its opacity blends it with what is under it", 120 <= int(half[50, 50, 0]) <= 135)
+
+if horse is not None:
+    # the reference horse, its one sheet a gradient so every texel says where it was
+    W = 512
+    yy, xx = np.mgrid[0:W, 0:W]
+    grad = np.stack([xx % 256, yy % 256, (xx // 256) * 100 + (yy // 256) * 50 + 20, np.full_like(xx, 255)], -1).astype(np.uint8)
+    Image.fromarray(grad).save(tmp / "horse_sheet.png")
+    hkey = "ext|" + str(tmp / "horse.mesh").lower()
+    hasset = {"kind": "external", "path": str(tmp / "horse.mesh"),
+              "textures": {str(i): str(tmp / "horse_sheet.png") for i in range(len(horse.groups))}}
+    hproj = {"assets": [hasset], "collections": [], "objects": [
+        {"id": i + 1, "name": gg.name, "mesh": gg.texture_group, "flag": gg.flag,
+         "src": [{"asset": hkey, "group": i}], "t": [0, 0, 0], "r": [0, 0, 0], "s": [1, 1, 1]}
+        for i, gg in enumerate(horse.groups)]}
+    res = armbake.check_model(hproj, None)
+    check(f"the reference horse passes the check ({[i['code'] for i in res['issues']]})", not res["issues"])
+    bad = json.loads(json.dumps(hproj))
+    bad["objects"][0].update(name="Cube", mesh="")
+    bad["objects"][1].update(name=bad["objects"][2]["name"], mesh=bad["objects"][2]["mesh"])
+    bad["objects"][3]["mesh"] = bad["objects"][3]["mesh"] + "_opt"
+    codes = {i["code"] for i in armbake.check_model(bad, None, skeleton="fs_archer")["issues"]}
+    check(f"an empty name, a clash, _opt in a name and a ranged skeleton's missing weapons are found ({sorted(codes)})",
+          {"empty_name", "name_clash", "opt_in_name", "ranged_no_primary", "ranged_no_secondary"} <= codes)
+
+    im_of = lambda p: Image.open(p)
+    st = {}
+    P = armbake.plan(hproj, None, {}, image_of=im_of, _state=st)
+    check(f"every island measured and packed ({P['islands']} islands in {P['blocks']} blocks)",
+          P["fits"] and P["islands"] >= P["blocks"] > 0)
+    bl = st["blocks"]
+    twice = any(a.src[0] == b.src[0] and a.src[2] == b.src[2] and a.dkey == b.dkey and armbake._overlap(a.rect, b.rect)
+                for i, a in enumerate(bl) for b in bl[i + 1:])
+    check(f"art that overlaps in its source is packed once ({P['folded']} islands folded into others)",
+          P["folded"] > 0 and not twice)
+    placed = [b for s in P["sheets"].values() for b in s["blocks"]]
+    def _foot(b):
+        return (b["x"], b["y"], b["x"] + (b["h"] if b["rot"] else b["w"]), b["y"] + (b["w"] if b["rot"] else b["h"]))
+    clash = any(armbake._overlap(_foot(a), _foot(b)) for s in P["sheets"].values()
+                for i, a in enumerate(s["blocks"]) for b in s["blocks"][i + 1:])
+    check("no two blocks overlap on a sheet", not clash)
+    inside = all(0 <= f[0] and 0 <= f[1] and f[2] <= P["sheets"][s]["size"] and f[3] <= P["sheets"][s]["size"]
+                 for s in P["sheets"] for f in map(_foot, P["sheets"][s]["blocks"]))
+    check("and every one is on its sheet", inside)
+
+    small = armbake.plan(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.0}, image_of=im_of)
+    check(f"a sheet too small says what did not fit ({len(small['sheets']['main']['left'])} on the main sheet)",
+          not small["fits"] and small["sheets"]["main"]["left"])
+    auto = armbake.plan(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.0, "auto": True}, image_of=im_of)
+    check(f"and the automatic way out fits it, saying what it cost ({auto['auto']})", auto["fits"] and auto["auto"])
+    try:
+        armbake.bake(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.0}, str(tmp / "no"), "x", image_of=im_of)
+        refused = False
+    except armbake.BakeError:
+        refused = True
+    check("a bake that does not fit is refused", refused)
+
+    got = armbake.bake(hproj, None, {}, str(tmp / "out"), "horse_95i", image_of=im_of)
+    back = mesh.read_mesh(tmp / "out" / "horse_95i.mesh")
+    check(f"the bake writes the model and its sheets ({', '.join(got['files'])})",
+          "horse_95i.mesh" in got["files"] and "horse_95i.texture" in got["files"])
+    check(f"the written model has every vertex, triangle and group ({back.vertices}, {back.triangles}, {len(back.groups)})",
+          (back.vertices, back.triangles, len(back.groups)) == (horse.vertices, horse.triangles, len(horse.groups)))
+    from unittransfer import sprites
+    dds = sprites.texture_to_dds((tmp / "out" / "horse_95i.texture").read_bytes())
+    check("its sheet is a .texture the game reads (DXT5 inside)", dds[:4] == b"DDS " and dds[84:88] == b"DXT5")
+    sheets = {"main": np.asarray(Image.open(tmp / "out" / "horse_95i.png").convert("RGBA"))}
+    if (tmp / "out" / "horse_95i_attach.png").is_file():
+        sheets["attach"] = np.asarray(Image.open(tmp / "out" / "horse_95i_attach.png").convert("RGBA"))
+    # every vertex finds on its new sheet the texel it had on the old one;
+    # a vertex on a pixel's edge may read its neighbour
+    assets = armory.project_assets(hproj)
+    miss = n = start = 0
+    for o in hproj["objects"]:
+        old = armory.object_mesh(o, assets, None)
+        for v in range(old.vertices):
+            u0, v0 = old.uvs[v * 2], old.uvs[v * 2 + 1]
+            u1, v1 = back.uvs[(start + v) * 2], back.uvs[(start + v) * 2 + 1]
+            sheet = sheets["attach" if u1 >= 1 else "main"]
+            S = sheet.shape[0]
+            want = grad[int((v0 % 1) * W) % W, int((u0 % 1) * W) % W, :3].astype(int)
+            ty, tx = int(v1 * S), int((u1 % 1) * S)
+            near = sheet[max(0, ty - 1):ty + 2, max(0, tx - 1):tx + 2, :3].astype(int)
+            n += 1
+            if np.abs(near - want).max(-1).min() > 1:
+                miss += 1
+        start += old.vertices
+    check(f"each vertex reads the texel it read before, copied not resampled ({n - miss} of {n})", miss == 0)
+
+# ---------------------------------------------------------------------------
 print("\nThe project")
 armory.save_project({"v": 1, "objects": [{"id": 1}]})
 check("a project saves and loads back", armory.load_project() == {"v": 1, "objects": [{"id": 1}]})
@@ -261,6 +414,18 @@ if mods:
     except armory.ArmoryError:
         refused = True
     check("an entry the mod has not got is refused by name", refused)
+    # 95i on a real entry: its skin's main and attachment sheets, read whole
+    rproj = {"assets": [{"kind": "entry", "mod": mod.name, "entry": asset["entry"]}], "collections": [],
+             "objects": [{"id": i + 1, "name": ob["name"], "mesh": ob["mesh"], "flag": ob["flag"],
+                          "src": [{"asset": f"{mod.name}|{asset['entry']}", "group": i}],
+                          "t": [0, 0, 0], "r": [0, 0, 0], "s": [1, 1, 1]} for i, ob in enumerate(asset["objects"])]}
+    try:
+        RP = armbake.plan(rproj, lambda n: mod, {})
+        sizes = {s: v["size"] for s, v in RP["sheets"].items()}
+        check(f"{asset['entry']} packs onto its sheets {sizes}: {RP['islands']} islands in {RP['blocks']} blocks",
+              RP["fits"] and RP["islands"] > 0)
+    except armory.ArmoryError as e:
+        check(f"{asset['entry']} packs onto its sheets ({e})", False)
 else:
     print("  no mod installed; skipped")
 

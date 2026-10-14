@@ -3394,6 +3394,26 @@
   .armchip.on{border-color:var(--accent);color:var(--accent)}
   .armchip.off{opacity:.45;cursor:default;border-style:dashed}
   .armimpfoot{display:flex;gap:8px;align-items:center}
+  /* 95i: the export - check, UV packing, bake (armexport.js) */
+  .armexp{display:flex;flex-direction:column;gap:8px}
+  .armexprow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .armexprow label{display:flex;gap:4px;align-items:center}
+  .armexpcolls{display:flex;gap:8px;flex-wrap:wrap}
+  .armissue{padding:5px 8px;border-radius:6px;border:1px solid var(--edge);background:var(--panel2);font-size:12.5px}
+  .armissue.error{border-color:#c0504d}.armissue.error b{color:#e06c66}
+  .armissue.warning b{color:#d9a43a}.armissue.ok{border-color:#4f9a5d}
+  .armexperr{color:#e06c66}
+  .armexpfull{border:1px solid #d9a43a;border-radius:7px;padding:6px 8px;display:flex;flex-direction:column;gap:5px}
+  .armexpuv{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .armexplist{flex:1;min-width:420px;max-height:52vh;overflow:auto}
+  .armexptable{width:100%;border-collapse:collapse;font-size:12.5px}
+  .armexptable th,.armexptable td{padding:3px 6px;border-bottom:1px solid var(--edge);text-align:left}
+  .armexptable td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .armexpsheets{display:flex;flex-direction:column;gap:8px}
+  .armexpsheet{display:flex;flex-direction:column;gap:3px}
+  .armexpsheet canvas{width:320px;height:320px;border:1px solid var(--edge);border-radius:4px;image-rendering:pixelated}
+  .armnum{width:60px}
+  .armstamp{border:1px solid var(--edge);border-radius:6px;padding:4px 6px;margin-bottom:4px}
   .armpathrow{display:flex;gap:6px}
   .armpathrow input{flex:1}
   @container page (max-width:1100px){.armgrid{grid-template-columns:1fr;height:auto}.armview{min-height:380px}}
@@ -3602,6 +3622,7 @@
 <script src="js/armobj.js"></script>
 <script src="js/armview.js"></script>
 <script src="js/armanim.js"></script>
+<script src="js/armexport.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->
 <script src="js/v3anim.js"></script>
 <!-- M18: after viewer3d.js, which owns the matrix helpers it shares. -->

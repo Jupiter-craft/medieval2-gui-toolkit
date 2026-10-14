@@ -706,7 +706,7 @@ from typing import Dict, List, Optional
 from . import (bmdb, buildings, cards, cleaner, codeview, config, dupes, edit,
                modflags, modfiles, sounds, stratmap)
 from . import mapgen, mapnew, mapresize
-from . import armory, loosemesh, meshfolder, modeldb, modeltext
+from . import armory, armbake, loosemesh, meshfolder, modeldb, modeltext
 from . import ancillaries, areaeffects, campimport, edbimport, mapbundle, osmmap, osmsites, settlemodel, heroabilities, hordestart, walls, characters, projectzip, campaint, campdb, campevents, campfiles, campmap, campnew, campstrat, cas, casanim, animedit, animpack, animslot, animview, modelexport, launchcheck, packhouse, settlemech, fileswap, factionsites, sidefiles, banners, changesets, health, climatenew, guilds, mapcheck, mapfe, mapquery, mapterrain, mercpools, regiondel, edusort, factionaudit, factionclone, factions, images, mesh, minorfiles, namekeys, portrecords, rawtext, rebelpools, renames, soundbanks, soundscripts, spawns, sprites, stratcamp, stratchar, stratedit, stratobj, strings, traits, triggers, winconds
 from . import eop as _eop
 from . import logutil
@@ -2731,6 +2731,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
             if u.path == "/api/armory/allow_texture":
                 return self._json({"ok": armory.allow_texture(body.get("path") or "")})
+            if u.path in ("/api/armory/check", "/api/armory/uv", "/api/armory/bake"):
+                # 95i: the export's check, UV menu and bake, each on the
+                # project as the page holds it
+                proj, scope = body.get("project") or {}, body.get("scope") or {}
+                try:
+                    if u.path == "/api/armory/check":
+                        return self._json(armbake.check_model(proj, self.registry.get, scope,
+                                                              body.get("skeleton") or ""))
+                    if u.path == "/api/armory/uv":
+                        return self._json(armbake.plan(proj, self.registry.get, body.get("settings") or {},
+                                                       scope=scope))
+                    return self._json(armbake.bake(proj, self.registry.get, body.get("settings") or {},
+                                                   body.get("folder") or "", body.get("stem") or "",
+                                                   scope=scope))
+                except (armory.ArmoryError, mesh.MeshError, KeyError, OSError) as e:
+                    return self._err(400, str(e))
             if u.path == "/api/browse_file":
                 # same reason as browse_folder: the editor needs a real path to
                 # the .mesh/.texture being imported, which a file input can't give.

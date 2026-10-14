@@ -135,7 +135,8 @@ function armPaintBar(){
     <span class="count">${tt('armory.bar_counts', {objects: p.objects.length, tris: tris.toLocaleString()})}</span>
     <span style="flex:1"></span>
     <button class="mini" onclick="armFrameAll()" title="${esc(tt('armory.frame_all_title'))}">${tt('armory.frame_all')}</button>
-    <button class="mini" onclick="armNew()">${tt('armory.new_project')}</button>`;
+    <button class="mini" onclick="armNew()">${tt('armory.new_project')}</button>
+    <button class="mini primary" onclick="armExportOpen()"${p.objects.length ? '' : ' disabled'} title="${esc(tt('armory.export_title'))}">${tt('armory.export_button')}</button>`;
 }
 function armPaintFoot(){
   if(typeof armPaintSliders === 'function') armPaintSliders();
