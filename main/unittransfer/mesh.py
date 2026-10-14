@@ -261,6 +261,9 @@ class MeshGroup:
     #: ``.mesh`` never does - its modeldb entry does - so this stays empty for
     #: one and carries the material's path for a ``.cas``.
     texture: str = ""
+    #: the byte after the flag in the file, kept so a model writes back as it
+    #: was read (Phase 95d); 0 in every model measured
+    byte: int = 0
 
     @property
     def triangles(self) -> int:
@@ -296,6 +299,14 @@ class MeshFile:
     #: (Phase 55b). Empty on a model with no skeleton.
     weights: array = field(default_factory=lambda: array("f"))
     bone_ids: bytes = b""
+    #: the bone table's second number per bone, which is not its position
+    #: (95d); see :mod:`unittransfer.meshwrite`
+    bone_links: List[int] = field(default_factory=list)
+    #: the streams the viewer does not decode (normals as written, tangents,
+    #: binormals, a building's colour channels), raw, by stream type
+    extra_streams: Dict[int, bytes] = field(default_factory=dict)
+    #: what writing the model back needs, from ``read_mesh(..., layout=True)``
+    layout: Optional[object] = None
 
     @property
     def vertices(self) -> int:
@@ -657,16 +668,32 @@ def _read_bones(a: _Archive, out: MeshFile) -> None:
         a.u16()                # the table's class descriptor, once
     for _ in range(n):
         out.bones.append(a.text())
-        a.u32()                # the bone's index, which is its position anyway
+        a.u32()                # not its position: see meshwrite (95d), which keeps it
 
 
-def read_mesh(path) -> MeshFile:
-    """Decode a battle model. Raises :class:`MeshError` on anything else."""
+def read_mesh(path, layout: bool = False) -> MeshFile:
+    """Decode a battle model. Raises :class:`MeshError` on anything else.
+
+    With ``layout``, also read what :func:`write_mesh` needs to write it back
+    byte for byte (95d); a viewer has no use for it and skips the second pass.
+    """
     path = Path(path)
     try:
         data = path.read_bytes()
     except OSError as e:
         raise MeshError(_i18n.msg("eng.mesh.could_not_read", "could not read {name}: {e}", name=path.name, e=e)) from e
+    return read_mesh_bytes(data, str(path), layout)
+
+
+def write_mesh(model: "MeshFile", path=None) -> bytes:
+    """``model`` as a ``.mesh``; see :func:`unittransfer.meshwrite.write_mesh`."""
+    from . import meshwrite
+    return meshwrite.write_mesh(model, path)
+
+
+def read_mesh_bytes(data: bytes, source: str, layout: bool = False) -> MeshFile:
+    """:func:`read_mesh` on bytes already in hand (a pack's, a test's)."""
+    path = Path(source)
     if not data.startswith(struct.pack("<I", len(BOOST_SIGNATURE)) + BOOST_SIGNATURE):
         raise MeshError(_wrong_format(path, data, "mesh"))
 
@@ -679,6 +706,9 @@ def read_mesh(path) -> MeshFile:
     out.lod_name = _read_lod_name(a)
     _finish(a, out)
     _classify_sheets(out)
+    if layout:
+        from . import meshwrite
+        meshwrite.attach_layout(out, data)
     return out
 
 

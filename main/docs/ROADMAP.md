@@ -2085,6 +2085,30 @@ written rather than copied from a template. **Done when** every `.mesh` in
 the installed mods reads and writes back to the same bytes (or a difference
 that is explained), and the game loads a written model. Everything from 95e
 on exports through it.
+**Done 2026-10-14, not yet loaded in game**: `unittransfer/meshwrite.py`,
+`mesh.write_mesh`, `mesh.read_mesh(path, layout=True)`. The whole archive is
+read now, every class header, object id and reference (`read_layout`), and the
+writer counts the ids itself: a pointer writes its class, its class's header
+the first time, then the next object id; a reference writes the class and an
+earlier id; an object held by value writes `00 00` the first time its class
+turns up, which are the zero runs `mesh.py` steps over. The class ids are the
+game's (4 the model, 7 the part list, 11 a group, 6 the vertex pool, 3 the LOD
+table, 39 a unit's LOD record and 38 a building's), and the streams sit in
+three lists by bytes a vertex (8, 12, 4), each in the file's own order. The
+LOD record after its name is kept as bytes; a model built from nothing gets
+the one 2,407 of the 2,983 `characterlod0` models carry. Found on the way: the
+bone table's second number is not the bone's position (`bone_weapon01` and
+`bone_weapon` both say 20) and is kept as `bone_links`; the old reader comes
+away from 34 models in the packs (23 units, 11 siege engines) with the wrong
+bone table, which the strict one reads. A changed
+model has its streams written from the arrays that changed and kept as read
+otherwise; tangents are made again as the game makes them (the negated
+direction u grows in, and binormal = tangent x normal, measured 94% and 98%
+on the reference horses), and the bounding sphere is a tight one, as the
+game's is. **Measured**: all 6,155 single-model `.mesh` files in Heirs of
+Elendil and the game's packs write back byte for byte; the 9 that hold several
+models are refused as the reader refuses them. `tests/test_meshwrite` (42).
+**Left: a written model loaded in game.**
 
 **95e - Armory Studio, the assets panel.** A new tab in the Models Editor.
 To start: pick units or model entries to import (with a unit, choose which
