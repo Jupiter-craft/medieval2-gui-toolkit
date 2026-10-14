@@ -2533,8 +2533,15 @@ export, and Unit Transfer (`_from_base_game`: nothing copied when the
 destination reads the same game, a copy out of the pack otherwise). Heirs of
 Elendil's battle entries with a missing file went from 37 to 5. Health had no
 check that names a missing mesh or texture, so nothing changed there.
-**Kingdoms:** no Kingdoms campaign is installed (`mods/` holds only Heirs of
-Elendil), so a campaign's own `packs/` is not read yet.
+**Kingdoms**, added the same day once the user installed the four campaigns:
+each keeps every file in its own `packs/` (`data_0`, `data_1`, `localized`),
+named `mods/<campaign>/data/...`. `gamepack.lookup` reads them after the
+campaign's loose `data/` and before the base game, and calls the result
+`modpack` (the mod's own file, not the base game's); `Mod._read_required` reads
+a required file out of them, so the four open: americas 459 units and 722
+model entries, british_isles 458 and 766, crusades 471 and 790, teutonic 469
+and 810, each in 0.2 s, and their models draw in the viewer and the gallery.
+A write still lands loose in the campaign's `data/`, which the game reads first.
 
 **Building art** comes from the game (`buildings.GameUi`, its `data/ui` then
 its packs) ahead of any `vanilla_ui` folder; all 1,567 pictures the shipped

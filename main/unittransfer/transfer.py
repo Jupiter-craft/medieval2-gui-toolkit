@@ -2150,8 +2150,16 @@ def _from_base_game(plan: "TransferPlan", source: Mod, dest: Mod, rel: str) -> b
     False when the base game has not got it either.
     """
     from . import gamepack
-    if not gamepack.exists(rel, source):
+    where = gamepack.exists(rel, source)
+    if not where:
         return False
+    if where == gamepack.MODPACK:
+        # the source's own file, kept in its own packs: copied like any other
+        path, _w = gamepack.lookup(rel, source)
+        if path is None:
+            return False
+        plan.asset_files.append((path, rel))
+        return True
     src_root, dst_root = gamepack.game_root_of(source), gamepack.game_root_of(dest)
     same = (src_root is not None and dst_root is not None
             and os.path.normcase(str(src_root)) == os.path.normcase(str(dst_root)))

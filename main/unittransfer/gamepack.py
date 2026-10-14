@@ -281,14 +281,20 @@ def game_root_of(mod=None) -> Optional[Path]:
     return Path(saved) if saved and Path(saved).is_dir() else None
 
 
-def _key(rel: str) -> str:
+def _key(rel: str, prefix: str = "data/") -> str:
     rel = (rel or "").replace("\\", "/").strip().lstrip("/").lower()
-    return rel if rel.startswith("data/") else "data/" + rel
+    if rel.startswith("data/"):
+        rel = rel[5:]
+    return prefix + rel
 
 
-def find_in_packs(rel: str, root) -> Optional[GamePack]:
-    """The pack holding ``data/<rel>``, the first in :func:`pack_paths` order."""
-    key = _key(rel)
+def find_in_packs(rel: str, root, prefix: str = "data/") -> Optional[GamePack]:
+    """The pack holding ``data/<rel>``, the first in :func:`pack_paths` order.
+
+    ``prefix`` is how the packs under ``root`` name a data file: ``data/`` in
+    the base game's, ``mods/<campaign>/data/`` in a Kingdoms campaign's own.
+    """
+    key = _key(rel, prefix)
     for pack in packs(root):
         if key in pack.entries:
             return pack
@@ -301,18 +307,18 @@ def read_bytes(rel: str, root) -> Optional[bytes]:
     return pack.read(_key(rel)) if pack else None
 
 
-def extract(rel: str, root) -> Optional[Path]:
+def extract(rel: str, root, prefix: str = "data/") -> Optional[Path]:
     """``data/<rel>`` read out of its pack into the cache, and its path there.
 
     Keyed by the pack's size and mtime and the name, so a patched pack is read
     again and an unchanged one never twice. The file keeps its own name, since
     some readers go by the extension.
     """
-    pack = find_in_packs(rel, root)
+    pack = find_in_packs(rel, root, prefix)
     if pack is None:
         return None
     from . import config
-    key = _key(rel)
+    key = _key(rel, prefix)
     tag = hashlib.sha1(f"{pack.path}|{pack.stamp}|{key}".encode("utf-8")).hexdigest()[:16]
     out = config.cache_dir("gamepack") / tag / key.rsplit("/", 1)[-1]
     if out.is_file() and out.stat().st_size == pack.size_of(key):
@@ -324,15 +330,41 @@ def extract(rel: str, root) -> Optional[Path]:
     return out
 
 
-#: Where a file was found, as :func:`lookup` reports it.
-MOD, GAME, PACK = "mod", "game", "pack"
+#: Where a file was found, as :func:`lookup` reports it. ``modpack`` is the
+#: mod's OWN file kept in its own ``packs/`` - a Kingdoms campaign keeps every
+#: file there - and is the mod's, not the base game's.
+MOD, MODPACK, GAME, PACK = "mod", "modpack", "game", "pack"
+#: the two that come from the base game rather than from the mod
+BASE = (GAME, PACK)
+
+
+def own_prefix(mod) -> str:
+    """How ``mod``'s own packs name its data files, or ``""`` if it has none.
+
+    A Kingdoms campaign (``mods/americas``) ships ``packs/data_0.pack`` and
+    names every file in it ``mods/americas/data/...``, which is where the game
+    lays it over the base game's.
+    """
+    root = Path(getattr(mod, "root", "") or "")
+    if not (root / "packs").is_dir() or root.parent.name.lower() != "mods":
+        return ""
+    return f"mods/{root.name.lower()}/data/"
+
+
+def own_packed(rel: str, mod, as_path: bool = True) -> Tuple[Optional[Path], bool]:
+    """``data/<rel>`` out of the mod's own packs: (path or None, found)."""
+    prefix = own_prefix(mod)
+    if not prefix or find_in_packs(rel, mod.root, prefix) is None:
+        return None, False
+    return (extract(rel, mod.root, prefix) if as_path else None), True
 
 
 def lookup(rel: str, mod=None, root=None, *, as_path: bool = True) -> Tuple[Optional[Path], str]:
     """Find ``data/<rel>`` the way the game does: the mod, the game, the packs.
 
     Returns ``(path, where)``: ``where`` is ``"mod"`` for the mod's own
-    ``data/``, ``"game"`` for the base game's loose ``data/`` (an install that
+    ``data/``, ``"modpack"`` for the mod's own ``packs/`` (a Kingdoms
+    campaign), ``"game"`` for the base game's loose ``data/`` (an install that
     was unpacked), ``"pack"`` for a file inside ``packs/`` (read out into the
     cache when ``as_path``; ``path`` is None otherwise), and ``(None, "")`` when
     none of them has it.
@@ -346,6 +378,9 @@ def lookup(rel: str, mod=None, root=None, *, as_path: bool = True) -> Tuple[Opti
         own = Path(mod.data) / clean
         if own.is_file():
             return own, MOD
+        path, found = own_packed(clean, mod, as_path)
+        if found:
+            return path, MODPACK
     root = Path(root) if root else game_root_of(mod)
     if root is None:
         return None, ""

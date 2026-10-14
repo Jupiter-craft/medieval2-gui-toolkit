@@ -875,7 +875,7 @@ def entry_view(entry, data_dir: Path, mod=None) -> dict:
             return False, False
         from . import gamepack
         where = gamepack.exists(rel, mod)
-        return bool(where), bool(where)
+        return bool(where), where in gamepack.BASE
 
     lods = []
     for i, (rel, distance) in enumerate(entry.lods):

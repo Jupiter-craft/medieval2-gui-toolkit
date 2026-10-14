@@ -1823,8 +1823,9 @@ def absent_files(mod: Mod, slots, from_game: Optional[List[str]] = None) -> List
                        if s["kind"] in ("mesh", "texture", "normal")):
         if (mod.data / value).is_file():
             continue
-        if gamepack.exists(value, mod):
-            if from_game is not None:
+        where = gamepack.exists(value, mod)
+        if where:
+            if from_game is not None and where in gamepack.BASE:
                 from_game.append(value)
             continue
         out.append(value)

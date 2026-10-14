@@ -406,7 +406,7 @@ def read_path(mod, rel: str) -> Optional[Path]:
         path, where = gamepack.lookup(rel, mod)
     except OSError:
         return None
-    return path if where in (gamepack.GAME, gamepack.PACK) else None
+    return path if where in (gamepack.MODPACK, gamepack.GAME, gamepack.PACK) else None
 
 
 def art_path(mod, rel: str) -> Optional[Path]:

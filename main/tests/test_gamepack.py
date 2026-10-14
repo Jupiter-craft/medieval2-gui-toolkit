@@ -92,6 +92,20 @@ path, where = gamepack.lookup("unit_models/A/One.texture", m)
 check("a pack file is found whatever its case, and read out of it",
       where == "pack" and path.read_bytes() == b"ONE-FROM-PACK")
 check("nothing anywhere is ''", gamepack.exists("unit_models/a/none.texture", m) == "")
+
+print("\na Kingdoms campaign: its own packs, named mods/<campaign>/data/...")
+(mod_root / "packs").mkdir()
+write_pack(mod_root / "packs" / "data_0.pack", {
+    "mods/m/data/export_descr_unit.txt": b"type x\n",
+    "mods/m/data/unit_models/a/one.texture": b"ONE-FROM-CAMPAIGN"})
+check("the prefix is the campaign's", gamepack.own_prefix(m) == "mods/m/data/")
+path, where = gamepack.lookup("unit_models/a/one.texture", m)
+check("its own packed copy wins over the base game's, as the mod's",
+      where == "modpack" and path.read_bytes() == b"ONE-FROM-CAMPAIGN")
+check("the mod's loose file still wins over its pack",
+      gamepack.exists("unit_models/a/mine.texture", m) == "mod")
+check("a file only the base game has is still the base game's",
+      gamepack.exists("unit_models/a/big.mesh", m) == "pack")
 check("a path out of data/ is not followed", gamepack.lookup("../packs/data_0.pack", m)[1] == "")
 
 G = _realmod.game(required=False)

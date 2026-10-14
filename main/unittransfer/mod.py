@@ -184,6 +184,16 @@ class Mod:
         out about the damage kept on the end of the sentence.
         """
         if not path.exists():
+            # a Kingdoms campaign keeps every file in its own packs/: read it
+            # out of them, as the game does, rather than refuse the campaign
+            from . import gamepack
+            try:
+                packed, _found = gamepack.own_packed(self._rel(path), self)
+            except (OSError, ValueError):
+                packed = None
+            if packed is not None:
+                path = packed
+        if not path.exists():
             raise ModDataError(_i18n.msg("eng.mod.is_not_there", "{name}: {rel} is not there. {missing}", name=self.name, rel=self._rel(path), missing=missing))
         try:
             return parse(path)
@@ -199,13 +209,13 @@ class Mod:
             raise ModDataError(
                 _i18n.msg("eng.mod.could_not_be_opened", "{name}: {rel} could not be opened - {e}", name=self.name, rel=self._rel(path), e=e)) from e
 
-    #: Said about every missing file that lives in a released mod's ``.pack``
-    #: archives. The four Kingdoms campaign folders under a stock install are
-    #: exactly this: a ``data/`` folder with almost nothing loose in it, which
-    #: is why they show up as mods at all.
-    _PACKED = ("A mod that still keeps its files inside data/packs/*.pack - the four "
-               "Kingdoms campaigns (americas, british_isles, crusades, teutonic) do - "
-               "has to be unpacked before any tool can read it.")
+    #: Said about a required file found neither loose nor in the mod's own
+    #: packs. The four Kingdoms campaigns keep everything in ``packs/`` and are
+    #: read from there since 98f (``_read_required``), so this is now for a mod
+    #: whose packs are laid out some other way.
+    _PACKED = ("It is not in the mod's own packs/ either. A mod that keeps its files "
+               "in .pack archives laid out another way has to be unpacked before it "
+               "can be read.")
 
     @cached_property
     def edu(self) -> edu.EduFile:
