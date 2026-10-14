@@ -230,7 +230,8 @@ three separate builders.
 
 None of that is a language problem. **Decision: Pillow only** - no numpy, no C
 extension - which keeps the vanilla-UI, zero-build-step, one-dependency rule,
-the 50-55 MB release zip and the disk headroom on `D:`. Speed comes from four
+the small release zip (50-55 MB then, about 22 MB since 98f) and the disk
+headroom on `D:`. Speed comes from four
 architectural rules instead:
 
 1. **A label image, built once.** Borders, selection masks, thematic recolour,
@@ -420,8 +421,8 @@ and their lettered pieces are commits. Build the majors in this order.
 
 | Major | Phase | Feature | Pieces | Line |
 |---|---|---|---|---|
-| **0. Six reports** (next) | **98** | Six reports of 2026-10-13: the Spanish wording, a Ko-fi link, the Strat map 3D panel losing its model, building art that needs a refresh, texture paths that point somewhere else, vanilla files read from the game's packs (and the shipped building art dropped) | 98a-98f | both |
-| **I. Models Editor and Armory Studio** | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
+| **0. Six reports** (done 2026-10-14) | **98** | Six reports of 2026-10-13: the Spanish wording, a Ko-fi link, the Strat map 3D panel losing its model, building art that needs a refresh, texture paths that point somewhere else, vanilla files read from the game's packs (and the shipped building art dropped) | 98a-98f | both |
+| **I. Models Editor and Armory Studio** (next) | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
 | **II. Campaign map** | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
 | | 96b-96d | Two layout faults (the green box, the bottom gap), ports and the capital by icon with one port per region, the garrison in the settlement editor | 96b, 96c, 96d | beta |
 | | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
@@ -2478,6 +2479,49 @@ teutonic). These are not the animation packs that 77 reads (`pack.dat` /
 - Measure the reader against the unpacked files before any screen uses it:
   every name in the index read out and compared byte for byte with what
   `unpacker.exe` writes, on a sample from each pack.
+
+**98f done 2026-10-14.** **The reader** is `unittransfer/gamepack.py`. A
+`.pack` is a header, an offset per record, a size per 64 KB block, the records
+(offset, first block, size, packed size, name) and the blocks; each block is
+LZO1X on its own, or stored when packing did not shrink it. No LZO library is
+installed, so the decoder is in the module, in Python. Indexing all seven
+packs reads about 3 MB of tables in 0.13 s, so the index is held in memory
+(keyed by each pack's size and mtime) and not cached on disk. A file a caller
+needs as a path is read into the toolkit's cache once. **Measured:** every one
+of the 37,168 files (7.08 GB) reads out at its recorded size, and CA's
+unpacker, run with the user's consent to its terms, wrote the same file list
+for all seven packs and the same bytes for all 1,883 files sampled. It fails
+partway on a destination with a long path (Windows' 260 characters), so it was
+run into `C:/ut98u`. The unpacker was not built in as a fallback: it stops on
+three Y/N prompts, and no file needed it.
+
+**One lookup**, `gamepack.lookup`: the mod's `data/`, the game's loose `data/`,
+the packs. The loose-before-pack order is the game's: 93 files the game keeps
+loose differ from their packed copy, and they are the patch's newer versions
+(more lines in the text files, 512 px aerial tiles where the pack has 256).
+The in-game check with 82's method was not run. It is wired into
+`edit.absent_files` (a box naming a base-game file is dotted and says so),
+`mesh.entry_view` and the battle viewer's routes, the strat viewer and
+`cas.texture_rel`, the Strat map tab (Heirs of Elendil: 224 rows from
+"1 not shipped" to "1 from the base game", 13 still missing), the `.glb`
+export, and Unit Transfer (`_from_base_game`: nothing copied when the
+destination reads the same game, a copy out of the pack otherwise). Heirs of
+Elendil's battle entries with a missing file went from 37 to 5. Health had no
+check that names a missing mesh or texture, so nothing changed there.
+**Kingdoms:** no Kingdoms campaign is installed (`mods/` holds only Heirs of
+Elendil), so a campaign's own `packs/` is not read yet.
+
+**Building art** comes from the game (`buildings.GameUi`, its `data/ui` then
+its packs) ahead of any `vanilla_ui` folder; all 1,567 pictures the shipped
+copy held are in the packs. Checked over every level and culture, small and
+large, with and without the any-culture sweep: 16,744 lookups for Heirs of
+Elendil and 16,744 for a mod with no art, the same answer with the copy and
+without it. **`main/vanilla_ui` is dropped** in the same commit as the release
+rule: `RELEASE.md` rule 2, the release-check agent and the README now say a
+zip is about 22 MB (21.8 MB measured) and has no `vanilla_ui/`, and
+`build_release.py` lists `vanilla_ui` as forbidden. The setting
+`vanilla_ui_root` and `pack_vanilla_ui.py` stay for a game with no packs.
+`tests/test_gamepack.py`, 17 checks.
 
 # What else is open
 

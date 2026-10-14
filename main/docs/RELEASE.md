@@ -45,7 +45,7 @@ Carry out every step, in order, and report at the end:
    and `README.md` where behaviour changed
 4. run the suite
 5. `python dev/release/build_release.py --version v<x.y.z>`
-6. **verify the zip** — size, and that `vanilla_ui/` is in it (see rule 2)
+6. **verify the zip**: its size (see rule 2)
 7. commit
 8. **upload it** — `gh release create v<x.y.z> <zip> --title … --notes-file …`.
    The release is not done until the artefact is on GitHub.
@@ -53,29 +53,23 @@ Carry out every step, in order, and report at the end:
 
 Do not stop after the build and wait to be told to publish.
 
-### 2. NEVER ship a release without `vanilla_ui/`
+### 2. A release zip is about 22 MB, and carries no `vanilla_ui/`
 
-**v2.1.1, 2.1.2, 2.1.3 and 2.1.4 all went out without it** — ~19 MB instead of
-~51 MB — because bundling it was an opt-in flag (`--with-vanilla-ui`) that was
-forgotten four times running. Buildings mode falls back to that art for every
-icon a mod does not ship, which is most of them, so those releases looked broken
-to whoever unzipped them.
+Until Phase 98f the vanilla building art shipped as `vanilla_ui/` (35 MB), and
+a release without it was broken: v2.1.1 to 2.1.4 all went out at ~19 MB instead
+of ~51 MB. **Since 98f the art is read out of the player's own game**, from its
+`data/ui` or straight out of its `packs/`, and nothing ships beside the app.
 
-As of v2.1.5 the build ships it **by default** (`BUNDLED_DIRS` in
-`dev/release/build_release.py`), a missing `vanilla_ui/` folder is a hard `SystemExit`, and
-`assert_bundled()` reads the finished zip back and refuses to hand over a file
-that does not contain it. `--no-vanilla-ui` exists for a deliberately slim build;
-**never pass it for a release.**
-
-Sanity check by eye as well as by code: **a portable release zip is ~50–55 MB.**
-If the build prints ~19 MB, the UI is missing and the artefact is wrong.
+So **a portable release zip is about 22 MB** (21.8 MB measured 2026-10-14),
+and that is right. A zip of about 55 MB means a stale `vanilla_ui/` got into the build: `build_release.py` has it
+on its forbidden list and refuses to finish, and the size is the check by eye.
 
 ### 3. Don't hoard builds in `dist/`
 
 `dist/` is gitignored and every build is reproducible with
 `python dev/release/build_release.py --version v<x.y.z>`. Delete the previous version's
 folder and zip as each new one lands, rather than letting four of them sit there
-at 19–54 MB each.
+at about 22 MB each.
 
 ## Three traps the steps above do not spell out
 

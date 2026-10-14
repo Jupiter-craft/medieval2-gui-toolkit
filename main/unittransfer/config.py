@@ -177,9 +177,11 @@ def get_med2_root() -> Optional[str]:
 
 
 #: Where vanilla building art is looked for when the user hasn't pointed
-#: elsewhere, best first: the packed form this repo ships (~45 MB of deduplicated
-#: lossless WebP, see ``dev/release/pack_vanilla_ui.py``), then a raw folder someone
-#: unpacked themselves (~305 MB of TGA, never committed).
+#: elsewhere. Since Phase 98f the art is read out of the game itself (its
+#: data/ui, then its packs: ``buildings.game_ui``) and nothing ships with the
+#: toolkit; a folder here is only for a machine whose game has neither - a
+#: ``vanilla_ui`` packed by ``dev/release/pack_vanilla_ui.py``, or a raw folder
+#: somebody unpacked themselves.
 VANILLA_UI_DIRS = (PROJECT_ROOT / "vanilla_ui", PROJECT_ROOT / "unpackaded_vanilla_ui")
 
 

@@ -16,7 +16,7 @@ Each script is standalone: run it with the repo's Python, from anywhere.
 | | |
 |---|---|
 | `build_release.py` | Builds the shareable zip: the tool plus Python's embeddable runtime with Pillow in it, so the person you send it to installs nothing. Reads `Launch-Medieval2-GUI-Toolkit.bat` and `Install-Dependencies.bat` from the top of the repo and writes them into the zip's flat layout. Verifies the finished archive really contains the vanilla art before handing it over. |
-| `pack_vanilla_ui.py` | Turns ~300 MB of TGA unpacked from the game's own `.pack` files into `main/vanilla_ui/`: deduplicated lossless WebP, about six times smaller. That output is what is committed and what ships; the raw input stays local. |
+| `pack_vanilla_ui.py` | Turns ~300 MB of TGA unpacked from the game's own `.pack` files into a `vanilla_ui/` folder: deduplicated lossless WebP, about six times smaller. Nothing ships it since Phase 98f, which reads the art out of the game's packs; it is for a machine whose game has neither packs nor `data/ui`, pointed at with the `vanilla_ui_root` setting. |
 
 ```bash
 python main/dev/release/build_release.py --version v2.2.0

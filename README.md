@@ -526,11 +526,12 @@ python main/dev/release/build_release.py --version v2.2.0
 ```
 
 Produces `main/dist/Medieval2-GUI-Toolkit-v2.2.0.zip`: the tool, a bundled
-Python runtime, Pillow, and the packed vanilla building art. `--no-runtime`
+Python runtime and Pillow. `--no-runtime`
 builds a code-only zip for a machine that already has Python.
 
-The vanilla building art ships by default and the build verifies the finished
-archive contains it. A release archive is approximately 50 to 55 MB.
+Nothing else ships: the vanilla building art is read out of the player's own
+game, from its packs, and the build refuses an archive with a stale
+`vanilla_ui/` in it. A release archive is approximately 22 MB.
 
 ## Command-line transfer
 
@@ -599,8 +600,6 @@ main/
 │                               transfer engine, the in-mod edit engine and the
 │                               HTTP server
 ├── web/                        the browser UI: plain JavaScript, no build step
-├── vanilla_ui/                 packed vanilla building art, the fallback for
-│                               any icon a mod does not ship
 ├── vendor/nvtt/                NVIDIA Texture Tools 2.0, driven headless by
 │                               Sprites mode for TGA -> DXT5
 ├── tests/                      one module per area, each runnable on its own
