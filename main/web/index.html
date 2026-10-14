@@ -3311,6 +3311,57 @@
   .strtab tr.added td.k input.bad{border-color:var(--bad,#c55)}
   .strtab tr.edited textarea{border-color:var(--accent)}
   .strmore{padding:10px 0;display:flex;gap:10px;align-items:center}
+
+  /* 95e on: Armory Studio, the kitbash workbench (armory.js) */
+  .armgrid{display:grid;grid-template-columns:minmax(240px,300px) 1fr minmax(240px,300px);gap:10px;
+    height:calc(100vh - 150px);min-height:420px;margin-top:8px}
+  .armleft,.armright{overflow:auto;background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:8px}
+  .armmid{display:flex;flex-direction:column;min-width:0;gap:6px}
+  .armbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .armview{position:relative;flex:1;min-height:240px;border:1px solid var(--edge);border-radius:8px;overflow:hidden;background:#22272e}
+  .armcanvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+  .armfoot{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .armhead{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .armfold{background:none;border:none;padding:2px 4px;font-weight:600;color:var(--ink)}
+  .armempty{margin:20px 6px;font-size:12.5px}
+  .armasset{border:1px solid var(--edge);border-radius:7px;margin-bottom:6px;background:var(--panel2)}
+  .armassethead{display:flex;gap:6px;align-items:center;padding:5px 7px;cursor:pointer;flex-wrap:wrap}
+  .armname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+  .armcaret{width:12px;color:var(--dim)}
+  .armx{margin-left:auto;padding:0 6px}
+  .armnote{padding:6px 8px}
+  .armobjtools{display:flex;gap:4px;padding:0 7px 5px;align-items:center}
+  .armskin{display:flex;gap:6px;align-items:center;padding:0 7px 5px}
+  .armskin select{max-width:180px}
+  .armrows{display:flex;flex-direction:column;gap:2px;padding:0 4px 6px}
+  .armrow{display:flex;gap:6px;align-items:center;padding:3px 5px;border-radius:5px;font-size:12.5px;flex-wrap:wrap}
+  .armrow:hover{background:rgba(255,255,255,.04)}
+  .armrow.in{opacity:.6}
+  .armrow.sel{background:rgba(200,164,92,.18)}
+  .armrow.off .armrowname{opacity:.45}
+  .armrowname{flex:1;min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .armeye{padding:0 5px}
+  .armtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px;padding:0 6px 6px}
+  .armtile{border:1px solid var(--edge);border-radius:6px;padding:4px;background:var(--bg);display:flex;flex-direction:column;gap:3px}
+  .armtile.in{border-color:var(--accent)}
+  .armthumb{width:100%;aspect-ratio:1;object-fit:contain;background:#353d47;border-radius:4px}
+  .armtilename{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .armtilefoot{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
+  .pill.warn{background:rgba(224,179,65,.18);color:var(--warn)}
+  .armimp{padding:14px 16px;display:flex;flex-direction:column;gap:8px;max-height:84vh}
+  .armimpctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .armimpctl input{flex:1;min-width:160px}
+  .armimprows{overflow:auto;max-height:52vh;border:1px solid var(--edge);border-radius:7px;padding:4px}
+  .armimprow{display:flex;gap:8px;align-items:center;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.04);flex-wrap:wrap}
+  .armimpunit{min-width:200px;display:flex;flex-direction:column}
+  .armchips{display:flex;gap:4px;flex-wrap:wrap}
+  .armchip{font-size:12px;padding:2px 7px;border:1px solid var(--edge);border-radius:12px;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+  .armchip.on{border-color:var(--accent);color:var(--accent)}
+  .armchip.off{opacity:.45;cursor:default;border-style:dashed}
+  .armimpfoot{display:flex;gap:8px;align-items:center}
+  .armpathrow{display:flex;gap:6px}
+  .armpathrow input{flex:1}
+  @container page (max-width:1100px){.armgrid{grid-template-columns:1fr;height:auto}.armview{min-height:380px}}
 </style>
 </head>
 <body>
@@ -3512,6 +3563,7 @@
 <script src="js/health.js"></script>
 <script src="js/viewer3d.js"></script>
 <script src="js/gallery.js"></script>
+<script src="js/armory.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->
 <script src="js/v3anim.js"></script>
 <!-- M18: after viewer3d.js, which owns the matrix helpers it shares. -->

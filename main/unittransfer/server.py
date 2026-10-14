@@ -706,7 +706,7 @@ from typing import Dict, List, Optional
 from . import (bmdb, buildings, cards, cleaner, codeview, config, dupes, edit,
                modflags, modfiles, sounds, stratmap)
 from . import mapgen, mapnew, mapresize
-from . import loosemesh, meshfolder, modeldb, modeltext
+from . import armory, loosemesh, meshfolder, modeldb, modeltext
 from . import ancillaries, areaeffects, campimport, edbimport, mapbundle, osmmap, osmsites, settlemodel, heroabilities, hordestart, walls, characters, projectzip, campaint, campdb, campevents, campfiles, campmap, campnew, campstrat, cas, casanim, animedit, animpack, animslot, animview, modelexport, launchcheck, packhouse, settlemech, fileswap, factionsites, sidefiles, banners, changesets, health, climatenew, guilds, mapcheck, mapfe, mapquery, mapterrain, mercpools, regiondel, edusort, factionaudit, factionclone, factions, images, mesh, minorfiles, namekeys, portrecords, rawtext, rebelpools, renames, soundbanks, soundscripts, spawns, sprites, stratcamp, stratchar, stratedit, stratobj, strings, traits, triggers, winconds
 from . import eop as _eop
 from . import logutil
@@ -2576,6 +2576,8 @@ class Handler(BaseHTTPRequestHandler):
                           "/api/model/loose", "/api/model/loose/textures",
                           "/api/model/folder"):
                 return self._model_route(u.path, q)
+            if u.path.startswith("/api/armory/"):
+                return self._armory_get(u.path, q)
             if u.path == "/api/model/skeleton_names":
                 # 86: the skeletons another mod's pack holds, to port one
                 packs, whose = animpack.packs_for(self.registry.get((q.get("mod") or [""])[0]).data)
@@ -2711,6 +2713,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(self._eop_dirs(body))
             if u.path == "/api/m2ex":
                 return self._json(self._m2ex(body))
+            if u.path == "/api/armory/project":
+                armory.save_project(body.get("project") or {})
+                return self._json({"ok": True})
+            if u.path == "/api/armory/allow_texture":
+                return self._json({"ok": armory.allow_texture(body.get("path") or "")})
             if u.path == "/api/browse_file":
                 # same reason as browse_folder: the editor needs a real path to
                 # the .mesh/.texture being imported, which a file input can't give.
@@ -5596,6 +5603,51 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(400, str(e))
         return self._send(200, mesh.geometry_payload(decoded),
                           "application/octet-stream")
+
+    def _armory_get(self, path: str, q):
+        """Armory Studio's assets panel, 95e (``unittransfer/armory.py``).
+
+        ``catalogue`` is what a mod offers to import; ``asset`` one model entry
+        as its objects; ``external`` an ``.obj``/``.glb``/``.dae`` on disk read
+        the same way, whose geometry is ``geometry?ext=`` and whose images are
+        ``texture?path=``, served only for an image an asset found or the user
+        picked. An entry's own geometry and skins are the viewer's routes.
+        """
+        arg = lambda k: (q.get(k) or [""])[0]
+        if path == "/api/armory/project":
+            return self._json(armory.load_project())
+        if path == "/api/armory/external":
+            try:
+                return self._json(armory.external_view(arg("path")))
+            except armory.ArmoryError as e:
+                return self._err(400, str(e))
+        if path == "/api/armory/geometry":
+            hit = armory.external_by_id(arg("ext"))
+            if hit is None:
+                return self._err(404, "that file is no longer open; import it again")
+            return self._send(200, mesh.geometry_payload(hit[0]), "application/octet-stream")
+        if path == "/api/armory/texture":
+            want = arg("path")
+            if not armory.texture_allowed(want):
+                return self._err(403, "not an image this workbench was given")
+            try:
+                data = self.registry.icons.png_bytes(
+                    Path(want), 0 if arg("hd") == "1" else self.MODEL_TEXTURE_MAX, strict=True)
+            except icons.ArtUnreadable as exc:
+                return self._err(415, str(exc))
+            return self._send(200, data, "image/png")
+        name = arg("mod")
+        if not name or name not in self.registry.names():
+            return self._err(404, "unknown mod")
+        mod = self.registry.get(name)
+        if path == "/api/armory/catalogue":
+            return self._json(armory.catalogue(mod))
+        if path == "/api/armory/asset":
+            try:
+                return self._json(armory.asset_view(mod, arg("entry")))
+            except armory.ArmoryError as e:
+                return self._err(400, str(e))
+        return self._err(404, "unknown armory route")
 
     def _strat_model_route(self, path: str, name: str, q):
         """The three things the strat preview asks for, 16k.

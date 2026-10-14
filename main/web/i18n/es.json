@@ -950,6 +950,12 @@
   ],
   "eng.cas.w_text_long": [
    "character"
+  ],
+  "armory.frame_all": [
+   "frame"
+  ],
+  "armory.frame_all_title": [
+   "frame"
   ]
  },
  "ancillaries.a_character_holds_one_ancillary_per": "Un personaje solo puede tener un séquito de cada tipo, así que este es el que sustituiría uno nuevo",
@@ -10678,5 +10684,99 @@
  "eng.meshwrite.an_archive_header_this_writer_does": "una cabecera de archivo empaquetado que este escritor no conoce",
  "eng.meshwrite.group_indexes_past_the_vertex_pool": "el grupo {name}/{texture_group} apunta más allá de la reserva de vértices",
  "eng.meshwrite.n_vertices_a_mesh_indexes_at": "{n:,} vértices: una malla .mesh admite como máximo 65.536",
- "eng.meshwrite.not_a_boost_archive": "no es un archivo empaquetado de boost"
+ "eng.meshwrite.not_a_boost_archive": "no es un archivo empaquetado de boost",
+ "core.armory_studio": "Armory Studio",
+ "core.armory_studio_hint": "construir un modelo con piezas de otros, de cualquier mod instalado o de un archivo",
+ "armory.tab_note": "banco de kitbash",
+ "armory.untitled": "Modelo sin título",
+ "armory.bar_counts": "{objects} objetos · {tris} triángulos",
+ "armory.frame_all": "Encuadrar todo",
+ "armory.frame_all_title": "Encajar en la vista todos los objetos visibles",
+ "armory.new_project": "Nuevo modelo",
+ "armory.new_project_confirm": "¿Empezar un modelo nuevo? Los objetos de este se descartan, y también los recursos cargados.",
+ "armory.loaded_assets": "Recursos cargados",
+ "armory.import": "Importar",
+ "armory.no_assets_yet": "Aún no hay nada cargado. Importa unidades o entradas de modelos de cualquier mod instalado, o un .obj, .glb o .dae, para tomar piezas de ellos.",
+ "armory.reading": "Leyendo…",
+ "armory.as_list": "Lista",
+ "armory.as_gallery": "Galería",
+ "armory.pull_all": "Traer todo",
+ "armory.pull_all_title": "Poner todos los objetos de este recurso en el modelo que se edita",
+ "armory.external_file": "un archivo del disco",
+ "armory.base": "base",
+ "armory.remove_asset": "Descargar este recurso",
+ "armory.skin": "Aspecto",
+ "armory.sheet_main": "hoja principal",
+ "armory.sheet_attach": "hoja del elemento acoplado",
+ "armory.sheet_both": "ambas hojas",
+ "armory.no_texture_found": "No se encontró ninguna hoja para este objeto en su carpeta. Elige una.",
+ "armory.pick_sheet": "Hoja…",
+ "armory.pick_sheet_title": "La textura de este objeto",
+ "armory.not_an_image": "No es una imagen que este banco pueda leer.",
+ "armory.duplicate": "duplicado",
+ "armory.duplicate_title": "Los mismos triángulos ya están cargados: {where}",
+ "armory.pull": "Traer",
+ "armory.already_in_model": "{name} ya está en el modelo",
+ "armory.objects": "Objetos",
+ "armory.hide_show": "Ocultar o mostrar",
+ "armory.delete_object": "Quitar este objeto del modelo",
+ "armory.no_objects_yet": "El modelo está vacío. Trae objetos de los recursos cargados a la izquierda.",
+ "armory.import_title": "Importar recursos",
+ "armory.from_a_mod": "De un mod",
+ "armory.from_a_file": "Un archivo del disco",
+ "armory.from_the_library": "De la biblioteca de recursos",
+ "armory.file_intro": "Un .obj, .glb, .gltf o .dae. Sus texturas se buscan en la misma carpeta y en su carpeta textures; un objeto sin textura encontrada pide una.",
+ "armory.file_placeholder": "Pega la ruta de un archivo de modelo, o examina",
+ "armory.browse": "Examinar…",
+ "armory.file_title": "Un modelo para importar",
+ "armory.units": "Unidades",
+ "armory.model_entries": "Entradas de modelos",
+ "armory.find": "Buscar",
+ "armory.role_soldier": "soldado",
+ "armory.role_officer": "oficial {n}",
+ "armory.role_upgrade": "mejora {n}",
+ "armory.model_missing": "Esta unidad nombra un modelo que la modeldb no tiene",
+ "armory.nothing_matches": "Nada coincide.",
+ "armory.file_first": "Pega o elige primero un archivo.",
+ "armory.pick_something": "Elige al menos un modelo para importar.",
+ "armory.already_loaded": "{name} ya está cargado",
+ "armory.same_file_as": "{name} es el mismo archivo que {other}, que ya está cargado",
+ "armory.start_from": "Empezar desde",
+ "armory.start_from_intro": "Elige un modelo cargado para empezar, con todos sus objetos, o empieza sin nada y trae las piezas una a una.",
+ "armory.start_from_scratch": "Empezar desde cero",
+ "armory.start": "Empezar",
+ "eng.armory.entry_has_no_lods": "{name} no nombra ningún archivo de modelo",
+ "eng.armory.mesh_not_found": "{rel} no está en el mod, ni en el juego, ni en sus paquetes",
+ "eng.armory.no_such_entry": "{mod} no tiene la entrada de modelo {name}",
+ "eng.armory.too_many_vertices": "{n:,} vértices: una malla .mesh admite como máximo 65.536",
+ "eng.armory.no_objects": "no hay geometría en este archivo",
+ "eng.armory.no_such_file": "{path} no es un archivo",
+ "eng.armory.not_a_model_file": "{name} no es un .obj, .glb, .gltf ni .dae",
+ "eng.armory.could_not_read_model": "no se pudo leer {name}: {e}",
+ "armory.remove_asset_confirm": {
+  "one": "{n} objeto del modelo viene de este recurso y se va con él. ¿Descargarlo?",
+  "other": "{n} objetos del modelo vienen de este recurso y se van con él. ¿Descargarlo?",
+  "many": "{n} objetos del modelo vienen de este recurso y se van con él. ¿Descargarlo?"
+ },
+ "armory.pulled_n": {
+  "one": "{n} objeto traído al modelo",
+  "other": "{n} objetos traídos al modelo",
+  "many": "{n} objetos traídos al modelo"
+ },
+ "armory.more_rows": {
+  "one": "…y {n} más. Acota la búsqueda para verla.",
+  "other": "…y {n} más. Acota la búsqueda para verlas.",
+  "many": "…y {n} más. Acota la búsqueda para verlas."
+ },
+ "armory.n_picked": {
+  "one": "{n} modelo elegido",
+  "other": "{n} modelos elegidos",
+  "many": "{n} modelos elegidos"
+ },
+ "armory.opt": "opt",
+ "armory.asset_sub": {
+  "one": "{where} · {n} objeto",
+  "many": "{where} · {n} objetos",
+  "other": "{where} · {n} objetos"
+ }
 }

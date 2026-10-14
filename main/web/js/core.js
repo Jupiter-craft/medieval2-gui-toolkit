@@ -751,6 +751,7 @@ const MODES=[
   {id:'sprites',  icon:'🖼', name:tt('core.sprites'),       sub:true, hint:tt('core.generate_and_wire_the_far_lod')},
   {id:'stratmap', icon:'🗺', name:tt('core.strat_map_models'), sub:true, hint:tt('core.what_descr_model_strat_txt_names')},
   {id:'casmodels', icon:'🏰', name:tt('core.cas_models'), sub:true, hint:tt('core.cas_models_hint')},
+  {id:'armory', icon:'⚒', name:tt('core.armory_studio'), sub:true, hint:tt('core.armory_studio_hint')},
   {id:'cards',    icon:'🖼', name:tt('core.unit_info_cards'), sub:true, hint:tt('core.the_two_pictures_per_unit_deduplicated')},
   {id:'traits',   icon:'🎖', name:tt('common.traits'),        sub:true, hint:tt('core.character_traits_their_levels_and_the')},
   {id:'ancillaries',icon:'🏅', name:tt('common.ancillaries'),  sub:true, hint:tt('core.the_items_and_followers_a_character')},
@@ -1309,6 +1310,7 @@ const cleanupFor=mode=>({bmdb:openCleanup, stratmap:openStratCleanup}[mode]
    this is where a mod's models are looked at. */
 const BMDB_TABS=[{mode:'bmdb',label:tt('core.model_entries')},{mode:'sprites',label:tt('core.sprites')},
   {mode:'stratmap',label:tt('core.strat_models')},{mode:'casmodels',label:tt('core.cas_models')},
+  {mode:'armory',label:tt('core.armory_studio')},
   {mode:'cards',label:tt('core.unit_cards')}];
 const bmdbTabsHtml=note=>`<div class="mftabs">${BMDB_TABS.map(t=>
   `<button class="mftab${state.mode===t.mode?' on':''}" onclick="setAppMode('${t.mode}')"
@@ -1356,7 +1358,7 @@ function setAppMode(id){
 // keeps the header label and the menu's highlighted row honest - called from
 // applyMode so every way of switching (menu, pack mount, building hop) lands here
 // A sub-mode has no row of its own in the menu, so its HOST row lights up.
-const MODE_HOST={sprites:'bmdb',stratmap:'bmdb',casmodels:'bmdb',cards:'bmdb',traits:'minor',
+const MODE_HOST={sprites:'bmdb',stratmap:'bmdb',casmodels:'bmdb',armory:'bmdb',cards:'bmdb',traits:'minor',
   ancillaries:'minor',factions:'minor',strings:'minor',cultures:'minor',
   soundbanks:'sounds',soundscripts:'sounds'};
 function syncNav(){
@@ -1704,7 +1706,7 @@ function applyMode(persist){
   // The map has nothing to search until 16g brings the query engine, and an
   // input that does nothing is worse than no input.
   search.style.display=(home||state.mode==='campmap'||state.mode==='changes'||state.mode==='health'
-    ||state.mode==='casmodels')?'none':'';
+    ||state.mode==='casmodels'||state.mode==='armory')?'none':'';
   selBtn.style.display=one?'none':'';
   batchBtn.style.display=(!one&&state.selMode)?'inline-block':'none';
   clearSelBtn.style.display=(!one&&state.selMode&&state.selected.size)?'inline-block':'none';
@@ -1715,7 +1717,7 @@ function applyMode(persist){
   importPackBtn.style.display=one?'none':'inline-block';
   newUnitBtn.style.display=edit?'inline-block':'none';
   tidyEduBtn.style.display=edit?'inline-block':'none';
-  const stm=state.mode==='stratmap', crd=state.mode==='cards', cas=state.mode==='casmodels',
+  const stm=state.mode==='stratmap', crd=state.mode==='cards', cas=state.mode==='casmodels'||state.mode==='armory',
         cmp=state.mode==='campmap';
   cleanBtn.style.display=(bm||stm)?'inline-block':'none';
   // the two faction-record fixers are about the modeldb itself, so they belong
@@ -1825,6 +1827,7 @@ function render(){
   if(state.mode==='sprites')return renderSprites();
   if(state.mode==='stratmap')return state.stm?renderStratmap():loadStratmap();
   if(state.mode==='casmodels')return renderCasModels();
+  if(state.mode==='armory')return renderArmory();
   if(state.mode==='cards')return state.cards?renderCards():loadCards();
   if(state.mode==='campmap')return state.cmap?renderCampmap():loadCampmap();
   if(state.mode==='buildings')return renderBuildings();

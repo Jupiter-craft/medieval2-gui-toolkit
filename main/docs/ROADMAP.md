@@ -2118,6 +2118,32 @@ asset expands into its objects as a gallery or a list, and any object can be
 pulled into the model being edited. **External meshes**: `.glb`, `.dae` and
 `.obj`, with their textures found in the same folder and attached on their
 own, else asked for. Assets can also come from the asset library (95l).
+**Done 2026-10-14**: **Armory Studio** is the sixth tab of the Models Editor
+(`armory`, `web/js/armory.js`, `unittransfer/armory.py`, `/api/armory/*`).
+**Import** opens a dialog of three tabs: *From a mod* (any installed mod, its
+units with each model as a chip tagged soldier, officer n or upgrade n, or
+its model entries; a Find box that repaints only the rows), *A file on disk*
+(a `.obj`, `.glb`, `.gltf` or `.dae`, typed or browsed) and *From the asset
+library* (95l). After the first import into an empty model, **Start from**
+asks for a loaded model to start from, every object pulled in, or nothing.
+**Loaded assets** on the left folds; each asset folds open into its objects as
+a list or a gallery of thumbnails, with the entry's skins to choose from, and
+a part is pulled into the model by its button or a double click (or the whole
+asset by *Pull all*). External files are read into the game's space (x
+mirrored, winding reversed, a COLLADA `Z_UP` turned, `v` flipped for `.obj`
+and `.dae`); an object named in the Blender kit's form (`Body__body_01__opt`)
+takes its type, mesh name and flag from it; a skin keeps each vertex's two
+strongest weights; textures are matched by the file's own material, else by
+name in its folder and its `textures/`, else asked for (*Sheet…*). A `.glb`
+and an `.obj` out of this toolkit's exporters come back as the same
+triangles. **Duplicates**: an asset already loaded, or the same file under
+another name, is refused on import; an object whose art is already loaded
+elsewhere wears a *duplicate* badge, matched by a hash of its triangles or,
+for a copy through an `.obj`'s six decimals, its triangle count, centre and
+spread (30 of 30 against 14 of 30 by the hash alone). The project
+(`config/armory/project.json`) holds the assets and the objects and none of
+the art. One WebGL context, on a canvas never on the page, draws the viewport
+and every thumbnail. `tests/test_armory` (22).
 
 **95f - the objects panel.** On the right, every object of the model being
 edited, grouped automatically by class name into collapsible groups that

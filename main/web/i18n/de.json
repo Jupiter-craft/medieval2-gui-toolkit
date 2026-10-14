@@ -827,6 +827,12 @@
   ],
   "buildings.copied_pool_open_another_building": [
    "header"
+  ],
+  "armory.frame_all": [
+   "frame"
+  ],
+  "armory.frame_all_title": [
+   "frame"
   ]
  },
  "ancillaries.a_character_holds_one_ancillary_per": "Ein Charakter hat pro Typ ein Gefolgsmitglied; das ist also das, was ein neues ersetzt",
@@ -10208,5 +10214,94 @@
  "eng.meshwrite.not_writable_exactly_the_two_readers": "nicht genau schreibbar: die beiden Leser sind sich uneinig",
  "eng.meshwrite.object_id_expected": "Objekt-ID {oid}, erwartet war {next_oid}",
  "eng.meshwrite.stream_is_not_one_value_a": "Stream {stype} hat nicht einen Wert pro Vertex",
- "eng.meshwrite.the_root_object_is_not_object": "das Wurzelobjekt ist nicht Objekt 0"
+ "eng.meshwrite.the_root_object_is_not_object": "das Wurzelobjekt ist nicht Objekt 0",
+ "core.armory_studio": "Armory Studio",
+ "core.armory_studio_hint": "ein Modell aus Teilen anderer bauen, aus jeder installierten Mod oder einer Datei",
+ "armory.tab_note": "Kitbash-Werkbank",
+ "armory.untitled": "Unbenanntes Modell",
+ "armory.bar_counts": "{objects} Objekte · {tris} Dreiecke",
+ "armory.frame_all": "Alles einpassen",
+ "armory.frame_all_title": "Jedes sichtbare Objekt in die Ansicht einpassen",
+ "armory.new_project": "Neues Modell",
+ "armory.new_project_confirm": "Ein neues Modell beginnen? Die Objekte dieses Modells werden verworfen, die geladenen Assets ebenfalls.",
+ "armory.loaded_assets": "Geladene Assets",
+ "armory.import": "Importieren",
+ "armory.no_assets_yet": "Noch nichts geladen. Importieren Sie Einheiten oder Modelleinträge aus jeder installierten Mod oder eine .obj-, .glb- oder .dae-Datei, um Teile daraus zu nehmen.",
+ "armory.reading": "Wird gelesen…",
+ "armory.as_list": "Liste",
+ "armory.as_gallery": "Galerie",
+ "armory.pull_all": "Alle übernehmen",
+ "armory.pull_all_title": "Jedes Objekt dieses Assets in das bearbeitete Modell übernehmen",
+ "armory.external_file": "eine Datei auf dem Datenträger",
+ "armory.base": "Basis",
+ "armory.remove_asset": "Dieses Asset entladen",
+ "armory.remove_asset_confirm": {
+  "one": "{n} Objekt des Modells stammt aus diesem Asset und wird mit entfernt. Entladen?",
+  "other": "{n} Objekte des Modells stammen aus diesem Asset und werden mit entfernt. Entladen?"
+ },
+ "armory.skin": "Skin",
+ "armory.sheet_main": "Haupt-Sheet",
+ "armory.sheet_attach": "Attachment-Sheet",
+ "armory.sheet_both": "beide Sheets",
+ "armory.no_texture_found": "In seinem Ordner wurde kein Sheet für dieses Objekt gefunden. Wählen Sie eines.",
+ "armory.pick_sheet": "Sheet…",
+ "armory.pick_sheet_title": "Die Textur für dieses Objekt",
+ "armory.not_an_image": "Das ist kein Bild, das diese Werkbank lesen kann.",
+ "armory.duplicate": "Duplikat",
+ "armory.duplicate_title": "Dieselben Dreiecke sind bereits geladen: {where}",
+ "armory.pull": "Übernehmen",
+ "armory.already_in_model": "{name} ist bereits im Modell",
+ "armory.pulled_n": {
+  "one": "{n} Objekt in das Modell übernommen",
+  "other": "{n} Objekte in das Modell übernommen"
+ },
+ "armory.objects": "Objekte",
+ "armory.hide_show": "Ausblenden oder einblenden",
+ "armory.delete_object": "Dieses Objekt aus dem Modell nehmen",
+ "armory.no_objects_yet": "Das Modell ist leer. Übernehmen Sie Objekte aus den geladenen Assets links.",
+ "armory.import_title": "Assets importieren",
+ "armory.from_a_mod": "Aus einer Mod",
+ "armory.from_a_file": "Eine Datei auf dem Datenträger",
+ "armory.from_the_library": "Aus der Asset-Bibliothek",
+ "armory.file_intro": "Eine .obj-, .glb-, .gltf- oder .dae-Datei. Ihre Texturen werden im selben Ordner und in seinem Ordner textures gesucht; ein Objekt ohne gefundene Textur fragt nach einer.",
+ "armory.file_placeholder": "Pfad einer Modelldatei einfügen oder durchsuchen",
+ "armory.browse": "Durchsuchen…",
+ "armory.file_title": "Ein zu importierendes Modell",
+ "armory.units": "Einheiten",
+ "armory.model_entries": "Modelleinträge",
+ "armory.find": "Finden",
+ "armory.role_soldier": "Soldat",
+ "armory.role_officer": "Offizier {n}",
+ "armory.role_upgrade": "Aufrüstung {n}",
+ "armory.model_missing": "Diese Einheit nennt ein Modell, das die modeldb nicht hat",
+ "armory.more_rows": {
+  "one": "…und {n} weiterer. Grenzen Sie die Suche ein, um ihn zu sehen.",
+  "other": "…und {n} weitere. Grenzen Sie die Suche ein, um sie zu sehen."
+ },
+ "armory.nothing_matches": "Nichts passt.",
+ "armory.n_picked": {
+  "one": "{n} Modell ausgewählt",
+  "other": "{n} Modelle ausgewählt"
+ },
+ "armory.file_first": "Fügen Sie zuerst eine Datei ein oder wählen Sie eine.",
+ "armory.pick_something": "Wählen Sie mindestens ein Modell zum Importieren.",
+ "armory.already_loaded": "{name} ist bereits geladen",
+ "armory.same_file_as": "{name} ist dieselbe Datei wie {other}, die geladen ist",
+ "armory.start_from": "Beginnen mit",
+ "armory.start_from_intro": "Wählen Sie ein geladenes Modell als Ausgang, mit jedem seiner Objekte, oder beginnen Sie mit nichts und übernehmen Sie Teile einzeln.",
+ "armory.start_from_scratch": "Bei null beginnen",
+ "armory.start": "Beginnen",
+ "eng.armory.entry_has_no_lods": "{name} nennt keine Modelldatei",
+ "eng.armory.mesh_not_found": "{rel} liegt weder in der Mod noch im Spiel noch in seinen Packs",
+ "eng.armory.no_such_entry": "{mod} hat keinen Modelleintrag {name}",
+ "eng.armory.too_many_vertices": "{n:,} Vertices: ein .mesh erreicht höchstens 65.536",
+ "eng.armory.no_objects": "keine Geometrie in dieser Datei",
+ "eng.armory.no_such_file": "{path} ist keine Datei",
+ "eng.armory.not_a_model_file": "{name} ist keine .obj-, .glb-, .gltf- oder .dae-Datei",
+ "eng.armory.could_not_read_model": "{name} konnte nicht gelesen werden: {e}",
+ "armory.opt": "opt",
+ "armory.asset_sub": {
+  "one": "{where} · {n} Objekt",
+  "other": "{where} · {n} Objekte"
+ }
 }
