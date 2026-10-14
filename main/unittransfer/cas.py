@@ -1137,6 +1137,38 @@ def texture_path(model: Path, texture: str) -> Optional[Path]:
     return empty
 
 
+def texture_rel(mod, model_rel: str, model: Path, texture: str) -> str:
+    """A material's texture as a path under ``data/``, or ``""``.
+
+    :func:`texture_path` beside the model when the model is the mod's own file.
+    A model read out of the base game (98f) sits in the toolkit's cache, where
+    its textures are not, so then the same two names - ``<name>.dds`` first,
+    as written second - are looked for the way the game looks for any file: the
+    mod, the game's loose ``data/``, its packs.
+    """
+    import posixpath
+    data = Path(mod.data)
+    try:
+        in_mod = data.resolve() in Path(model).resolve().parents
+    except OSError:
+        in_mod = False
+    if in_mod:
+        found = texture_path(model, texture)
+        if found is not None:
+            return found.relative_to(data).as_posix()
+    if not texture:
+        return ""
+    from . import gamepack
+    folder = posixpath.dirname((model_rel or "").replace("\\", "/"))
+    want = posixpath.normpath(posixpath.join(folder, texture.replace("\\", "/").lstrip("/")))
+    if want.startswith(".."):
+        return ""
+    for cand in (want + ".dds", want):
+        if gamepack.exists(cand, mod):
+            return cand
+    return ""
+
+
 def _has_bytes(path: Path) -> bool:
     """Is there anything in this file at all?
 

@@ -106,7 +106,8 @@ function stmRow(e){
       stmPrevRel&&cas===stmPrevRel?' showing':''}" data-name="${esc(e.name)}">
     <span class="en">${esc(e.name)}</span>
     <span class="use">${use}</span>
-    ${tt('stratmap.model_texture_line',{models:ttN('stratmap.model_count',e.models),skins:ttN('stratmap.texture_count',e.skins),missing:e.missing.length?` ${tt('stratmap.not_shipped',{missing_n:e.missing.length})}`:'',x:cas?`<button class="db3d" title="${ttA('stratmap.draw_in_the_panel_beside_the',{x:esc(cas.split('/').pop())})}"
+    ${tt('stratmap.model_texture_line',{models:ttN('stratmap.model_count',e.models),skins:ttN('stratmap.texture_count',e.skins),missing:(e.missing.length?` ${tt('stratmap.not_shipped',{missing_n:e.missing.length})}`:'')
+      +((e.from_game||[]).length?` <span class="count">${tt('stratmap.from_base_game',{n:e.from_game.length})}</span>`:''),x:cas?`<button class="db3d" title="${ttA('stratmap.draw_in_the_panel_beside_the',{x:esc(cas.split('/').pop())})}"
       onclick="event.stopPropagation();stmPrevOpen('${q1(esc(cas))}','${q1(esc(e.name))}')">🧊</button>`
       :'<span class="db3d" style="visibility:hidden">🧊</span>'})}
   </div>`;

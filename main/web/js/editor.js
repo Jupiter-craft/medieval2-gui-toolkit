@@ -1740,8 +1740,12 @@ function edGather(name,on){const me=edTouch(name); me.gather=!!on; edRenderTab()
 function edAbsent(m,val){
   return !!val&&(m.absent||[]).some(a=>a.toLowerCase()===val.toLowerCase());
 }
+//: 98f: a path the mod does not ship and its base game does, so the game
+//: draws it; marked apart from a path that names nothing anywhere
+const edFromGame=(m,val)=>!!val&&(m.from_game||[]).some(a=>a.toLowerCase()===val.toLowerCase());
 const edAbsentAttr=(m,val)=>edAbsent(m,val)
-  ?` data-absent="1" title="${ttA('editor.no_file_at_this_path',{path:esc(val)})}"`:'';
+  ?` data-absent="1" title="${ttA('editor.no_file_at_this_path',{path:esc(val)})}"`
+  :` data-base="1" title="${ttA('editor.from_the_base_game_path',{path:esc(val)})}"`;
 function edTexView(m){
   const me=state.ed.mEdits[m.name]||{};
   const defs={},facs={};
@@ -1782,7 +1786,7 @@ function edModelCard(m,idx){
     return `<div class="prow">
       <span class="pl" title="${esc(p.label)}">${esc(p.label)}</span>
       <input data-entry="${esc(m.name)}" data-i="${p.i}" value="${esc(cur)}"
-        ${edAbsent(m,cur)?edAbsentAttr(m,cur):`title="${esc(cur)}"`} class="${cur!==p.value?'changed':''}">
+        ${edAbsent(m,cur)||edFromGame(m,cur)?edAbsentAttr(m,cur):`title="${esc(cur)}"`} class="${cur!==p.value?'changed':''}">
       <button onclick="edImportPath('${q1(esc(m.name))}',${p.i},'mesh')">${tt('editor.import')}</button>
       <button onclick="edResetPath('${q1(esc(m.name))}',${p.i})" title="${ttA('editor.undo_this_change')}">↺</button></div>`;
   }).join('');
@@ -1866,7 +1870,7 @@ function edDefaultTextures(m){
   const rows=edKinds(m).map(k=>`<div class="prow" style="grid-template-columns:var(--plw) 1fr auto">
       <span class="pl">${KIND_LABEL[k]}</span>
       <input data-def="${esc(m.name)}" data-kind="${k}" value="${esc(v.defs[k]||'')}"
-        ${edAbsent(m,v.defs[k])?edAbsentAttr(m,v.defs[k]):`title="${esc(v.defs[k]||'')}"`}
+        ${edAbsent(m,v.defs[k])||edFromGame(m,v.defs[k])?edAbsentAttr(m,v.defs[k]):`title="${esc(v.defs[k]||'')}"`}
         class="${(state.ed.mEdits[m.name]||{}).defaults&&k in state.ed.mEdits[m.name].defaults?'changed':''}">
       <button onclick="edImportDefault('${q1(esc(m.name))}','${k}')">${tt('editor.import')}</button></div>`).join('');
   return `<div class="psec">${tt('editor.default_textures_and_sprites')}</div>
@@ -1915,7 +1919,7 @@ function edFacUniquePanel(m,f,v,kinds){
         <span class="pl">${KIND_LABEL[k]}</span>
         <input data-fac="${esc(m.name)}" data-f="${esc(f)}" data-kind="${k}"
           value="${esc(own?cur[k]:'')}" placeholder="${esc(v.defs[k]||'(default)')}"
-          ${own&&edAbsent(m,cur[k])?edAbsentAttr(m,cur[k]):`title="${esc(own?cur[k]:v.defs[k]||'')}"`} class="${own?'changed':''}">
+          ${own&&(edAbsent(m,cur[k])||edFromGame(m,cur[k]))?edAbsentAttr(m,cur[k]):`title="${esc(own?cur[k]:v.defs[k]||'')}"`} class="${own?'changed':''}">
         <button onclick="edImportFac('${q1(esc(m.name))}','${q1(esc(f))}','${k}')">${tt('editor.import')}</button>
       </div>`;}).join('')}</div>`;
 }

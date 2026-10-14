@@ -1779,8 +1779,10 @@ def model_payload(e: "modeldb.ModelEntry", slots=(), used_by=(), mod=None) -> di
     slot_paths = modeldb.path_slots(e)
     used = list(used_by)
     folder = folder_info(e)
+    from_game: List[str] = []
     return {
-        "absent": absent_files(mod, slot_paths) if mod is not None else [],
+        "absent": absent_files(mod, slot_paths, from_game) if mod is not None else [],
+        "from_game": from_game,
         # 98e: the strays with a file of the same name in <home>/textures too,
         # the trap a player fell in: they edited that one, the game read this
         "twins": ([p for p in folder["stray_textures"]
@@ -1805,18 +1807,27 @@ def model_payload(e: "modeldb.ModelEntry", slots=(), used_by=(), mod=None) -> di
     }
 
 
-def absent_files(mod: Mod, slots) -> List[str]:
-    """The mesh and texture paths of these slots that name no file in the mod.
+def absent_files(mod: Mod, slots, from_game: Optional[List[str]] = None) -> List[str]:
+    """The mesh and texture paths of these slots that name no file anywhere.
 
+    Not in the mod, and not in the base game it leans on either (98f): a path
+    only the game has is collected into ``from_game`` when a list is given,
+    since the game draws it and the editor says where it comes from instead.
     Sprites are left out: a sprite path is a pack name the game reads two files
-    from, and checking it is the sprite tab's business. The editor marks these
-    boxes as naming nothing, which is a different thing from a box edited.
+    from, and checking it is the sprite tab's business. The editor marks the
+    absent boxes as naming nothing, which is a different thing from a box edited.
     """
+    from . import gamepack
     out: List[str] = []
     for value in _real(s["value"] for s in slots
                        if s["kind"] in ("mesh", "texture", "normal")):
-        if not (mod.data / value).is_file():
-            out.append(value)
+        if (mod.data / value).is_file():
+            continue
+        if gamepack.exists(value, mod):
+            if from_game is not None:
+                from_game.append(value)
+            continue
+        out.append(value)
     return out
 
 

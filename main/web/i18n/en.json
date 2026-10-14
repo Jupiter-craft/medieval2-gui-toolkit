@@ -421,7 +421,7 @@
 "buildings.backed_up_first_log_undoes_it": "Backed up first; 🕑 Log undoes it.",
 "buildings.blank_boxes_are_left_alone": "Blank boxes are left alone.",
 "buildings.bonus": "bonus",
-"buildings.borrowed_from_the_unpacked_vanilla_ui": "Borrowed from the unpacked vanilla UI. This mod ships no art for it.",
+"buildings.borrowed_from_the_unpacked_vanilla_ui": "Borrowed from the base game's own art. This mod has no picture of its own for it.",
 "buildings.both": "both",
 "buildings.both_halves_of_this_building_train": "Both halves of this building train it at this tier.",
 "buildings.both_halves_train_the_same_units": "Both halves train the same units at every tier.",
@@ -687,7 +687,7 @@
 "buildings.no_text": " (no text)",
 "buildings.no_texture_for_list": "no texture for {list}",
 "buildings.no_tier": "no tier",
-"buildings.no_unpacked_vanilla_ui_so_missing": "No unpacked vanilla UI, so missing art shows a placeholder",
+"buildings.no_unpacked_vanilla_ui_so_missing": "No base game art found (no packs/ or data/ui in the game folder), so missing art shows a placeholder",
 "buildings.no_vanilla_art_for_this_culture": "No vanilla art for this\nculture either, so another vanilla culture's picture is standing in.",
 "buildings.nobody_so_this_can_never_be": "nobody, so this can never be built",
 "buildings.none_every_culture_falls_back_to": "None. Every culture falls back to the placeholder.",
@@ -2741,6 +2741,7 @@
 "editor.folder_inside_the_mods_data_for": "Folder inside the mod’s data\\ for this model",
 "editor.folder_inside_the_mods_data_to": "Folder inside the mod’s data\\ to copy the files into",
 "editor.folders_ticked_of": "{n} of {folders} ticked",
+"editor.from_the_base_game_path": "Not in this mod. The game reads data/{path} from its own files, and so does the viewer.",
 "editor.full_screen_esc_comes_back": "Full screen &mdash; Esc comes back",
 "editor.full_screen_refused_because": "Full screen was refused: {why}",
 "editor.give_every_ticked_folder_this_picture": "Give every ticked folder this picture",
@@ -8295,6 +8296,7 @@
 "stratmap.files_sitting_in_data_models_strat": "Files sitting in <code>data/models_strat</code> that <b>nothing</b> in the mod names - not a model block, not a faction symbol, not a resource, not a script. They go to <code>unused_files\\</code> in the destination, paths mirrored. A <code>.tga</code> and the <code>.tga.dds</code> beside it count as one texture, so ticking one never leaves the other stranded.",
 "stratmap.files_under_no_model_names": "Files under {x} no model names",
 "stratmap.folder_to_move_the_unused_strat": "Folder to move the unused strat-map assets into",
+"stratmap.from_base_game": "{n} from the base game",
 "stratmap.full_screen_esc_comes_back": "Full screen - Esc comes back",
 "stratmap.full_screen_was_refused": "Full screen was refused: {reason}",
 "stratmap.game_file_count": {
@@ -9181,6 +9183,7 @@
 "viewer3d.finding_textures": "finding the textures…",
 "viewer3d.fit": "Fit",
 "viewer3d.from_m": " · from {distance}m",
+"viewer3d.from_the_base_game": "from the base game",
 "viewer3d.groups_over_pool": {
 "one": "{count} group over one shared vertex pool",
 "other": "{count} groups over one shared vertex pool"

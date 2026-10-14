@@ -422,11 +422,11 @@ def entry_export(mod, entry, *, fmt: str, lod: int = 0, skin: int = 0,
     rels = entry.mesh_files()
     if not 0 <= lod < len(rels):
         raise ExportError(_i18n.msg("eng.modelexport.has_no_lod", "{name} has no LOD {lod}", name=entry.name, lod=lod))
-    src = factions.picture_path(mod, rels[lod])
+    src = factions.read_path(mod, rels[lod])
     if src is None or not src.is_file():
         raise ExportError(_i18n.msg("eng.modelexport.is_not_in_this_mod", "{rels} is not in this mod", rels=rels[lod]))
     m = mesh.read_mesh(src)
-    view = mesh.entry_view(entry, Path(mod.data))
+    view = mesh.entry_view(entry, Path(mod.data), mod)
     skins = view.get("skins") or []
     s = skins[skin] if 0 <= skin < len(skins) else None
     case, uscale = texture_case(s)

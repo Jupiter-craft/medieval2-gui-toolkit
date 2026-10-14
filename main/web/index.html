@@ -1832,6 +1832,8 @@
   .prow input.changed{border-color:var(--accent);color:var(--accent)}
   /* 98e: a path no file answers - dashed red, so it is not read as an edit */
   .prow input[data-absent]{border-style:dashed;border-color:var(--bad)}
+  /* 98f: in the base game, not the mod - the game draws it, so no alarm */
+  .prow input[data-base]{border-style:dotted}
   .psec{margin-top:9px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim)}
   .afrow .rm{background:none;border:none;color:var(--dim);padding:0 6px;font-size:14px}
   .afrow .rm:hover{color:var(--bad)}

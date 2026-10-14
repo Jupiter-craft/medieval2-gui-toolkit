@@ -387,6 +387,28 @@ def picture_path(mod, rel: str) -> Optional[Path]:
         return None
 
 
+def read_path(mod, rel: str) -> Optional[Path]:
+    """:func:`picture_path`, then the base game the mod leans on (98f).
+
+    For READING only - a viewer drawing a mesh or a sheet the mod does not
+    ship because the game has it. A file in the base game's packs comes back
+    as its copy in the toolkit's cache, so nothing that writes may take a path
+    from here: :func:`picture_path` stays the one for that.
+    """
+    p = picture_path(mod, rel)
+    if p is not None:
+        return p
+    rel = (rel or "").strip().replace("\\", "/")
+    if not rel or ".." in rel.split("/"):
+        return None
+    from . import gamepack
+    try:
+        path, where = gamepack.lookup(rel, mod)
+    except OSError:
+        return None
+    return path if where in (gamepack.GAME, gamepack.PACK) else None
+
+
 def art_path(mod, rel: str) -> Optional[Path]:
     """Where a ``symbol`` / ``loading_logo`` path actually is, or ``None``.
 

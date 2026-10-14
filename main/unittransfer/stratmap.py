@@ -60,7 +60,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-from . import config, edit, keyblock as kb, luascan
+from . import config, edit, gamepack, keyblock as kb, luascan
 from .logutil import counted, file_op, fingerprint, log
 from .mod import Mod
 from . import i18n as _i18n
@@ -255,15 +255,19 @@ class StratEntry:
         """Every file this entry names, deduplicated, in the order written."""
         return list(dict.fromkeys(p for _k, p in self.files))
 
-    def viewable(self, data: Path) -> List[str]:
+    def viewable(self, data: Path, has: Optional[Callable[[str], bool]] = None) -> List[str]:
         """The meshes this entry names that are really on disk - 49.
+
+        ``has`` replaces the check on ``data`` when given: 98f passes one that
+        also finds a model in the base game the mod leans on.
 
         What the Strat map tab's 3D button is pointed at, first one first. A
         shadow model is sorted to the end rather than dropped: it decodes and is
         worth a look, and it is never the answer to "show me this entry".
         """
+        has = has or (lambda p: (data / p).is_file())
         out = [p for k, p in self.files
-               if k not in ("texture", "texture_no_move") and (data / p).is_file()]
+               if k not in ("texture", "texture_no_move") and has(p)]
         out = list(dict.fromkeys(out))
         shadow = {p for k, p in self.files if k == "shadow_model_flexi"}
         return sorted(out, key=lambda p: p in shadow)
@@ -709,6 +713,15 @@ def overview(mod: Mod, progress: Progress = None) -> dict:
         counts[e.name.lower()] = counts.get(e.name.lower(), 0) + 1
     rows = []
     seen: set = set()
+    found: Dict[str, str] = {}
+
+    def where(rel: str) -> str:
+        """``mod``/``game``/``pack`` or ``""``, asked once per file (98f)."""
+        k = rel.lower()
+        if k not in found:
+            found[k] = gamepack.exists(rel, mod)
+        return found[k]
+
     for e in sf.entries:
         key = e.name.lower()
         if key in seen:
@@ -725,7 +738,10 @@ def overview(mod: Mod, progress: Progress = None) -> dict:
             "mentioned_in": row["file"] if row else "",
             "mentioned_in_lua": bool(row and row["lua"]),
             "files": e.paths(),
-            "missing": [f for f in e.paths() if not (mod.data / f).is_file()],
+            # 98f: not shipped by the mod and not in its base game either; a
+            # file only the game has is drawn and listed apart
+            "missing": [f for f in e.paths() if not where(f)],
+            "from_game": [f for f in e.paths() if where(f) in (gamepack.GAME, gamepack.PACK)],
             # 49: the meshes this entry names that the mod actually ships, so a
             # row can offer "view in 3D" the way a BMDB row does. Only the .CAS
             # side - a texture is not something the viewer can be pointed at -
@@ -733,7 +749,7 @@ def overview(mod: Mod, progress: Progress = None) -> dict:
             # does not have is a row that offers a 404. A `shadow_model_flexi`
             # goes last rather than being left out: it is a real model and worth
             # looking at, but it is nobody's answer to "show me this one".
-            "meshes": e.viewable(mod.data),
+            "meshes": e.viewable(mod.data, lambda p: bool(where(p))),
         })
     say(100, "done")
     return {"mod": mod.name, "file": REL, "has_file": (mod.data / REL).is_file(),
@@ -748,8 +764,9 @@ def entry_detail(mod: Mod, name: str) -> dict:
     users = _describe(entry_users(mod), e.name)
     return {"mod": mod.name, "name": e.name, "line": e.line, "skeleton": e.skeleton,
             "raw": e.raw, "factions": e.factions,
-            "files": [{"rel": p, "kind": k,
-                       "exists": (mod.data / p).is_file()} for k, p in e.files],
+            "files": [{"rel": p, "kind": k, "exists": bool(gamepack.exists(p, mod)),
+                       "from_game": gamepack.exists(p, mod) in (gamepack.GAME, gamepack.PACK)}
+                      for k, p in e.files],
             "used_by": users}
 
 

@@ -853,6 +853,70 @@ def vanilla_ui(root) -> Optional["VanillaUi"]:
     return ui
 
 
+class GameUi:
+    """The building art of the base game a mod leans on (98f).
+
+    The game's loose ``data/ui/<culture>/buildings`` first (an install that was
+    unpacked, and where a patch puts a file), then the same folders inside its
+    ``packs/``; a picture out of a pack is read into the toolkit's cache once.
+    The same two questions as :class:`VanillaUi`, so :func:`find_icon` asks
+    either without knowing which it has.
+    """
+
+    def __init__(self, root: Path, packs):
+        self.root = Path(root)
+        self.loose = self.root / "data" / "ui"
+        self.packed: Dict[str, str] = {}          # "culture/#stem" -> data/... name
+        for pack in packs:
+            for name in pack.entries:
+                parts = name.split("/")
+                if (len(parts) == 5 and parts[1] == "ui" and parts[3] == "buildings"
+                        and "." in parts[4]
+                        and "." + parts[4].rsplit(".", 1)[1] in ICON_EXTS):
+                    self.packed.setdefault(f"{parts[2]}/{parts[4].rsplit('.', 1)[0]}", name)
+        cultures = {k.split("/", 1)[0] for k in self.packed}
+        try:
+            cultures |= {p.name.lower() for p in self.loose.iterdir()
+                         if p.is_dir() and (p / "buildings").is_dir()}
+        except OSError:
+            pass
+        self.cultures: List[str] = sorted(cultures)
+
+    def __bool__(self) -> bool:
+        return bool(self.cultures)
+
+    def lookup(self, culture: str, stem: str) -> Optional[Path]:
+        hit = _lookup(self.loose / culture / "buildings", stem)
+        if hit is not None:
+            return hit
+        name = self.packed.get(f"{culture}/{stem}".lower())
+        if name is None:
+            return None
+        from . import gamepack
+        return gamepack.extract(name, self.root)
+
+
+_GAME_UI: Dict[str, Tuple[tuple, Optional[GameUi]]] = {}
+
+
+def game_ui(mod=None) -> Optional[GameUi]:
+    """The cached :class:`GameUi` of ``mod``'s base game, or None without one."""
+    from . import gamepack
+    root = gamepack.game_root_of(mod)
+    if root is None:
+        return None
+    packs = gamepack.packs(root)
+    stamp = tuple(p.stamp for p in packs)
+    key = str(root).lower()
+    hit = _GAME_UI.get(key)
+    if hit is not None and hit[0] == stamp:
+        return hit[1]
+    ui = GameUi(root, packs)
+    ui = ui if ui else None
+    _GAME_UI[key] = (stamp, ui)
+    return ui
+
+
 def find_icon(mod, culture: str, level: str, kind: str = "small",
               vanilla_root: Optional[Path] = None,
               any_culture: bool = False) -> Tuple[Optional[Path], str]:
@@ -863,7 +927,9 @@ def find_icon(mod, culture: str, level: str, kind: str = "small",
     rather than a fault. Search order, and the ``source`` returned with the hit:
 
     ``mod``      the mod's own ``data/ui/<culture>/buildings``
-    ``vanilla``  the same culture in the unpacked vanilla UI
+    ``vanilla``  the same culture in the base game's art (its loose
+                 ``data/ui``, then its packs - 98f), then in the vanilla UI the
+                 settings point at or the toolkit ships
     ``mod``      with ``any_culture``: the same level drawn for one of the mod's
                  OTHER cultures
     ``vanilla*`` any vanilla culture (a mod culture like ``gondor`` has no vanilla
@@ -883,10 +949,12 @@ def find_icon(mod, culture: str, level: str, kind: str = "small",
     hit = _lookup(mod.data / "ui" / culture / "buildings", stem)
     if hit is not None:
         return hit, "mod"
-    van = vanilla_ui(vanilla_root)
+    # 98f: the base game's own art, out of its data/ui or its packs, ahead of
+    # the copy the toolkit used to ship; both are the same vanilla pictures
+    vans = [v for v in (game_ui(mod), vanilla_ui(vanilla_root)) if v is not None]
     # the picked culture's own vanilla art beats the mod's art for a culture
     # nobody asked about, so this stays ahead of the any-culture sweep
-    if van is not None:
+    for van in vans:
         hit = van.lookup(culture, stem)
         if hit is not None:
             return hit, "vanilla"
@@ -898,14 +966,13 @@ def find_icon(mod, culture: str, level: str, kind: str = "small",
                           icon_stem(other, level, kind))
             if hit is not None:
                 return hit, "mod"
-    if van is None:
-        return None, ""
-    for other in van.cultures:
-        if other == culture:
-            continue
-        hit = van.lookup(other, icon_stem(other, level, kind))
-        if hit is not None:
-            return hit, "vanilla"
+    for van in vans:
+        for other in van.cultures:
+            if other == culture:
+                continue
+            hit = van.lookup(other, icon_stem(other, level, kind))
+            if hit is not None:
+                return hit, "vanilla"
     return None, ""
 
 
@@ -3611,7 +3678,7 @@ def overview(mod, culture: str = "") -> dict:
         "condition_kinds": [{"kind": k, "args": list(a),
                              "help": CONDITION_HELP.get(k, "")}
                             for k, a in CONDITION_ARGS.items()],
-        "vanilla_ui": bool(config.get_vanilla_ui_root()),
+        "vanilla_ui": bool(config.get_vanilla_ui_root()) or game_ui(mod) is not None,
         "warnings": edb.warnings[:20],
         # the new-tree form: what a name may start with, what the tool will and
         # will not do to a whole tree, and the two limits it warns about

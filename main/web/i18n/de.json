@@ -1223,7 +1223,7 @@
  "buildings.backed_up_first_log_undoes_it": "Vorher gesichert; 🕑 Protokoll macht es rückgängig.",
  "buildings.blank_boxes_are_left_alone": "Leere Felder bleiben unberührt.",
  "buildings.bonus": "Bonus",
- "buildings.borrowed_from_the_unpacked_vanilla_ui": "Aus der entpackten Vanilla-Oberfläche geliehen. Diese Mod bringt dafür keine Grafik mit.",
+ "buildings.borrowed_from_the_unpacked_vanilla_ui": "Aus der eigenen Grafik des Basisspiels geliehen. Diese Mod hat kein eigenes Bild dafür.",
  "buildings.both": "beide",
  "buildings.both_halves_of_this_building_train": "Beide Hälften dieses Gebäudes bilden sie auf dieser Ausbaustufe aus.",
  "buildings.both_halves_train_the_same_units": "Beide Hälften bilden auf jeder Ausbaustufe dieselben Einheiten aus.",
@@ -1489,7 +1489,7 @@
  "buildings.no_text": " (kein Text)",
  "buildings.no_texture_for_list": "keine Textur für {list}",
  "buildings.no_tier": "keine Ausbaustufe",
- "buildings.no_unpacked_vanilla_ui_so_missing": "Keine entpackte Vanilla-Oberfläche, daher zeigt fehlende Grafik einen Platzhalter",
+ "buildings.no_unpacked_vanilla_ui_so_missing": "Keine Grafik des Basisspiels gefunden (kein packs/ oder data/ui im Spielordner), daher zeigt fehlende Grafik einen Platzhalter",
  "buildings.no_vanilla_art_for_this_culture": "Auch keine Vanilla-Grafik für diese\nKultur, daher springt das Bild einer anderen Vanilla-Kultur ein.",
  "buildings.nobody_so_this_can_never_be": "niemand, daher kann dies nie gebaut werden",
  "buildings.none_every_culture_falls_back_to": "Keine. Jede Kultur weicht auf den Platzhalter aus.",
@@ -10156,5 +10156,8 @@
   "one": "{count} Textur liegt außerhalb von {tex}",
   "other": "{count} Texturen liegen außerhalb von {tex}"
  },
- "editor.textures_outside_why": "⚠ Eine gleichnamige Datei liegt auch in textures/. Das Spiel liest den Pfad, den der Eintrag nennt, also ändert eine Bearbeitung der Datei in textures/ im Spiel nichts."
+ "editor.textures_outside_why": "⚠ Eine gleichnamige Datei liegt auch in textures/. Das Spiel liest den Pfad, den der Eintrag nennt, also ändert eine Bearbeitung der Datei in textures/ im Spiel nichts.",
+ "viewer3d.from_the_base_game": "aus dem Basisspiel",
+ "editor.from_the_base_game_path": "Nicht in dieser Mod. Das Spiel liest data/{path} aus seinen eigenen Dateien, und der Betrachter ebenso.",
+ "stratmap.from_base_game": "{n} aus dem Basisspiel"
 }

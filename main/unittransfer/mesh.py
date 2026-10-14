@@ -855,23 +855,38 @@ def probe(path) -> str:
 PAYLOAD_MAGIC = b"M2GT"
 
 
-def entry_view(entry, data_dir: Path) -> dict:
+def entry_view(entry, data_dir: Path, mod=None) -> dict:
     """A modeldb entry as the viewer's picker needs it: LODs and skins.
 
     Cheap on purpose - it stats files and decodes nothing, because this is what
     the dialog opens on and the geometry is a second request. ``exists`` is the
     interesting column: a mod that references vanilla art is normal, and the
     viewer has to say "not in this mod" rather than draw nothing and look broken.
+
+    With ``mod``, a file the mod does not ship but its base game has (98f)
+    exists too, and ``from_game`` says so; without it only ``data_dir`` counts.
     """
+    def found(rel: str) -> Tuple[bool, bool]:
+        if not rel:
+            return False, False
+        if (data_dir / rel).is_file():
+            return True, False
+        if mod is None:
+            return False, False
+        from . import gamepack
+        where = gamepack.exists(rel, mod)
+        return bool(where), bool(where)
+
     lods = []
     for i, (rel, distance) in enumerate(entry.lods):
         rel = (rel or "").strip().replace("\\", "/")
-        path = data_dir / rel if rel else None
+        there, from_game = found(rel)
         lods.append({
             "index": i,
             "rel": rel,
             "distance": distance,
-            "exists": bool(rel) and path.is_file(),
+            "exists": there,
+            "from_game": from_game,
         })
     # A skin is a PAIR of files, not one file. Every faction on the entry gets
     # a main texture and an attachment texture, and a model draws from BOTH at
@@ -900,12 +915,14 @@ def entry_view(entry, data_dir: Path) -> dict:
         attach = attach_of.get(faction, "")
         row = by_pair.get((main.lower(), attach.lower()))
         if row is None:
+            main_there, main_game = found(main)
+            att_there, att_game = found(attach)
             row = {
                 # `rel`/`exists` are the MAIN texture: it is what names the
                 # skin and what the model is mostly painted in
-                "rel": main, "exists": bool(main) and (data_dir / main).is_file(),
+                "rel": main, "exists": main_there, "from_game": main_game,
                 "attach": attach,
-                "attach_exists": bool(attach) and (data_dir / attach).is_file(),
+                "attach_exists": att_there, "attach_from_game": att_game,
                 "factions": [],
             }
             by_pair[(main.lower(), attach.lower())] = row

@@ -1369,7 +1369,7 @@
  "buildings.backed_up_first_log_undoes_it": "Se hace antes una copia de seguridad; 🕑 Historial puede deshacerlo.",
  "buildings.blank_boxes_are_left_alone": "Los cuadros en blanco se dejan como están.",
  "buildings.bonus": "bonificación",
- "buildings.borrowed_from_the_unpacked_vanilla_ui": "Prestada de la interfaz vanilla sin empaquetar. Este mod no incluye arte para ello.",
+ "buildings.borrowed_from_the_unpacked_vanilla_ui": "Prestada del arte propio del juego base. Este mod no tiene una imagen propia para ello.",
  "buildings.both": "ambos",
  "buildings.both_halves_of_this_building_train": "Las dos mitades de este edificio la entrenan en este grado.",
  "buildings.both_halves_train_the_same_units": "Las dos mitades entrenan las mismas unidades en cada grado.",
@@ -1647,7 +1647,7 @@
  "buildings.no_text": " (sin texto)",
  "buildings.no_texture_for_list": "sin textura para {list}",
  "buildings.no_tier": "sin grado",
- "buildings.no_unpacked_vanilla_ui_so_missing": "Sin interfaz vanilla desempaquetada, así que el arte que falta se muestra como marcador de posición",
+ "buildings.no_unpacked_vanilla_ui_so_missing": "No se encontró arte del juego base (no hay packs/ ni data/ui en la carpeta del juego), así que el arte que falta se muestra como marcador de posición",
  "buildings.no_vanilla_art_for_this_culture": "Tampoco hay arte vanilla para esta\ncultura, así que se usa la imagen de otra cultura vanilla.",
  "buildings.nobody_so_this_can_never_be": "nadie, así que esto nunca se podrá construir",
  "buildings.none_every_culture_falls_back_to": "Ninguna. Todas las culturas recurren al marcador de posición.",
@@ -10626,5 +10626,8 @@
   "many": "{count} texturas están fuera de {tex}",
   "other": "{count} texturas están fuera de {tex}"
  },
- "editor.textures_outside_why": "⚠ También hay un archivo con el mismo nombre en textures/. El juego lee la ruta que nombra la entrada, así que editar la textura de textures/ no cambia nada en el juego."
+ "editor.textures_outside_why": "⚠ También hay un archivo con el mismo nombre en textures/. El juego lee la ruta que nombra la entrada, así que editar la textura de textures/ no cambia nada en el juego.",
+ "viewer3d.from_the_base_game": "del juego base",
+ "editor.from_the_base_game_path": "No está en este mod. El juego lee data/{path} de sus propios archivos, y el visor también.",
+ "stratmap.from_base_game": "{n} del juego base"
 }

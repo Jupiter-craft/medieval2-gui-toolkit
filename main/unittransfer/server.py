@@ -5412,7 +5412,7 @@ class Handler(BaseHTTPRequestHandler):
             # `rel` comes from the entry we just served, but it is still a path
             # out of a mod's own file, so it is resolved and then checked to be
             # under data/ - the same rule /icon's `rel` routes follow.
-            src = factions.picture_path(mod, (q.get("rel") or [""])[0])
+            src = factions.read_path(mod, (q.get("rel") or [""])[0])
             hd = (q.get("hd") or ["0"])[0] == "1"
             # `strict`, which is Phase 29. A sheet that is there and will not
             # decode used to come back 200 with a 1x1 transparent PNG in it,
@@ -5498,7 +5498,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/model/anim":
             # one animation's keys, Phase 55b. `rel` came out of the action list
             # below, and is resolved and held under data/ like every `rel`
-            src = factions.picture_path(mod, (q.get("rel") or [""])[0])
+            src = factions.read_path(mod, (q.get("rel") or [""])[0])
             if src is None or not src.is_file():
                 return self._err(404, f"{(q.get('rel') or [''])[0]!r} is not a "
                                       f"file in {name}")
@@ -5542,13 +5542,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(404, f"no model entry {(q.get('entry') or [''])[0]!r}"
                                   f" in {name}")
         if path == "/api/model":
-            return self._json(mesh.entry_view(entry, mod.data))
+            return self._json(mesh.entry_view(entry, mod.data, mod))
         if path == "/api/model/export":
             # 57b: the entry as a .glb (skeleton, skin, texture, its loose
             # actions) or an .obj zip, drawn from the same sheet the viewer drew
             hd = (q.get("hd") or ["0"])[0] == "1"
             def png_of(rel):
-                src = factions.picture_path(mod, rel)
+                src = factions.read_path(mod, rel)
                 if src is None or not src.is_file():
                     return None
                 try:
@@ -5582,10 +5582,11 @@ class Handler(BaseHTTPRequestHandler):
         rels = entry.mesh_files()
         if not 0 <= lod < len(rels):
             return self._err(404, f"{entry.name} has no LOD {lod}")
-        src = factions.picture_path(mod, rels[lod])
+        src = factions.read_path(mod, rels[lod])
         if src is None or not src.is_file():
             return self._err(404, f"{rels[lod]} is not in {name} - the mod "
-                                  f"references it but does not ship it")
+                                  f"references it, ships no file of that name "
+                                  f"and its base game has none either")
         try:
             decoded = mesh.read_mesh(src)
         except mesh.MeshError as e:
@@ -5614,7 +5615,7 @@ class Handler(BaseHTTPRequestHandler):
         # `rel` came out of the list we just served, but it is still a path from
         # a query string, so it is resolved and checked to be under data/ - the
         # rule every `rel` route in this server follows.
-        src = factions.picture_path(mod, rel)
+        src = factions.read_path(mod, rel)
         if src is None or not src.is_file():
             return self._err(404, f"{rel!r} is not a file in {name}")
         try:
@@ -5632,9 +5633,7 @@ class Handler(BaseHTTPRequestHandler):
                 view["pose"] = "skeleton"
                 view["notes"] = list(view["notes"]) + [how]
             for row, mat in zip(view["materials"], scene.materials):
-                found = cas.texture_path(src, mat.texture)
-                row["rel"] = (found.relative_to(mod.data).as_posix()
-                              if found else "")
+                row["rel"] = cas.texture_rel(mod, rel, src, mat.texture)
             return self._json(view)
         try:
             geometry = cas.as_mesh(scene, skeleton)

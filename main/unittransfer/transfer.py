@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import filecmp
 import logging
+import os
 import re
 import shutil
 from dataclasses import dataclass, field, asdict, replace as dc_replace
@@ -444,6 +445,10 @@ class TransferPlan:
     #: the two skeleton sets differ, so the unit moves differently after this
     soldier_anim_changed: Tuple[str, str] = ("", "")
     missing_assets: List[str] = field(default_factory=list)
+    # 98f: files the source mod names and does not ship, found in its base game.
+    # Copied out of the game when the destination does not reach the same game;
+    # listed here, and not copied, when it does
+    base_game_assets: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
 
     @property
@@ -615,6 +620,9 @@ class TransferPlan:
                        "but a unit pointed at one will, on load. Import the animation "
                        "set (anim pack / descr_skeleton) before you use it.")
         L.extend(self._weapon_lines())
+        if self.base_game_assets:
+            L.append(f"  {len(self.base_game_assets)} referenced files come from the base game, "
+                     "which the destination reads too (not copied)")
         if self.missing_assets:
             L.append(f"  ! {len(self.missing_assets)} referenced files not found on disk (skipped)")
         for w in self.warnings:
@@ -823,6 +831,9 @@ class TransferPlan:
                      + ", ".join(cosmetic) + "). Not a crash: the engine animates the "
                      "unit from its SOLDIER entry and an upgrade level is a visual swap.")
         L.extend(self._weapon_lines())
+        if self.base_game_assets:
+            L.append(f"  {len(self.base_game_assets)} referenced files come from the base game, "
+                     "which the destination reads too (not copied)")
         if self.missing_assets:
             L.append(f"  ! {len(self.missing_assets)} referenced files not found on disk (skipped)")
         for w in self.warnings:
@@ -2129,6 +2140,31 @@ def _resolve_eop_target(plan: TransferPlan, unit) -> None:
     plan.dest_new_units = 0                # outside the EDU -> outside the cap
 
 
+def _from_base_game(plan: "TransferPlan", source: Mod, dest: Mod, rel: str) -> bool:
+    """98f: a file the source does not ship, looked for in its base game.
+
+    The game finds such a file in its own ``data/`` or packs, so the source
+    unit draws. When the destination is a mod of the same game and reaches the
+    file the same way, it needs nothing copied; otherwise the file is read out
+    of the game (out of its pack into the cache) and copied like any other.
+    False when the base game has not got it either.
+    """
+    from . import gamepack
+    if not gamepack.exists(rel, source):
+        return False
+    src_root, dst_root = gamepack.game_root_of(source), gamepack.game_root_of(dest)
+    same = (src_root is not None and dst_root is not None
+            and os.path.normcase(str(src_root)) == os.path.normcase(str(dst_root)))
+    if same and gamepack.exists(rel, dest):
+        plan.base_game_assets.append(rel)
+        return True
+    path, _where = gamepack.lookup(rel, source)
+    if path is None:
+        return False
+    plan.asset_files.append((path, rel))
+    return True
+
+
 def plan_transfer(source: Mod, unit_type: str, dest: Mod,
                   options: Optional[TransferOptions] = None) -> TransferPlan:
     opts = options or TransferOptions()
@@ -2458,7 +2494,7 @@ def plan_transfer(source: Mod, unit_type: str, dest: Mod,
                     if not sheets:
                         plan.warnings.append(
                             _i18n.msg("eng.transfer.no_sheet_textures_000_texture_found", "no sheet textures (<name>_000.texture) found next to '{rel}' - far-away sprites may not render.", rel=rel))
-            else:
+            elif not _from_base_game(plan, source, dest, rel):
                 plan.missing_assets.append(rel)
 
     # the mount was brought across on a base unit's ticket - its animations are
