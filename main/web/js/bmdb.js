@@ -47,10 +47,13 @@ function renderBmdb(){
   if(bmFolderOn)return renderBmdbFolder();
   if(!state.bmdb||state.bmdb.mod!==state.src)return loadBmdb();
   const qq=search.value.trim().toLowerCase();
+  const f=state.bmdbF||{};
   const rows=state.bmdb.entries.filter(e=>
     (!qq||e.name.includes(qq)||(e.folder||'').toLowerCase().includes(qq)
       ||e.used_by.some(u=>u.toLowerCase().includes(qq)))
-    &&(!unusedOnly.checked||e.unused));
+    &&(!unusedOnly.checked||e.unused)
+    &&(!f.nounit||!e.use_count)
+    &&BM_FILTERS.every(([k])=>!f[k]||(e[k]||[]).includes(f[k])));
   // Open by default, seeded with the first row that survived the search box -
   // done here rather than on entering the mode because this is the first point
   // at which there IS a row to show.
@@ -72,13 +75,41 @@ function renderBmdb(){
         title="${ttA('bmdb.folder_button_title')}">${tt('bmdb.folder_button')}</button>
       <button class="${bmPrevNode?'on':''}" onclick="bmPrevToggle()"
         title="${ttA('bmdb.draw_a_battle_model_beside_the')}">${tt('bmdb.view_in_3d')}</button>
+      ${galBarHtml()}
     </div>
-    ${rows.length?`<div class="dblist">${rows.map(bmdbRow).join('')}</div>`
-                 :`<div class="empty">${tt('bmdb.no_entries_match')}</div>`}
+    ${bmFilterHtml()}
+    ${!rows.length?`<div class="empty">${tt('bmdb.no_entries_match')}</div>`
+      :galOn()?galTilesHtml(rows.map(r=>r.name),bmPrevEntry)
+      :`<div class="dblist">${rows.map(bmdbRow).join('')}</div>`}
     </div>
   </div>`;
   main.querySelectorAll('.dbrow').forEach(r=>r.onclick=()=>openBmdbEntry(r.dataset.name));
+  if(galOn())galMount(main,bmPrevOpen);
   bmPrevAttach();
+}
+/* 95a: what Model entries filters on beyond the search box, each a list per
+   entry from bmdb.overview: the factions it has a skin for, the EDU category
+   and class of the units using it, its mount types (the animation lines'
+   first word) and its skeletons. */
+const BM_FILTERS=[['factions','bmdb.filter_faction'],['categories','bmdb.filter_category'],
+  ['classes','bmdb.filter_class'],['mounts','bmdb.filter_mount'],['skeletons','bmdb.filter_skeleton']];
+function bmFilterHtml(){
+  const all=state.bmdb.entries,f=state.bmdbF||{};
+  const box=([k,label])=>{
+    const vals=[...new Set(all.flatMap(e=>e[k]||[]))].sort();
+    if(!vals.length)return '';
+    return `<label class="bmf${f[k]?' on':''}"><span>${tt(label)}</span>
+      <select onchange="bmFilterSet('${k}',this.value)"><option value="">${tt('bmdb.filter_any')}</option>
+      ${vals.map(v=>`<option value="${esc(v)}"${f[k]===v?' selected':''}>${esc(v)}</option>`).join('')}</select></label>`;
+  };
+  return `<div class="bmfilters">${BM_FILTERS.map(box).join('')}
+    <label class="chk"><input type="checkbox" ${f.nounit?'checked':''}
+      onchange="bmFilterSet('nounit',this.checked)"> ${tt('bmdb.filter_no_unit')}</label></div>`;
+}
+function bmFilterSet(k,v){
+  const f=state.bmdbF||(state.bmdbF={});
+  if(v)f[k]=v; else delete f[k];
+  renderBmdb();
 }
 // folder mode (bmFolderJump): the folder's picker and list where the entry
 // list was, the 3D panel beside it holding the model alone

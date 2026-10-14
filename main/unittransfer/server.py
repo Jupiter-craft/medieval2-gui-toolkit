@@ -5414,6 +5414,9 @@ class Handler(BaseHTTPRequestHandler):
             # under data/ - the same rule /icon's `rel` routes follow.
             src = factions.read_path(mod, (q.get("rel") or [""])[0])
             hd = (q.get("hd") or ["0"])[0] == "1"
+            # 95a: a gallery tile is a couple of hundred pixels across, and a
+            # sheet for it at 256 is a sixteenth of the bytes
+            small = (q.get("small") or ["0"])[0] == "1"
             # `strict`, which is Phase 29. A sheet that is there and will not
             # decode used to come back 200 with a 1x1 transparent PNG in it,
             # the viewer's `Image` loaded it happily, and the cut-out shader
@@ -5426,7 +5429,7 @@ class Handler(BaseHTTPRequestHandler):
             # is ordinary, and every other `png_bytes` caller is unchanged.
             try:
                 data = self.registry.icons.png_bytes(
-                    src, 0 if hd else self.MODEL_TEXTURE_MAX, strict=True)
+                    src, 256 if small else 0 if hd else self.MODEL_TEXTURE_MAX, strict=True)
             except icons.ArtUnreadable as exc:
                 return self._err(415, str(exc))
             # the viewer puts the served size on the facts panel, so "HD" can be

@@ -1957,6 +1957,21 @@
   .dbrow.unused .en{color:var(--warn)}
   .dbhead{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
   .dbhead h2{margin:0;font-size:15px;color:var(--accent)}
+  /* 95a: Model entries' filters and the gallery */
+  .galbar{display:inline-flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+  .bmfilters{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;margin:8px 0 2px;font-size:12px}
+  .bmfilters .bmf{display:inline-flex;gap:5px;align-items:center;color:var(--dim)}
+  .bmfilters .bmf.on span{color:var(--accent)}
+  .bmfilters select{max-width:190px}
+  .galgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+  .gtile{position:relative;border:1px solid var(--edge);border-radius:8px;background:var(--panel);
+    cursor:pointer;overflow:hidden;display:flex;flex-direction:column}
+  .gtile:hover{border-color:var(--accent2)}
+  .gtile.showing{border-color:var(--accent)}
+  .gtile canvas{width:100%;aspect-ratio:3/4;display:block}
+  .gtile .gname{font-size:11px;padding:3px 6px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-family:ui-monospace,Consolas,monospace}
+  .gtile.gnone canvas{opacity:.25}
   /* ---- cleanup dialog ---- */
   .clsec{border:1px solid var(--edge);border-radius:8px;margin-bottom:12px;background:var(--panel2)}
   .clsec>.h{display:flex;gap:9px;align-items:center;padding:9px 11px;cursor:pointer}
@@ -3485,6 +3500,7 @@
 <script src="js/changes.js"></script>
 <script src="js/health.js"></script>
 <script src="js/viewer3d.js"></script>
+<script src="js/gallery.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->
 <script src="js/v3anim.js"></script>
 <!-- M18: after viewer3d.js, which owns the matrix helpers it shares. -->

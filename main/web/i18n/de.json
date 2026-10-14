@@ -10165,5 +10165,18 @@
  "eng.gamepack.lzo_block_cut_short": "ein LZO-Block endet mitten in einer Anweisung",
  "eng.gamepack.lzo_wrong_size": "ein LZO-Block ergab {got} Bytes statt {want}",
  "viewer3d.attachment_texture_from_game": "die Attachment-Textur stammt aus dem Basisspiel, nicht aus dieser Mod",
- "eng.gamepack.not_a_pack": "{name} ist keine PACK-Datei"
+ "eng.gamepack.not_a_pack": "{name} ist keine PACK-Datei",
+ "bmdb.view_list": "Liste",
+ "bmdb.view_gallery": "Galerie",
+ "bmdb.gallery_spin": "Automatisch drehen",
+ "bmdb.gallery_vary": "Automatische Variation",
+ "bmdb.gallery_vary_title": "Alle paar Sekunden eine neue Wahl der Varianten jedes Teils, so wie das Spiel einen Soldaten vom nächsten unterscheidet",
+ "bmdb.filter_faction": "Fraktion",
+ "bmdb.filter_category": "Einheitenkategorie",
+ "bmdb.filter_class": "Einheitenklasse",
+ "bmdb.filter_mount": "Animationstyp",
+ "bmdb.filter_skeleton": "Skelett",
+ "bmdb.filter_any": "beliebig",
+ "bmdb.filter_no_unit": "keine Einheit verwendet es",
+ "bmdb.gallery_spin_title": "Jedes Modell der Galerie langsam rotieren lassen"
 }

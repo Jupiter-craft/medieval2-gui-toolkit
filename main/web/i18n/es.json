@@ -10635,5 +10635,18 @@
  "eng.gamepack.lzo_block_cut_short": "un bloque LZO termina a mitad de una instrucción",
  "eng.gamepack.lzo_wrong_size": "un bloque LZO dio {got} bytes, no {want}",
  "viewer3d.attachment_texture_from_game": "la textura del elemento acoplado viene del juego base, no de este mod",
- "eng.gamepack.not_a_pack": "{name} no es un archivo PACK"
+ "eng.gamepack.not_a_pack": "{name} no es un archivo PACK",
+ "bmdb.view_list": "Lista",
+ "bmdb.view_gallery": "Galería",
+ "bmdb.gallery_spin": "Giro automático",
+ "bmdb.gallery_vary": "Variación automática",
+ "bmdb.gallery_vary_title": "Cada pocos segundos, una nueva elección de las variantes de cada parte, como el juego hace que un soldado difiera del siguiente",
+ "bmdb.filter_faction": "Facción",
+ "bmdb.filter_category": "Categoría de unidad",
+ "bmdb.filter_class": "Clase de unidad",
+ "bmdb.filter_mount": "Tipo de animación",
+ "bmdb.filter_skeleton": "Esqueleto",
+ "bmdb.filter_any": "cualquiera",
+ "bmdb.filter_no_unit": "ninguna unidad lo usa",
+ "bmdb.gallery_spin_title": "Rota despacio cada modelo de la galería"
 }

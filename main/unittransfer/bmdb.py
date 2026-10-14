@@ -908,6 +908,16 @@ def overview(mod: Mod, progress: Progress = None) -> dict:
     mentions = name_mentions(mod)
     counts = name_counts(mod)
     report(80, f"building {len(entries)} row(s)")
+    # 95a: what the gallery filters on - the EDU category and class of every
+    # unit that uses an entry, read once rather than per row
+    unit_kinds: Dict[str, Tuple[set, set]] = {}
+    for u in mod.edu.units:
+        for n in u.model_names():
+            cats, classes = unit_kinds.setdefault(n.lower(), (set(), set()))
+            if u.category:
+                cats.add(u.category.lower())
+            if getattr(u, "class_type", ""):
+                classes.add(u.class_type.lower())
     rows, seen = [], set()
     total = len(entries) or 1
     for i, e in enumerate(entries):
@@ -934,6 +944,12 @@ def overview(mod: Mod, progress: Progress = None) -> dict:
             "copies": counts[e.name],
             "unused": not refs and not mention and not e.first_entry_pad,
             "folder": edit.folder_info(e)["base"],
+            # 95a: the gallery's filters
+            "factions": sorted({t.faction.lower() for t in e.main_textures if t.faction}),
+            "categories": sorted(unit_kinds.get(e.name.lower(), (set(), set()))[0]),
+            "classes": sorted(unit_kinds.get(e.name.lower(), (set(), set()))[1]),
+            "mounts": sorted({(a.mount_type or "none").lower() for a in e.animations}),
+            "skeletons": sorted({a.primary_skeleton for a in e.animations if a.primary_skeleton}),
         })
     report(100, "done")
     return {"mod": mod.name, "count": len(entries), "names": len(rows),

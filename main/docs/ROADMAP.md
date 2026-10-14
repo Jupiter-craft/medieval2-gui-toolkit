@@ -2033,6 +2033,22 @@ canvas per tile runs out of contexts, and both WebGL traps in this UI apply
 filters: owned by a faction (its textures), not used by any unit, unit type
 (the EDU category and class of the units using it), animation type, and
 skeleton type (both off the entry's skeleton lines).
+**Done 2026-10-14**: `web/js/gallery.js`. One WebGL context on a canvas that
+is never on the page draws each tile and copies it into the tile's own 2D
+canvas; only the tiles on screen (an IntersectionObserver with 300 px of slack)
+are fetched, four at a time, as the entry's second LOD with its first skin at
+256 px (`/model_texture?small=1`), and past 60 models the ones longest off
+screen are let go. The shaders, the geometry parser, the part folding, the
+randomizer and the framing are the viewer's (wider for a tile, so a horse is
+not cut in two). The loop is `requestAnimationFrame` restarted on
+`visibilitychange`, and a lost context is rebuilt on a new canvas. **List /
+Gallery**, **Auto spin** and **Auto variation** are settings
+(`bmdb_view`, `gallery_spin`, `gallery_vary`), both on by default. The filters
+come from `bmdb.overview`: the factions an entry has a skin for, the EDU
+category and class of the units using it, its mount types (the "animation
+type") and its primary skeletons, plus **no unit uses it**. Heirs of Elendil:
+1,434 tiles; 31 factions, 5 categories, 4 classes, 4 mount types, 96
+skeletons to filter on.
 
 **95b - Unit entries.** A second mode: the models grouped by EDU unit, one
 row per unit, the soldier model and each officer model side by side with
