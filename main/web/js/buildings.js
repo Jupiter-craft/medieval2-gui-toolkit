@@ -105,10 +105,15 @@ function wireNumBoxes(root){
    `buildings.find_icon`. The building browser never passes it: a level the
    picked culture has no art for is a fact about that culture, and the grid
    says so. The unit editor's Recruitment tab does, because its rows come from
-   every line in the mod and belong to no one culture. */
+   every line in the mod and belong to no one culture.
+
+   98d: it carries `iconBust()` like every other picture URL. Without it the
+   art pane, the card and the level list built the same URL after a replace as
+   before it, and the browser drew the picture it already held for that URL:
+   the second replace of the same building showed the first until a reload. */
 function bldIcon(level,kind,culture,anyCulture){
   return `/building_icon?mod=${enc(state.src)}&culture=${enc(culture||bldCultureNow())}`
-       + `&level=${enc(level)}&kind=${kind||'small'}${anyCulture?'&any=1':''}`;
+       + `&level=${enc(level)}&kind=${kind||'small'}${anyCulture?'&any=1':''}${iconBust()}`;
 }
 function bldCultureNow(){
   const b=state.bld; return (b&&b.culture)||'';
