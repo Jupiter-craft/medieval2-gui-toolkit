@@ -688,7 +688,7 @@ def _validate_write(scene):
         require(valid, _i18n.msg("eng.cas.w_float_out_of_range", "{label} holds a number that is not finite or does not fit a 32-bit float", label=label))
 
     version = scene.version or 3.2
-    require(math.isfinite(version) and 3.02 <= version <= MAX_VERSION,
+    require(math.isfinite(version) and struct.unpack('<f', struct.pack('<f', 3.02))[0] <= version <= MAX_VERSION,
             _i18n.msg("eng.cas.w_version", "version {version:g} cannot be written: the writer knows the 3.02 to {MAX_VERSION:g} layout", version=version, MAX_VERSION=MAX_VERSION))
     floats([scene.length], "the scene length")
     n = len(scene.nodes)
@@ -831,6 +831,15 @@ def write_cas(scene: CasScene) -> bytes:
         if not wire:
             chunks += [(kind, struct.pack("<II", 16, kind) + b"\0" * 8, b"") for kind in ALWAYS_EMPTY]
         last = {kind: i for i, (kind, _, _) in enumerate(chunks)}
+        material_members = {}
+        material_cursor = 0
+        for i, (kind, raw, _tail) in enumerate(chunks):
+            if kind != MATERIALS:
+                continue
+            count = (len(scene.materials) - material_cursor if i == last[MATERIALS]
+                     else struct.unpack_from('<I', raw, 8)[0])
+            material_members[i] = scene.materials[material_cursor:material_cursor + count]
+            material_cursor += len(material_members[i])
         def belongs(item, kind, i):
             original = getattr(item, "_chunk", -1)
             target = original if 0 <= original < len(chunks) and chunks[original][0] == kind else last[kind]
@@ -843,7 +852,7 @@ def write_cas(scene: CasScene) -> bytes:
                     tail = b"\0" * _trailer(version, kind)
                 payload = struct.pack("<I", len(members)) + b"".join(_write_object(o) for o in members) + tail
             elif kind == MATERIALS:
-                members = [m for m in scene.materials if belongs(m, kind, i)]
+                members = material_members[i]
                 payload = struct.pack("<I", len(members)) + b"".join(_write_material(m) for m in members) + tail
             else:
                 out.append(raw)

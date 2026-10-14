@@ -53,6 +53,23 @@ def fixture(*, unknown=False, baked=False, partial=False, version=3.2):
 
 
 class CasWriterTests(unittest.TestCase):
+    def test_edit_float32_version_302(self):
+        scene = self.decode(fixture(version=3.02))
+        scene.objects[0].positions[0] = 7.0
+        self.assertEqual(self.roundtrip(scene).objects[0].positions[0], 7.0)
+
+    def test_material_order_across_chunks(self):
+        material = struct.pack('<II', 1, 1) + b'second\0second.tga\0'
+        material += struct.pack('<7f', 1, 1, 1, 1, 0, 0, 0) + b'\0' * 28 + b'\1'
+        raw = fixture() + chunk(5, material)
+        scene = self.decode(raw)
+        self.assertEqual(cas.write_cas(scene), raw)
+        scene.materials.reverse()
+        scene.objects[0].material = 0
+        after = self.roundtrip(scene)
+        self.assertEqual([m.name for m in after.materials], ['second', 'atlas'])
+        self.assertEqual(after.materials[after.objects[0].material].texture, 'second.tga')
+
     def decode(self, raw=None):
         return cas.read_cas_bytes(fixture() if raw is None else raw, 'fixture.cas')
 
