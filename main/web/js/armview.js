@@ -28,6 +28,8 @@ const ARM_KEY_DEFAULTS = {
   viewFront: 'numpad1', viewBack: 'ctrl+numpad1', viewRight: 'numpad3', viewLeft: 'ctrl+numpad3',
   viewTop: 'numpad7', viewBottom: 'ctrl+numpad7', ortho: 'numpad5', selectConnected: 'l',
   faceOrient: '', stats: '', detail: 'numpad/',
+  // 99i and 99j
+  undo: 'ctrl+z', redo: 'ctrl+shift+z', redoAlt: 'ctrl+y', tpose: '',
 };
 const armKeyLabel = k => ({grab: tt('armory.key_grab'), rotate: tt('armory.key_rotate'), scale: tt('armory.key_scale'),
   hide: tt('armory.key_hide'), unhideAll: tt('armory.key_unhide_all'), selectAll: tt('armory.key_select_all'),
@@ -35,7 +37,8 @@ const armKeyLabel = k => ({grab: tt('armory.key_grab'), rotate: tt('armory.key_r
   frameAll: tt('armory.key_frame_all'), viewFront: tt('armory.key_view_front'), viewBack: tt('armory.key_view_back'),
   viewRight: tt('armory.key_view_right'), viewLeft: tt('armory.key_view_left'), viewTop: tt('armory.key_view_top'),
   viewBottom: tt('armory.key_view_bottom'), ortho: tt('armory.key_ortho'), selectConnected: tt('armory.select_connected'),
-  faceOrient: tt('armory.face_orientation'), stats: tt('armory.statistics'), detail: tt('armory.detail')})[k] || k;
+  faceOrient: tt('armory.face_orientation'), stats: tt('armory.statistics'), detail: tt('armory.detail'),
+  undo: tt('armory.key_undo'), redo: tt('armory.key_redo'), redoAlt: tt('armory.key_redo_alt'), tpose: tt('armory.tpose')})[k] || k;
 
 function armKeys(){ return Object.assign({}, ARM_KEY_DEFAULTS, ARM.keys || {}); }
 async function armLoadKeys(){
@@ -51,7 +54,10 @@ function armKeyName(e){
     k = 'numpad' + ({Decimal: '.', Divide: '/', Multiply: '*', Add: '+', Subtract: '-', Enter: 'enter'}[rest] || rest.toLowerCase());
   }else k = (e.key || '').toLowerCase();
   if(['control', 'shift', 'alt', 'meta'].includes(k)) return '';
-  return (e.ctrlKey ? 'ctrl+' : '') + (e.altKey ? 'alt+' : '') + (e.shiftKey && k.length > 1 && !k.startsWith('numpad') ? 'shift+' : '') + k;
+  // Shift is written for a named key, and for a letter with Ctrl or Alt
+  // (Ctrl+Shift+Z is not Ctrl+Z); a lone Shift+letter stays the letter
+  const shifted = e.shiftKey && !k.startsWith('numpad') && (k.length > 1 || ((e.ctrlKey || e.altKey) && /^[a-z]$/.test(k)));
+  return (e.ctrlKey ? 'ctrl+' : '') + (e.altKey ? 'alt+' : '') + (shifted ? 'shift+' : '') + k;
 }
 
 /* Keys reach the workbench from the viewport, or from anywhere while the
@@ -61,11 +67,15 @@ function armWireKeys(){
   if(armKeysWired) return;
   armKeysWired = true;
   window.addEventListener('keydown', e => {
-    if(state.mode !== 'armory' || !ARM.view || !ARM.overView) return;
+    if(state.mode !== 'armory' || !ARM.view) return;
     if(document.activeElement === ARM.view) return;          // the canvas's own listener has it
     const t = e.target, tag = t && t.tagName;
     if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
     if(overlay.classList.contains('open')) return;
+    // undo and redo work anywhere in the workbench, the rest over the view
+    const keys = armKeys(), name = armKeyName(e);
+    const anywhere = name && ['undo', 'redo', 'redoAlt'].some(k => keys[k] === name);
+    if(!ARM.overView && !anywhere) return;
     armKey(e);
   });
 }
@@ -108,6 +118,9 @@ function armKey(e){
     case 'faceOrient': armToggle('faceOrient'); break;
     case 'stats': armToggle('stats'); break;
     case 'detail': ARM.detail ? armDetailClose() : armDetailOpen(); break;
+    case 'undo': armUndo(false); break;
+    case 'redo': case 'redoAlt': armUndo(true); break;
+    case 'tpose': armTpose(); break;
   }
 }
 function armView(yaw, pitch){ ARM.cam.yaw = yaw; ARM.cam.pitch = pitch; armFrame(); }
@@ -422,6 +435,94 @@ function armOverlay95g(ctx, w, h){
     ctx.fillText(badge, 16 * dpr, 13 * dpr + lines.length * lh);
   }
   ctx.restore();
+  armGizmoDraw(ctx, w, h);
+}
+
+/* --- the view gizmo (99k) --------------------------------------------------------
+
+   Blender's, at the top right: the three axes as balls turning with the view,
+   X red, Y green, Z blue, the positive ends filled and lettered, the negative
+   ends hollow. They are the game's axes, the ones the sliders and G, R and S
+   with X, Y or Z use: Y is up. A click on a ball looks down that axis at the
+   model, a drag on the gizmo orbits. */
+const ARM_GIZMO = {r: 46, ball: 9, pad: 14};
+const ARM_GIZMO_AXES = [
+  {axis: 0, sign: 1, label: 'X', col: '#e8555f'}, {axis: 1, sign: 1, label: 'Y', col: '#7cc843'}, {axis: 2, sign: 1, label: 'Z', col: '#4f8fe8'},
+  {axis: 0, sign: -1, label: '', col: '#e8555f'}, {axis: 1, sign: -1, label: '', col: '#7cc843'}, {axis: 2, sign: -1, label: '', col: '#4f8fe8'},
+];
+/* The gizmo's centre and the balls, in CSS pixels of the view. */
+function armGizmoLayout(){
+  const view = ARM.view;
+  if(!view) return null;
+  const r = view.getBoundingClientRect();
+  const g = ARM_GIZMO, top = ARM.detail ? 44 : 0;
+  const c = [r.width - g.r - g.pad, g.r + g.pad + top];
+  const cam = armCamera(view.width / view.height), m = cam.view;
+  const balls = ARM_GIZMO_AXES.map(a => {
+    // a game axis in the page's space (x mirrored), turned by the view
+    const d = [0, 0, 0]; d[a.axis] = a.sign;
+    const q = [-d[0], d[1], d[2]];
+    const vx = m[0] * q[0] + m[4] * q[1] + m[8] * q[2];
+    const vy = m[1] * q[0] + m[5] * q[1] + m[9] * q[2];
+    const vz = m[2] * q[0] + m[6] * q[1] + m[10] * q[2];
+    return Object.assign({x: c[0] + vx * (g.r - g.ball), y: c[1] - vy * (g.r - g.ball), z: vz}, a);
+  });
+  return {c, balls, rect: r};
+}
+function armGizmoDraw(ctx, w){
+  const L = armGizmoLayout();
+  if(!L) return;
+  const k = w / (L.rect.width || w), g = ARM_GIZMO;
+  ctx.save();
+  ctx.scale(k, k);
+  if(ARM.gizmoHover){
+    ctx.fillStyle = 'rgba(255,255,255,.08)';
+    ctx.beginPath(); ctx.arc(L.c[0], L.c[1], g.r + 2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.font = `bold 11px "Segoe UI", system-ui, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // the far side first, so a near ball covers a far one
+  for(const b of L.balls.slice().sort((a, c) => a.z - c.z)){
+    const hot = ARM.gizmoHover && ARM.gizmoHover.axis === b.axis && ARM.gizmoHover.sign === b.sign;
+    if(b.sign > 0){
+      ctx.strokeStyle = b.col; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(L.c[0], L.c[1]); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(b.x, b.y, g.ball, 0, Math.PI * 2);
+    if(b.sign > 0){
+      ctx.fillStyle = hot ? '#fff' : b.col; ctx.fill();
+      ctx.fillStyle = '#15181d'; ctx.fillText(b.label, b.x, b.y + 0.5);
+    }else{
+      ctx.fillStyle = hot ? 'rgba(255,255,255,.55)' : 'rgba(21,24,29,.65)'; ctx.fill();
+      ctx.strokeStyle = b.col; ctx.lineWidth = 1.6; ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+/* What is under the pointer: a ball, the gizmo's disk, or nothing. */
+function armGizmoHit(e){
+  const L = armGizmoLayout();
+  if(!L) return null;
+  const x = e.clientX - L.rect.left, y = e.clientY - L.rect.top;
+  const hits = L.balls.filter(b => Math.hypot(b.x - x, b.y - y) <= ARM_GIZMO.ball + 1).sort((a, c) => c.z - a.z);
+  if(hits.length) return hits[0];
+  return Math.hypot(L.c[0] - x, L.c[1] - y) <= ARM_GIZMO.r + 2 ? {disk: true} : null;
+}
+function armGizmoHover(e){
+  const h = e ? armGizmoHit(e) : null;
+  const was = ARM.gizmoHover;
+  ARM.gizmoHover = h;
+  if(!!was !== !!h || (h && was && (h.axis !== was.axis || h.sign !== was.sign))) armFrame();
+  return !!h;
+}
+/* Looks down an axis: the eye on that axis's side of the model. */
+function armGizmoClick(b){
+  if(!b || b.disk) return;
+  if(b.axis === 1) return armView(ARM.cam.yaw, b.sign > 0 ? 1.5607 : -1.5607);
+  // the game's +x is the page's -x (ARM_MIRROR); the eye sits at yaw where
+  // sin(yaw) is its x and cos(yaw) its z
+  if(b.axis === 0) return armView(b.sign > 0 ? -Math.PI / 2 : Math.PI / 2, 0);
+  armView(b.sign > 0 ? 0 : Math.PI, 0);
 }
 
 /* --- shortcuts, every one editable ---------------------------------------------- */

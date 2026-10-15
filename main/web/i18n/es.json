@@ -11244,5 +11244,15 @@
  "app.top_fold": "Plegar la barra superior y las pestañas de debajo",
  "app.top_open": "Volver a mostrar la barra superior",
  "armory.panel_fold": "Plegar este panel a una franja; la vista ocupa su espacio",
- "armory.panel_open": "Volver a abrir este panel"
+ "armory.panel_open": "Volver a abrir este panel",
+ "armory.rename_hint": "Doble clic para renombrar",
+ "armory.nothing_to_undo": "Nada que deshacer",
+ "armory.nothing_to_redo": "Nada que rehacer",
+ "armory.undo_title": "Deshacer el último cambio del modelo (Ctrl+Z)",
+ "armory.redo_title": "Rehacer lo deshecho (Ctrl+Mayús+Z o Ctrl+Y)",
+ "armory.key_undo": "Deshacer",
+ "armory.key_redo": "Rehacer",
+ "armory.key_redo_alt": "Rehacer (segunda tecla)",
+ "armory.tpose": "Pose en T",
+ "armory.tpose_title": "Animación desactivada: cada parte queda en su pose base. Pulse de nuevo para seguir desde donde estaba."
 }

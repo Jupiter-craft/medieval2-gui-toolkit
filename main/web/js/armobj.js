@@ -105,7 +105,7 @@ function armFoldHtml(key, name, objs, coll){
     <div class="armfoldhead">
       <button class="armfold" onclick="armFold('${k}')">${shut ? '▸' : '▾'}</button>
       <button class="mini armeye" onclick="armFoldEye('${k}')" title="${esc(tt('armory.hide_show'))}">${allHidden ? '◌' : '●'}</button>
-      <b class="armfoldname">${esc(name)}</b><span class="count">${objs.length}</span>
+      <b class="armfoldname" ondblclick="armRenameFold('${k}', this)" title="${esc(tt('armory.rename_hint'))}">${esc(name)}</b><span class="count">${objs.length}</span>
       ${coll ? `<label class="count armexp" title="${esc(tt('armory.export_coll_title'))}"><input type="checkbox"${coll.export === false ? '' : ' checked'}
           onchange="armCollExport(${coll.id}, this.checked)"> ${tt('armory.export')}</label>
         <button class="mini armx" onclick="armCollDelete(${coll.id})" title="${esc(tt('armory.delete_collection'))}">✕</button>` : ''}
@@ -120,7 +120,7 @@ function armObjRowHtml(o){
   return `<div class="armrow${ARM.sel.has(o.id) ? ' sel' : ''}${o.hidden ? ' off' : ''}" onclick="armSelect(${o.id}, event)"
       onmouseenter="armHoverRow(${o.id})" onmouseleave="armHoverRow(null)">
     <button class="mini armeye" onclick="event.stopPropagation();armHide(${o.id})" title="${esc(tt('armory.hide_show'))}">${o.hidden ? '◌' : '●'}</button>
-    <span class="armrowname">${esc(o.mesh)}${o.flag ? ` <i class="count">${tt('armory.opt')}</i>` : ''}${empty ? ` <i class="count">${tt('armory.empty_object')}</i>` : ''}</span>
+    <span class="armrowname" ondblclick="event.stopPropagation();armRenameRow(${o.id}, this)" title="${esc(tt('armory.rename_hint'))}">${esc(o.mesh)}${o.flag ? ` <i class="count">${tt('armory.opt')}</i>` : ''}${empty ? ` <i class="count">${tt('armory.empty_object')}</i>` : ''}</span>
     ${o.material ? `<span class="pill">${esc(armMatLabel(o.material))}</span>` : ''}${sw}
     ${o.weights ? `<span class="pill" title="${esc(tt('armory.weights_transferred'))}">W</span>` : ''}
     <button class="mini armx" onclick="event.stopPropagation();armDeleteObject(${o.id})" title="${esc(tt('armory.delete_object'))}">✕</button>
@@ -132,6 +132,9 @@ function armRepaint(){ armSave(); armPaintObjects(); armPaintAssets(); armPaintB
 
 function armSelect(id, ev){
   const add = ev && (ev.shiftKey || ev.ctrlKey);
+  // the same one object clicked again changes nothing, and the row stays the
+  // element it was: a double click on it is a rename (99h)
+  if(!add && id != null && ARM.sel.size === 1 && ARM.sel.has(id)) return;
   if(!add) ARM.sel.clear();
   if(add && ARM.sel.has(id)) ARM.sel.delete(id); else if(id != null) ARM.sel.add(id);
   armPaintObjects(); armFrame();
@@ -244,6 +247,66 @@ function armApplyPrefix(id, swap){
   [o.name, o.mesh] = [prefix, kept || prefix];
   armRepaint();
 }
+/* --- rename in place (99h) ---------------------------------------------------
+
+   A double click on an object's row edits its mesh name where it is, and on
+   a group's fold the group type of every object in it (a collection's fold,
+   its name). Enter keeps, Esc puts back, leaving the box keeps; the kit's
+   rules apply as Fix names applies them. */
+function armInlineEdit(el, value, commit){
+  const inp = document.createElement('input');
+  inp.className = 'arminline';
+  inp.value = value;
+  let done = false;
+  const end = keep => {
+    if(done) return;
+    done = true;
+    const v = inp.value.trim();
+    if(keep && v && v !== value) commit(v); else armPaintObjects();
+  };
+  inp.onkeydown = e => {
+    e.stopPropagation();
+    if(e.key === 'Enter'){ e.preventDefault(); end(true); }
+    else if(e.key === 'Escape'){ e.preventDefault(); end(false); }
+  };
+  inp.onblur = () => end(true);
+  inp.onclick = inp.ondblclick = e => e.stopPropagation();
+  el.replaceWith(inp);
+  inp.focus(); inp.select();
+}
+/* A mesh name typed: a trailing .001 and __opt go, spaces become
+   underscores, and a whole name (type__mesh) is split and fixed as the kit's
+   Fix names does. */
+function armRenameRow(id, el){
+  const o = armObj(id); if(!o) return;
+  armInlineEdit(el, o.mesh, v => {
+    v = v.replace(/\.\d{3}$/, '').replace(/__opt$/i, '').replace(/\s+/g, '_');
+    if(v.includes('__')) [o.name, o.mesh] = armSplitName(armFixName(v));
+    else o.mesh = v;
+    armRepaint();
+  });
+}
+/* A group type: no `__` inside it, since that is where the mesh name begins. */
+const armCleanType = v => v.replace(/\.\d{3}$/, '').trim().replace(/_{2,}/g, '_');
+function armRenameFold(key, el){
+  const p = armProj();
+  if(key.startsWith('c:')){
+    const c = p.collections.find(x => x.id === +key.slice(2));
+    if(c) armInlineEdit(el, c.name, v => { c.name = v; armRepaint(); });
+    return;
+  }
+  const from = key.slice(2);
+  armInlineEdit(el, from, v => {
+    const t = armCleanType(v);
+    if(!t || t === from) return armPaintObjects();
+    p.objects.filter(o => !o.coll && o.name === from).forEach(o => { o.name = t; });
+    // the fold stays as it was, under its new name
+    const f = p.ui.folded, i = f.indexOf(key);
+    if(i >= 0) f[i] = 'g:' + t;
+    armRepaint();
+  });
+}
+
 function armSetName(id, part, v){
   const o = armObj(id); if(!o) return;
   v = (v || '').trim();

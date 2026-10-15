@@ -10767,5 +10767,15 @@
  "app.top_fold": "Die obere Leiste und die Reiter darunter einklappen",
  "app.top_open": "Die obere Leiste wieder zeigen",
  "armory.panel_fold": "Dieses Feld zu einem Streifen einklappen; die Ansicht nimmt seinen Platz ein",
- "armory.panel_open": "Dieses Feld wieder öffnen"
+ "armory.panel_open": "Dieses Feld wieder öffnen",
+ "armory.rename_hint": "Doppelklick zum Umbenennen",
+ "armory.nothing_to_undo": "Nichts rückgängig zu machen",
+ "armory.nothing_to_redo": "Nichts zu wiederholen",
+ "armory.undo_title": "Die letzte Änderung am Modell rückgängig machen (Strg+Z)",
+ "armory.redo_title": "Das Rückgängiggemachte wiederholen (Strg+Umschalt+Z oder Strg+Y)",
+ "armory.key_undo": "Rückgängig",
+ "armory.key_redo_alt": "Wiederholen (zweite Taste)",
+ "armory.tpose": "T-Pose",
+ "armory.tpose_title": "Animation aus: jedes Teil steht in seiner Bindepose. Erneut drücken, um dort weiterzuspielen, wo sie war.",
+ "armory.key_redo": "Wiederholen"
 }

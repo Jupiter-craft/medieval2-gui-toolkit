@@ -197,9 +197,19 @@ async function armLibAddAsset(key){
 function armLibPickHtml(){
   const imp = state.armImp;
   imp.libPicked = imp.libPicked || new Set();
-  if(!ARM.lib){ armLibLoad().then(() => { const el = document.getElementById('armLibPick'); if(el) el.innerHTML = armLibPickHtml(); }); return `<div class="count">${tt('armory.reading')}</div>`; }
+  if(!ARM.lib){ armLibLoad().then(() => { const el = document.getElementById('armLibPick'); if(el){ el.innerHTML = armLibPickHtml(); armImpLibMount(); } }); return `<div class="count">${tt('armory.reading')}</div>`; }
   const items = armLib().items;
   if(!items.length) return `<div class="empty armempty">${tt('armory.lib_empty')}</div>`;
+  // 99g: as tiles, a model entry drawn from its own mod; a file on disk has
+  // no tile of its own to draw and shows its name
+  if(armImpGallery())
+    return `<div class="armimprows armimpgal"><div class="galgrid">${items.map(it => {
+      const label = `<b>${esc(it.name)}</b> ${esc(armLibCode(it))}`;
+      if(it.kind === 'external')
+        return `<div class="gtile armimptile gnone${imp.libPicked.has(it.id) ? ' picked' : ''}" data-k="${it.id}" onclick="armLibTileToggle(this)"
+          title="${esc(it.path || '')}"><canvas></canvas><span class="gname">${label}</span><span class="armimptick">✓</span></div>`;
+      return armImpTileHtml(String(it.id), it.mod, it.entry, label, imp.libPicked.has(it.id));
+    }).join('')}</div></div>`;
   return `<div class="armimprows">${items.map(it => `<label class="armcheck armlibpick"><input type="checkbox"${imp.libPicked.has(it.id) ? ' checked' : ''}
       onchange="armLibPick(${it.id}, this.checked)"> <b>${esc(it.name)}</b> <span class="count">${esc(armLibCode(it))}</span>
       ${it.notes ? `<span class="count">· ${esc(it.notes)}</span>` : ''}</label>`).join('')}</div>`;

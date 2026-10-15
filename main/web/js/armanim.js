@@ -31,8 +31,9 @@ function armAnimPaint(){
   if(el.parentNode !== host) host.appendChild(el);
   const a = armAnim(), p = armProj();
   const entries = armAnimEntries();
+  const tp = `<button class="mini${a.tpose ? ' on' : ''}" onclick="armTpose()" title="${esc(tt('armory.tpose_title'))}">${tt('armory.tpose')}</button>`;
   if(!a.open){
-    el.innerHTML = `<button class="armfold" onclick="armAnimFold()">▸ ${tt('armory.animations')}</button>`;
+    el.innerHTML = `<div class="armhead"><button class="armfold" onclick="armAnimFold()">▸ ${tt('armory.animations')}</button><span style="flex:1"></span>${tp}</div>`;
     return;
   }
   const chosen = (p.anim && p.anim.asset) || '';
@@ -40,7 +41,7 @@ function armAnimPaint(){
   const skels = L && L.skeletons ? Object.keys(L.skeletons) : [];
   const sk = L && L.skeletons ? L.skeletons[(a.skel || '').toLowerCase()] : null;
   el.innerHTML = `<div class="armhead"><button class="armfold" onclick="armAnimFold()">▾ ${tt('armory.animations')}</button>
-      ${a.data ? `<span class="count">${esc(a.data.name || '')}</span>` : ''}</div>
+      ${a.data ? `<span class="count">${esc(a.data.name || '')}</span>` : ''}<span style="flex:1"></span>${tp}</div>
     <label class="count">${tt('armory.skeleton_of')}<select onchange="armAnimFrom(this.value)">
       <option value="">${tt('armory.pick_model_entry')}</option>${entries.map(e => { const k = armAssetKey(e);
         return `<option value="${esc(k)}"${k === chosen ? ' selected' : ''}>${esc(armAssetLabel(e))}</option>`; }).join('')}</select></label>
@@ -58,6 +59,16 @@ function armAnimPaint(){
     ${a.err ? `<div class="w-bad">${esc(a.err)}</div>` : ''}`;
 }
 function armAnimFold(){ const a = armAnim(); a.open = !a.open; armAnimPaint(); }
+
+/* 99j: T-pose. Animation off, every part standing in its bind pose, and
+   back on where it was: the action, its time and whether it played are kept.
+   The card maker (95m) poses its card whatever this is. */
+function armTpose(){
+  const a = armAnim();
+  a.tpose = !a.tpose;
+  if(!a.tpose){ a.last = performance.now(); armAnimLoop(); }
+  armAnimPaint(); armFrame();
+}
 
 function armAnimListHtml(sk){
   const a = armAnim();
@@ -226,18 +237,19 @@ function armAnimFree(g){
 
 /* Called by armRender for each object while an action is chosen: the posed
    object, or null to draw it still. */
-function armAnimGeoFor(o){
+function armAnimGeoFor(o, card){
   const a = ARM.anim;
-  if(!a || !a.data || ARM.detail) return null;
+  if(!a || !a.data || ARM.detail || (a.tpose && !card)) return null;
   const g = armAnimGeo(o);
   return g && g.posed ? g : null;
 }
 
-/* Pose every visible object for the clock's time. */
-function armAnimPose(){
+/* Pose every visible object for the clock's time; the card maker passes its
+   own objects, posed even in T-pose. */
+function armAnimPose(objs){
   const a = ARM.anim;
-  if(!a || !a.data) return;
-  const objs = armVisibleObjects();
+  if(!a || !a.data || (a.tpose && !objs)) return;
+  objs = objs || armVisibleObjects();
   const geos = objs.map(armAnimGeo).filter(Boolean);
   if(!geos.length) return;
   // stood on the ground as the still model stood: lowered by its lowest point
@@ -268,7 +280,7 @@ function armAnimPose(){
    requestAnimationFrame does not fire there), picked up again on return. */
 function armAnimLoop(){
   const a = ARM.anim;
-  if(!a || !a.data || !a.playing || a.looping) return;
+  if(!a || !a.data || !a.playing || a.looping || a.tpose) return;
   if(document.hidden){
     const back = () => { document.removeEventListener('visibilitychange', back); a.last = performance.now(); armAnimLoop(); };
     document.addEventListener('visibilitychange', back);
@@ -277,7 +289,7 @@ function armAnimLoop(){
   a.looping = true;
   requestAnimationFrame(() => {
     a.looping = false;
-    if(state.mode !== 'armory' || !a.data || !a.playing) return;
+    if(state.mode !== 'armory' || !a.data || !a.playing || a.tpose) return;
     const now = performance.now();
     a.t += (now - (a.last || now)) / 1000 * a.speed;
     a.last = now;

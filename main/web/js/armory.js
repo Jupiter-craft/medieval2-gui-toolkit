@@ -108,11 +108,77 @@ function armProj(){
   return p;
 }
 function armSave(){
+  armUndoNote();
   clearTimeout(ARM.saveTimer);
   ARM.saveTimer = setTimeout(() => {
     api.post('/api/armory/project', {project: armProj()}).catch(() => {});
   }, 600);
 }
+
+/* --- undo and redo (99i) ------------------------------------------------------
+
+   Every change to the project ends in armSave, so a step is the project as
+   armSave last found it: a snapshot of the JSON, which holds no art and is
+   small. What only changes the look of the page (folds, an asset's list or
+   gallery, the animation chosen) is left out, and kept as it is on a step
+   back or forward. A drag or a slider saves once, when it stops, and so is
+   one step. */
+const ARM_UNDO_MAX = 200;
+function armUndoState(){
+  const p = armProj();
+  return JSON.stringify(Object.assign({}, p, {ui: undefined, anim: undefined,
+    assets: (p.assets || []).map(a => Object.assign({}, a, {open: undefined, show: undefined}))}));
+}
+function armUndoNote(){
+  const u = ARM.undo || (ARM.undo = {past: [], future: [], last: null});
+  if(u.restoring || !ARM.loaded) return;
+  const now = armUndoState();
+  if(u.last === null || now === u.last){ u.last = now; return; }
+  u.past.push(u.last);
+  if(u.past.length > ARM_UNDO_MAX) u.past.shift();
+  u.future = [];
+  u.last = now;
+  armUndoButtons();
+}
+function armUndoButtons(){
+  const u = ARM.undo, a = document.getElementById('armUndoBtn'), b = document.getElementById('armRedoBtn');
+  if(a) a.disabled = !(u && u.past.length);
+  if(b) b.disabled = !(u && u.future.length);
+}
+function armUndo(redo){
+  if(ARM.xform) return;
+  armUndoNote();             // a change still waiting on its save is a step too
+  const u = ARM.undo;
+  const from = u && (redo ? u.future : u.past);
+  if(!from || !from.length){ toast(redo ? tt('armory.nothing_to_redo') : tt('armory.nothing_to_undo')); return; }
+  (redo ? u.past : u.future).push(u.last);
+  u.last = from.pop();
+  armUndoApply(JSON.parse(u.last));
+}
+/* Puts a project back, keeping how the page shows it. */
+function armUndoApply(next){
+  const keep = armProj();
+  next.ui = keep.ui; next.anim = keep.anim;
+  for(const a of next.assets || []){
+    const was = (keep.assets || []).find(x => armAssetKey(x) === armAssetKey(a));
+    if(was){ a.open = was.open; a.show = was.show; }
+  }
+  state.armProj = next;
+  // an asset a step brings back is read again
+  for(const a of next.assets || []) armLoadAsset(a);
+  ARM.sel = new Set([...ARM.sel].filter(id => next.objects.some(o => o.id === id)));
+  if(ARM.detail && !next.objects.some(o => o.id === ARM.detail.id)) ARM.detail = null;
+  for(const o of next.objects) if(typeof armDyeChanged === 'function') armDyeChanged(o);
+  const u = ARM.undo;
+  u.restoring = true; armSave(); u.restoring = false;
+  armPaintAssets(); armPaintObjects(); armPaintBar(); armPaintFoot();
+  if(typeof armPaintDetailBar === 'function') armPaintDetailBar();
+  armUndoButtons();
+  armFrame();
+}
+/* A project opened or started afresh starts its own history. */
+function armUndoReset(){ ARM.undo = {past: [], future: [], last: null}; armUndoNote(); }
+
 function armAssetKey(a){ return a.kind === 'external' ? 'ext|' + (a.path || '').toLowerCase() : `${a.mod}|${a.entry}`; }
 function armAssetLabel(a){
   if(!a) return '';
@@ -133,6 +199,7 @@ async function armEnsureLoaded(){
   p.objects = p.objects || []; p.assets = p.assets || []; p.collections = p.collections || [];
   // 95e kept one source per object; an object holds pieces from 95f on
   for(const o of p.objects) if(!o.src){ o.src = [{asset: o.asset, group: o.group}]; delete o.asset; delete o.group; }
+  armUndoReset();
   ARM.loading = Promise.all(p.assets.map(a => armLoadAsset(a)));
   armLoadPresets().then(() => { if(state.mode === 'armory') armPaintObjects(); });
 }
@@ -169,6 +236,8 @@ function armPaintBar(){
   el.innerHTML = `<b>${esc(p.name || tt('armory.untitled'))}</b>
     <span class="count">${tt('armory.bar_counts', {objects: p.objects.length, tris: tris.toLocaleString()})}</span>
     <span style="flex:1"></span>
+    <button class="mini" id="armUndoBtn" onclick="armUndo(false)" title="${esc(tt('armory.undo_title'))}"${ARM.undo && ARM.undo.past.length ? '' : ' disabled'}>↶</button>
+    <button class="mini" id="armRedoBtn" onclick="armUndo(true)" title="${esc(tt('armory.redo_title'))}"${ARM.undo && ARM.undo.future.length ? '' : ' disabled'}>↷</button>
     <button class="mini" onclick="armFrameAll()" title="${esc(tt('armory.frame_all_title'))}">${tt('armory.frame_all')}</button>
     <button class="mini" onclick="armLibOpen()" title="${esc(tt('armory.lib_open_title'))}">${tt('armory.lib_open')}</button>
     <button class="mini" onclick="armNew()">${tt('armory.new_project')}</button>
@@ -781,7 +850,7 @@ function armRender(objs, w, h, cam, opts){
     // posed by the animation previewer (armanim.js): already in the game's
     // space, its own move, turn and scale in it
     // a card (95m) is drawn plain, but posed
-    const posed = (!o.plain || o.card) && typeof armAnimGeoFor === 'function' ? armAnimGeoFor(ob) : null;
+    const posed = (!o.plain || o.card) && typeof armAnimGeoFor === 'function' ? armAnimGeoFor(ob, o.card) : null;
     if(posed){
       gl.uniformMatrix4fv(L.uModel, false, new Float32Array(ARM_MIRROR));
       gl.uniform1f(L.uHi, !o.plain && ARM.hover === ob.id ? 1 : 0);
@@ -893,20 +962,26 @@ function armInstallControls(c){
   c.addEventListener('pointerdown', e => {
     c.focus({preventScroll: true});
     if(typeof armPointerDown === 'function' && armPointerDown(e)) return;
-    const button = e.button === 0 && e.altKey ? 1 : e.button;
-    drag = {x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, button, moved: false};
+    // the view gizmo (99k): a left drag on it orbits, a click looks down an axis
+    const giz = e.button === 0 && typeof armGizmoHit === 'function' ? armGizmoHit(e) : null;
+    const button = giz || (e.button === 0 && e.altKey) ? 1 : e.button;
+    drag = {x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, button, moved: false, giz};
     c.setPointerCapture(e.pointerId);
     if(button === 1) e.preventDefault();
   });
   c.addEventListener('pointermove', e => {
     if(typeof armXformMove === 'function' && armXformMove(e)) return;
-    if(!drag){ if(typeof armHoverAt === 'function') armHoverAt(e); return; }
+    if(!drag){
+      if(typeof armGizmoHover === 'function' && armGizmoHover(e)){ if(typeof armHoverAt === 'function') armHoverAt(null); return; }
+      if(typeof armHoverAt === 'function') armHoverAt(e);
+      return;
+    }
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if(Math.abs(e.clientX - drag.x0) + Math.abs(e.clientY - drag.y0) > 3) drag.moved = true;
     drag.x = e.clientX; drag.y = e.clientY;
     if(drag.button === 0){ if(typeof armBoxDrag === 'function') armBoxDrag(drag, e); return; }
     if(!drag.moved) return;
-    if(drag.button === 1 && e.shiftKey) armPan(dx, dy);
+    if(drag.button === 1 && e.shiftKey && !drag.giz) armPan(dx, dy);
     else if(drag.button === 1 && e.ctrlKey) ARM.cam.dist = Math.max(0.05, ARM.cam.dist * Math.exp(dy * 0.01));
     else if(drag.button === 1){
       ARM.cam.yaw -= dx * 0.01;
@@ -917,10 +992,14 @@ function armInstallControls(c){
   c.addEventListener('pointerup', e => {
     const d = drag; drag = null;
     if(!d) return;
+    if(d.giz){ if(!d.moved) armGizmoClick(d.giz); return; }
     if(d.box && typeof armBoxEnd === 'function'){ armBoxEnd(d, e); return; }
     if(!d.moved && d.button === 0 && typeof armClick === 'function') armClick(e);
   });
-  c.addEventListener('pointerleave', () => { if(typeof armHoverAt === 'function') armHoverAt(null); });
+  c.addEventListener('pointerleave', () => {
+    if(typeof armHoverAt === 'function') armHoverAt(null);
+    if(ARM.gizmoHover){ ARM.gizmoHover = null; armFrame(); }
+  });
   c.addEventListener('contextmenu', e => e.preventDefault());
   c.addEventListener('auxclick', e => e.preventDefault());
   c.addEventListener('keydown', e => { if(typeof armKey === 'function') armKey(e); });
@@ -961,6 +1040,9 @@ function armImportPaint(){
       <button class="mftab${imp.tab === 'mod' ? ' on' : ''}" onclick="armImportTab('mod')">${tt('armory.from_a_mod')}</button>
       <button class="mftab${imp.tab === 'file' ? ' on' : ''}" onclick="armImportTab('file')">${tt('armory.from_a_file')}</button>
       <button class="mftab${imp.tab === 'library' ? ' on' : ''}" onclick="armImportTab('library')">${tt('armory.from_the_library')}</button>
+      ${imp.tab === 'file' ? '' : `<span style="flex:1"></span>
+        <button class="mini${armImpGallery() ? '' : ' on'}" onclick="armImportView('list')">${tt('armory.as_list')}</button>
+        <button class="mini${armImpGallery() ? ' on' : ''}" onclick="armImportView('gallery')">${tt('armory.as_gallery')}</button>`}
     </div>
     <div id="armImpBody">${armImportBodyHtml()}</div>
     <div class="armimpfoot">
@@ -969,8 +1051,43 @@ function armImportPaint(){
       <button class="primary" id="armImpGo" onclick="armImportGo()">${tt('armory.import')}</button>
     </div></div>`;
   armImportCount();
+  armImpLibMount();
 }
 function armImportTab(t){ state.armImp.tab = t; armImportPaint(); if(t === 'mod') armImportCatalogue(); }
+
+/* 99g: the dialog's lists as a List or a Gallery, as the Model entries tab
+   has them: the gallery's tiles are 95a's (gallery.js), one WebGL context and
+   only the tiles on screen fetched. A click on a tile picks it. Remembered. */
+const armImpGallery = () => (state.settings || {}).armory_import_view === 'gallery';
+function armImportView(v){
+  state.settings.armory_import_view = v;
+  api.post('/api/settings', {armory_import_view: v}).catch(() => {});
+  armImportPaint();
+  if(state.armImp.tab === 'mod') armImportRows();
+}
+function armImpTileHtml(k, mod, name, label, on, missing){
+  if(missing) return `<div class="gtile gmissing" title="${esc(tt('armory.model_missing'))}"><canvas></canvas><span class="gname">${label}</span></div>`;
+  return `<div class="gtile armimptile${on ? ' picked' : ''}" data-name="${esc(name)}" data-mod="${esc(mod)}" data-k="${esc(k)}" title="${esc(name)}">
+    <canvas></canvas><span class="gname">${label}</span><span class="armimptick">✓</span></div>`;
+}
+function armImpTilePick(t, set, after){
+  const k = t.dataset.k, on = !set.has(k);
+  if(on) set.add(k); else set.delete(k);
+  t.classList.toggle('picked', on);
+  if(after) after();
+  armImportCount();
+}
+function armImpLibMount(){
+  const el = document.getElementById('armLibPick');
+  if(!el || !armImpGallery() || state.armImp.tab !== 'library' || typeof galMount !== 'function') return;
+  galMount(el, (name, t) => armLibTileToggle(t));
+}
+function armLibTileToggle(t){
+  const s = state.armImp.libPicked, id = +t.dataset.k;
+  if(s.has(id)) s.delete(id); else s.add(id);
+  t.classList.toggle('picked', s.has(id));
+  armImportCount();
+}
 
 function armImportBodyHtml(){
   const imp = state.armImp;
@@ -1012,7 +1129,32 @@ function armImportRows(){
   const q = imp.q.trim().toLowerCase();
   const CAP = 300;
   let html = '', shown = 0, total = 0;
-  if(imp.by === 'units'){
+  const tiles = armImpGallery();
+  const roleOf = (m) => m.role === 'soldier' ? tt('armory.role_soldier') : m.role === 'officer'
+    ? tt('armory.role_officer', {n: m.n}) : tt('armory.role_upgrade', {n: m.n});
+  if(tiles && imp.by === 'units'){
+    for(const u of cat.units){
+      if(q && !u.type.toLowerCase().includes(q) && !u.models.some(m => m.name.includes(q))) continue;
+      total++;
+      if(shown >= CAP) continue;
+      shown++;
+      html += `<div class="gunit"><div class="gulabel"><b>${esc(u.type)}</b>
+          <span class="count">${esc([u.category, u.class, u.mount].filter(Boolean).join(' · '))}</span></div>
+        <div class="gurow">${u.models.map(m => { const k = `${imp.mod}|${m.name}|${u.type}`;
+          return armImpTileHtml(k, imp.mod, m.name, `<b>${esc(roleOf(m))}</b> ${esc(m.name)}`, imp.picked.has(k), m.missing); }).join('')}</div></div>`;
+    }
+  }else if(tiles){
+    let row = '';
+    for(const e of cat.entries){
+      if(q && !e.name.toLowerCase().includes(q) && !e.mesh.toLowerCase().includes(q)) continue;
+      total++;
+      if(shown >= CAP) continue;
+      shown++;
+      const k = `${imp.mod}|${e.name}|`;
+      row += armImpTileHtml(k, imp.mod, e.name, esc(e.name), imp.picked.has(k));
+    }
+    html = row ? `<div class="galgrid">${row}</div>` : '';
+  }else if(imp.by === 'units'){
     for(const u of cat.units){
       if(q && !u.type.toLowerCase().includes(q) && !u.models.some(m => m.name.includes(q))) continue;
       total++;
@@ -1043,6 +1185,8 @@ function armImportRows(){
   }
   if(total > shown) html += `<div class="count">${ttN('armory.more_rows', total - shown)}</div>`;
   el.innerHTML = html || `<div class="count">${tt('armory.nothing_matches')}</div>`;
+  el.classList.toggle('armimpgal', tiles);
+  if(tiles && typeof galMount === 'function') galMount(el, (name, t) => armImpTilePick(t, imp.picked), imp.mod);
 }
 function armImportPick(k, on, input){
   const imp = state.armImp;

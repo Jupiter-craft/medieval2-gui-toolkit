@@ -250,7 +250,7 @@ function cgRender(){
   if(!hdCv || !cardCv) return;
   const objs = cgObjects(), [w, h] = cgDims(), ss = c.ss, W = w * ss, H = h * ss;
   if(!objs.length || !armGl()) return;
-  if(typeof armAnimPose === 'function') armAnimPose();
+  if(typeof armAnimPose === 'function') armAnimPose(objs);
   const cam = cgCamera(objs, W, H);
   if(!cam) return;
   const col = cgPass(objs, W, H, cam, {light: cgLight(cam)});

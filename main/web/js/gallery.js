@@ -97,19 +97,21 @@ function galUnitsHtml(units, showing, known){
 }
 
 /* Called after the page under it is (re)written: the tiles are new elements
-   every time, the models behind them are not. */
-function galMount(host, onPick){
+   every time, the models behind them are not. A model is held by its mod and
+   name, so the import dialog of Armory Studio (99g) draws any installed mod's
+   entries, and its library several mods' at once, through the same context:
+   the mod is the tile's own data-mod, else the one given, else the open mod. */
+function galMount(host, onPick, mod){
   galStart();
   if(!gal) return;
-  if(gal.mod !== state.src) galForget();
-  gal.mod = state.src;
+  mod = mod || state.src;
   if(gal.watch) gal.watch.disconnect();
   gal.tiles = new Map();
   gal.watch = new IntersectionObserver(seen => {
     for(const s of seen){
-      const name = s.target.dataset.name;
-      if(s.isIntersecting){ gal.tiles.set(s.target, name); galWant(name); }
-      else gal.tiles.delete(s.target);
+      const t = s.target, from = t.dataset.mod || mod;
+      if(s.isIntersecting){ gal.tiles.set(t, galWant(from, t.dataset.name)); }
+      else gal.tiles.delete(t);
     }
     gal.dirty = true;
     galPump();
@@ -117,7 +119,7 @@ function galMount(host, onPick){
   }, {rootMargin: '300px 0px'});
   host.querySelectorAll('.gtile[data-name]').forEach(t => {
     gal.watch.observe(t);
-    t.onclick = () => onPick(t.dataset.name);
+    t.onclick = () => onPick(t.dataset.name, t);
   });
 }
 
@@ -134,7 +136,7 @@ function galStart(){
   ['uProj', 'uView', 'uModel', 'uTex', 'uHasTex', 'uKey', 'uEye', 'uFlat', 'uUScale',
    'uPair', 'uUv', 'uCutout'].forEach(k => { loc[k] = gl.getUniformLocation(prog, k); });
   const was = gal;
-  gal = {canvas, gl, prog, loc, mod: was ? was.mod : '', models: was ? was.models : new Map(),
+  gal = {canvas, gl, prog, loc, models: was ? was.models : new Map(),
          tiles: was ? was.tiles : new Map(), watch: was ? was.watch : null, queue: [], busy: 0,
          yaw: 0.6, dirty: true, raf: 0, varyAt: 0, seq: 0};
   // a context taken away is replaced, and every model put back on the GPU
@@ -148,14 +150,6 @@ function galStart(){
   gl.enable(gl.DEPTH_TEST);
 }
 
-function galForget(){
-  if(!gal) return;
-  gal.models.forEach(galFree);
-  gal.models = new Map();
-  gal.queue = [];
-  gal.seq++;
-}
-
 function galFree(m){
   if(gal && gal.gl && m.gpu){
     const gl = gal.gl;
@@ -167,24 +161,26 @@ function galFree(m){
 
 /* ---- loading ------------------------------------------------------------ */
 
-function galWant(name){
-  let m = gal.models.get(name);
+function galWant(mod, name){
+  const key = mod + '|' + name;
+  let m = gal.models.get(key);
   if(!m){
-    m = {name, status: 'queued', used: 0};
-    gal.models.set(name, m);
+    m = {key, mod, name, status: 'queued', used: 0};
+    gal.models.set(key, m);
     gal.queue.push(m);
   }else if(m.status === 'idle'){
     m.status = 'queued';
     gal.queue.push(m);
   }
   m.used = performance.now();
+  return key;
 }
 
 function galPump(){
   if(!gal) return;
   // the tiles on screen first, newest scroll first
   const want = new Set(gal.tiles.values());
-  gal.queue = gal.queue.filter(m => m.status === 'queued' && want.has(m.name));
+  gal.queue = gal.queue.filter(m => m.status === 'queued' && want.has(m.key));
   while(gal.busy < GAL_LOADS && gal.queue.length){
     const m = gal.queue.shift();
     gal.busy++;
@@ -201,7 +197,7 @@ function galPump(){
 
 async function galLoad(m, seq){
   m.status = 'loading';
-  const mod = state.src, q = `mod=${enc(mod)}&entry=${enc(m.name)}`;
+  const mod = m.mod, q = `mod=${enc(mod)}&entry=${enc(m.name)}`;
   try{
     const info = await api.get(`/api/model?${q}`);
     const lods = (info.lods || []).filter(l => l.exists);
@@ -266,7 +262,7 @@ function galEvict(){
   const held = [...gal.models.values()].filter(m => m.status === 'ready');
   if(held.length <= GAL_KEEP) return;
   const want = new Set(gal.tiles.values());
-  held.filter(m => !want.has(m.name))
+  held.filter(m => !want.has(m.key))
       .sort((a, b) => a.used - b.used)
       .slice(0, held.length - GAL_KEEP)
       .forEach(m => { galFree(m); m.geo = m.tex = m.att = null; m.status = 'idle'; });
@@ -317,21 +313,23 @@ function galLoop(){
 
 function galFrame(now){
   gal.raf = 0;
+  // tiles of a page or dialog since rewritten or closed are let go
+  gal.tiles.forEach((k, t) => { if(!t.isConnected) gal.tiles.delete(t); });
   if(!gal.gl || !gal.tiles.size) return;
   const spin = galSpinOn();
   if(spin){ gal.yaw += 0.012; gal.dirty = true; }
   if(galVaryOn() && now - gal.varyAt > GAL_VARY_MS){
     gal.varyAt = now;
-    new Set(gal.tiles.values()).forEach(name => {
-      const m = gal.models.get(name);
+    new Set(gal.tiles.values()).forEach(key => {
+      const m = gal.models.get(key);
       if(m && m.status === 'ready') galRandomize(m);
     });
     gal.dirty = true;
   }
   if(gal.dirty){
     gal.dirty = false;
-    gal.tiles.forEach((name, tile) => {
-      const m = gal.models.get(name);
+    gal.tiles.forEach((key, tile) => {
+      const m = gal.models.get(key);
       if(!m) return;
       m.used = now;
       tile.classList.toggle('gnone', m.status === 'none');
