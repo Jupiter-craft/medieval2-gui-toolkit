@@ -34,7 +34,7 @@ everything below is on this one.
 
 * **The base game's files are read straight out of its `.pack` files**, so the
   release no longer ships its own copy of the vanilla interface art: the zip
-  is about 22 MB.
+  is 33 MB where v2.4.5 was 56.
 * **Models Editor:** a gallery of every battle model, with spin and variation
   and five new filters; Unit entries, each unit's soldier, officers and
   upgrades in a row; Strat models and CAS models as two tabs drawing in the
