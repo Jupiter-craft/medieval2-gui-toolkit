@@ -33,6 +33,13 @@
   .topopen:hover{opacity:1}
   body.topshut header,body.topshut .crumbs,body.topshut #main>.mftabs:not(.cdsub){display:none}
   body.topshut .topopen{display:block}
+  /* the layouts below are sized as the window less the bar and the trail;
+     folded, they get that room back, and the page under them is painted the
+     theme's colour (the body is a container, so its background does not reach
+     the canvas on its own) - before this a band of white showed at the foot */
+  html{background:var(--bg)}
+  body.topshut .layout{height:calc(100vh / var(--uiz))}
+  body.topshut .cmworkspace,body.topshut .cmwrap{height:calc(calc(100vh / var(--uiz)) - 28px)}
   /* 99f: one soft scrollbar for every scrolling area, in the theme's colours:
      thin, a rounded thumb on no track, brighter under the pointer. Nothing
      is set per panel. Chromium draws the ::-webkit- rules; Firefox, which
@@ -175,6 +182,7 @@
      at 375 px they took 210 of it and left the cards less than one card wide */
   @container page (max-width:600px){
     .layout{flex-direction:column;height:auto;min-height:calc(calc(100vh / var(--uiz)) - 80px)}
+    body.topshut .layout{height:auto}
     .layout>.filters{width:auto;flex:0 0 auto;max-height:calc(35vh / var(--uiz));
       border-right:0;border-bottom:1px solid var(--edge)}
     .layout>main{overflow:visible}
@@ -3015,6 +3023,10 @@
   .homefoot{display:flex;justify-content:flex-end;margin:12px 0 18px}
   a.kofi{color:var(--accent2);text-decoration:none;font-size:12.5px}
   a.kofi:hover{text-decoration:underline}
+  .homekofi{display:flex;justify-content:flex-end;margin:0 0 10px}
+  a.kofibadge{display:inline-block;line-height:0;border-radius:8px;transition:transform .12s,filter .12s}
+  a.kofibadge img{height:44px;width:auto;display:block}
+  a.kofibadge:hover{transform:translateY(-1px);filter:brightness(1.08)}
   .homeprefs .chk{align-items:baseline;margin:0}
   .homeprefs .count{font-size:11px;margin-left:auto;text-align:right}
   /* The M2EX mark: its own line under the card's head, quiet until it is on -

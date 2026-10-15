@@ -1985,6 +1985,11 @@ async function paintBuildTag(){
 // so it opens in the browser beside the toolkit and never replaces it.
 const KOFI_URL='https://ko-fi.com/projyeet';
 const kofiLink=()=>`<a class="kofi" href="${KOFI_URL}" target="_blank" rel="noopener">${tt('core.support_on_kofi')}</a>`;
+// Ko-fi's own "Support me on Ko-fi" button, the one the README carries, at the
+// top right of Home. It is Ko-fi's image off Ko-fi's server, so offline it
+// falls back to the plain link rather than leaving a broken picture.
+const KOFI_ART='https://ko-fi.com/img/githubbutton_sm.svg';
+const kofiBadge=()=>`<a class="kofibadge" href="${KOFI_URL}" target="_blank" rel="noopener" title="${ttA('core.support_on_kofi')}"><img src="${KOFI_ART}" alt="${ttA('core.support_on_kofi')}" onerror="this.parentNode.outerHTML=kofiLink()"></a>`;
 async function openCredits(){
   let ver=verLabel(appBuild);
   if(!ver){try{const p=await api.get('/api/ping');ver=verLabel(p.version);}catch(e){}}
@@ -2002,7 +2007,8 @@ async function openCredits(){
       </div>
       <div style="margin-bottom:14px">
         <div class="lbl" style="margin-bottom:4px">${tt('core.co_developed_by')}</div>
-        <b>${tt('core.demir')}</b>
+        <div><b>${tt('core.demir')}</b> <span class="count">${tt('core.campaign_map_2')}</span></div>
+        <div>${tt('core.mreedmm_armory_studio')}</div>
       </div>
       <div style="margin-bottom:14px">
         <div class="lbl" style="margin-bottom:4px">${tt('core.built_on_the_work_of_and')}</div>
@@ -2011,10 +2017,12 @@ async function openCredits(){
         <div>${tt('core.medieval_ii_total_war_modding_tool')}</div>
         <div>${tt('core.bare_geomod_by_sinople_and_gigantus')}</div>
         <div>${tt('core.twmapreader_by_withwnar')}</div>
+        <div>${tt('core.armory_studio_3d_by_mreedmm')}</div>
       </div>
       <div style="margin-bottom:14px">
         <div class="lbl" style="margin-bottom:4px">${tt('core.sponsored_by')}</div>
-        <b>${tt('core.featherleaf')}</b>
+        <div><b>${tt('core.featherleaf')}</b></div>
+        <div><b>${tt('core.lupinemaverick')}</b></div>
       </div>
       <div style="margin-bottom:14px">
         <div class="lbl" style="margin-bottom:4px">${tt('core.special_thanks')}</div>

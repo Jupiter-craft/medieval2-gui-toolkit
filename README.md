@@ -21,7 +21,7 @@ except the mod you point it at, and every write is backed up and undoable.
 
 Video walkthrough: <https://www.youtube.com/watch?v=NZl8gCqlTE0>
 
-Sponsored by FeatherLeaf.
+Sponsored by FeatherLeaf and Lupinemaverick.
 
 ### Why support it
 
@@ -622,7 +622,7 @@ are created as they are needed and are not in the repository.
 
 **Developed by** ProJYeet
 
-**Co-developed by** Demir
+**Co-developed by** Demir (Campaign map) and Mreedmm (Armory Studio)
 
 **Built on the work of, and thanking them for permission to take reference from
 their code**
@@ -631,8 +631,9 @@ their code**
 * [Medieval II Total War Modding Tool](https://www.twcenter.net/ubs/medieval-2-total-war-modding-tool.26/) by Fynn
 * [Bare Geomod](https://www.moddb.com/mods/bare-geomod-and-tools) by Sinople and Gigantus
 * [TWMapReader](https://www.twcenter.net/threads/tw-map-reader-v2-24-1-jul-2015-update.438278/) by Withwnar
+* [Armory Studio 3D](https://github.com/muhamadridhomm/armorystudio3d) by Mreedmm
 
-**Sponsored by** FeatherLeaf
+**Sponsored by** FeatherLeaf and Lupinemaverick
 
 **Special thanks** Gigantus and the TWCenter community, for the guides that
 taught everyone, this tool included, how these files actually work.

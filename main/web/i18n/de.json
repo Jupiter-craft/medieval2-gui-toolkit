@@ -10845,5 +10845,9 @@
  "armory.sess_revert_confirm": "Zu dieser Sicherung zurückkehren? Das Modell, wie es jetzt ist, wird vorher gesichert.",
  "armory.sess_name_first": "Geben Sie der Sitzung zuerst einen Namen",
  "armory.sess_saved_as": "Als Sitzung {name} gespeichert",
- "armory.sess_loaded": "{name} geöffnet"
+ "armory.sess_loaded": "{name} geöffnet",
+ "core.armory_studio_3d_by_mreedmm": "<a href=\"https://github.com/muhamadridhomm/armorystudio3d\" target=\"_blank\" style=\"color:var(--accent2)\">Armory Studio 3D</a> von <b>Mreedmm</b>",
+ "core.campaign_map_2": "(Kampagnenkarte)",
+ "core.lupinemaverick": "Lupinemaverick",
+ "core.mreedmm_armory_studio": "<b>Mreedmm</b> <span class=\"count\">(Armory Studio)</span>"
 }
