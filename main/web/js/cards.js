@@ -93,15 +93,20 @@ const cdShownNote=(shown,all)=>shown.length===all.length?''
   :`<div class="count" style="margin-top:6px">${tt('cards.of_shown_the_rest_are_filtered',{shown_n:shown.length,all_n:all.length})}</div>`;
 
 /* 95m: the tab in two, Generate (cardgen.js) and Clean up (this file). */
+/* The card generator draws Armory Studio's model, so it is on offer exactly
+   when Armory Studio is (core.js, `off`): a 2.x build has Clean up alone. */
+const cardGenOn=()=>!modeDef('armory').off;
+const cardsSubNow=()=>cardGenOn()?(state.cardsSub||'generate'):'clean';
 function cardsSubTabsHtml(){
-  const sub=state.cardsSub||'generate';
+  const sub=cardsSubNow();
+  if(!cardGenOn())return '';
   return `<div class="mftabs cdsub">
     <button class="mftab${sub==='generate'?' on':''}" onclick="cardsSub('generate')">${tt('cards.sub_generate')}</button>
     <button class="mftab${sub==='clean'?' on':''}" onclick="cardsSub('clean')">${tt('cards.sub_clean')}</button></div>`;
 }
 function cardsSub(s){state.cardsSub=s;s==='generate'?renderCardGen():(state.cards?renderCards():loadCards());}
 function renderCards(){
-  if((state.cardsSub||'generate')==='generate')return renderCardGen();
+  if(cardsSubNow()==='generate')return renderCardGen();
   if(!state.cards||state.cards.a.mod!==state.src)return loadCards();
   const c=state.cards,a=c.a;
   count.textContent=ttN('cards.files_total',a.kinds.reduce((n,k)=>n+k.file_count,0));

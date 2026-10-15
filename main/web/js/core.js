@@ -737,9 +737,10 @@ function buildFilter(id,values,key,useLabel){
 // host rather than from this menu (Sprites lives in the BMDB editor; Traits,
 // Ancillaries, Factions and Strings live in Minor Files).
 // `off:true` = in the build, but on offer nowhere - not this menu, not a Home
-// card, not the resume button. The Campaign Map editor is the only mode that
-// ever carries it, and on `master` it is NOT set: the map is on here, because
-// this is where it gets worked on and used.
+// card, not the resume button, not a tab strip. Two modes carry it, the
+// Campaign Map editor and Armory Studio (the card generator in Unit cards
+// follows Armory Studio, whose model it draws), and on `master` neither is
+// set: both are on here, because this is where they get worked on and used.
 // The flag goes on ONLY while a public 2.x release is being built - a 2.x zip
 // carries the Unit Editor fixes to everyone without also putting a half-tested
 // editor that WRITES to a campaign in front of them - and comes straight back
@@ -1321,7 +1322,7 @@ const BMDB_TABS=[{mode:'bmdb',label:tt('core.model_entries')},{mode:'sprites',la
   {mode:'stratmap',label:tt('core.strat_models')},{mode:'casmodels',label:tt('core.cas_models')},
   {mode:'armory',label:tt('core.armory_studio')},
   {mode:'cards',label:tt('core.unit_cards')}];
-const bmdbTabsHtml=note=>`<div class="mftabs">${BMDB_TABS.map(t=>
+const bmdbTabsHtml=note=>`<div class="mftabs">${BMDB_TABS.filter(t=>!modeDef(t.mode).off).map(t=>
   `<button class="mftab${state.mode===t.mode?' on':''}" onclick="setAppMode('${t.mode}')"
     >${esc(t.label)}</button>`).join('')}${
   note?`<span class="count" style="margin-left:auto">${esc(note)}</span>`:''}</div>`;
@@ -1838,7 +1839,7 @@ function render(){
   if(state.mode==='stratmap')return state.stm?renderStratmap():loadStratmap();
   if(state.mode==='casmodels')return renderCasModels();
   if(state.mode==='armory')return renderArmory();
-  if(state.mode==='cards')return (state.cardsSub||'generate')==='generate'?renderCardGen():state.cards?renderCards():loadCards();
+  if(state.mode==='cards')return cardsSubNow()==='generate'?renderCardGen():state.cards?renderCards():loadCards();
   if(state.mode==='campmap')return state.cmap?renderCampmap():loadCampmap();
   if(state.mode==='buildings')return renderBuildings();
   if(state.mode==='strings')return state.str?renderStrings():loadStrings();

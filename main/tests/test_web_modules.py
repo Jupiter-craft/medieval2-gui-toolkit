@@ -131,12 +131,14 @@ top = [mid for mid, rest in menu
        if mid != "home" and "sub:true" not in rest and "off:true" not in rest]
 subs = [mid for mid, rest in menu if "sub:true" in rest]
 # `off:true` is a mode that is in the build and offered nowhere. It is how the
-# 2.x line ships without the Campaign Map editor, and it must still have its
+# 2.x line ships without the Campaign Map editor and Armory Studio (the card
+# generator follows Armory Studio), and the map must still have its
 # MODULES entry so that clearing the flag needs no second edit.
 off = [mid for mid, rest in menu if "off:true" in rest]
 check(f"MODES parsed: {len(top)} menu modules, {len(subs)} sub modes, "
       f"{len(off)} off", len(top) > 5)
-gap = [m for m in top + off if m not in modfiles.MODULES]
+# a sub mode switched off (Armory Studio on the 2.x line) has no card to need one
+gap = [m for m in top + off if m not in modfiles.MODULES and m not in subs]
 check("every menu module has a MODULES entry"
       + (": " + ", ".join(gap) if gap else ""), not gap)
 # A sub mode may still have a MODULES entry - Traits and Sprites do, and their
