@@ -643,3 +643,7 @@ taught everyone, this tool included, how these files actually work.
 ## Changelog
 
 See [Releases](../../releases).
+
+---
+
+*This toolkit was made with the assistance of Claude, an AI model by Anthropic.*
