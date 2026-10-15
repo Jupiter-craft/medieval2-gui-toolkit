@@ -177,10 +177,10 @@ def stage_runtime(stage: Path) -> None:
 
     site = runtime / "Lib" / "site-packages"
     site.mkdir(parents=True, exist_ok=True)
-    log("runtime: installing Pillow…")
+    log("runtime: installing Pillow and numpy…")
     res = subprocess.run(
         [sys.executable, "-m", "pip", "install", "--upgrade", "--target", str(site),
-         "--only-binary=:all:", "Pillow"],
+         "--only-binary=:all:", "Pillow", "numpy"],
         capture_output=True, text=True)
     if res.returncode != 0:
         raise SystemExit("pip install Pillow failed:\n" + res.stdout + res.stderr)
@@ -191,11 +191,11 @@ def stage_runtime(stage: Path) -> None:
         rmtree(junk)
 
     ok = subprocess.run([str(runtime / "python.exe"), "-c",
-                         "import PIL;from PIL import Image;print(PIL.__version__)"],
+                         "import PIL, numpy;from PIL import Image;print(PIL.__version__, numpy.__version__)"],
                         capture_output=True, text=True)
     if ok.returncode != 0:
         raise SystemExit("bundled runtime cannot import Pillow:\n" + ok.stdout + ok.stderr)
-    log(f"runtime: Pillow {ok.stdout.strip()} verified inside the bundle")
+    log(f"runtime: Pillow and numpy {ok.stdout.strip()} verified inside the bundle")
 
     size = sum(p.stat().st_size for p in runtime.rglob("*") if p.is_file())
     log(f"runtime: {size / 1e6:.1f} MB")

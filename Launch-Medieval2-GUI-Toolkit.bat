@@ -45,13 +45,13 @@ if not defined PY (
 rem Pillow is the one third-party dependency (unit-card TGA<->PNG conversion).
 rem Rather than failing with a cryptic import error, check for it up front and
 rem try to install it automatically before the user ever sees a traceback.
-%PY% -c "import PIL" >nul 2>nul
+%PY% -c "import PIL, numpy" >nul 2>nul
 if not %errorlevel%==0 (
     echo.
     echo Pillow ^(the image library this tool needs^) is not installed yet.
-    echo Installing it now with:  %PY% -m pip install pillow
+    echo Installing it now with:  %PY% -m pip install pillow numpy
     echo.
-    %PY% -m pip install --disable-pip-version-check pillow
+    %PY% -m pip install --disable-pip-version-check pillow numpy
     if not %errorlevel%==0 (
         echo.
         echo ============================================================
@@ -61,7 +61,7 @@ if not %errorlevel%==0 (
         echo This usually means there is no internet connection, or pip is
         echo missing/broken for this Python install. Try:
         echo    1. Run Install-Dependencies.bat, or
-        echo    2. Open a command prompt and run:  %PY% -m pip install pillow
+        echo    2. Open a command prompt and run:  %PY% -m pip install pillow numpy
         echo    3. Or download the portable build from the Releases page, which
         echo       bundles Python + Pillow and needs no installation at all.
         echo.
