@@ -5683,6 +5683,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"presets": armory.load_presets()})
         if path == "/api/armory/keys":
             return self._json({"keys": armory.load_keys()})
+        if path == "/api/armory/poses":
+            # 99n: the Blender kit's IK rigs and pose library, read out of it
+            return self._file(Path(__file__).resolve().parent / "data" / "m2_poses.json",
+                              "application/json; charset=utf-8")
         if path == "/api/armory/library":
             return self._json(armlib.view(self.registry.get))
         if path == "/api/armory/external":

@@ -249,6 +249,7 @@ function armAnimGeoFor(o, card){
 function armAnimPose(objs){
   const a = ARM.anim;
   if(!a || !a.data || (a.tpose && !objs)) return;
+  const card = !!objs;
   objs = objs || armVisibleObjects();
   const geos = objs.map(armAnimGeo).filter(Boolean);
   if(!geos.length) return;
@@ -257,8 +258,11 @@ function armAnimPose(objs){
   for(const g of geos) for(let i = 1; i < g.positions.length; i += 3) if(g.positions[i] < low) low = g.positions[i];
   const len = armAnimLength(), f = len > 0 ? ((a.t % len) + len) % len / len : 0;
   const tr = a.travel || [0, 0];
-  const pose = v3aPose(a.data, a.t);
-  const shift = [-tr[0] * f, a.carried ? 0 : (isFinite(low) ? low : 0), -tr[1] * f];
+  // 99n: the card maker's IK rig poses the skeleton itself, about the bind
+  // pose's own pelvis, so the model stays where it stood
+  const rig = card && typeof cgRigActive === 'function' && cgRigActive();
+  const pose = rig ? cgRigPose(a.data) : v3aPose(a.data, a.t);
+  const shift = rig ? [0, 0, 0] : [-tr[0] * f, a.carried ? 0 : (isFinite(low) ? low : 0), -tr[1] * f];
   const gl = armGl();
   for(const g of geos){
     if(g.unweighted){ g.posed = false; continue; }

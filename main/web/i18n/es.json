@@ -980,6 +980,15 @@
   ],
   "cards.gen_turn": [
    "turn"
+  ],
+  "cards.gen_view_hint": [
+   "turn"
+  ],
+  "cards.gen_place_reset": [
+   "frame"
+  ],
+  "cards.gen_rig_hint": [
+   "turn"
   ]
  },
  "ancillaries.a_character_holds_one_ancillary_per": "Un personaje solo puede tener un séquito de cada tipo, así que este es el que sustituiría uno nuevo",
@@ -11254,5 +11263,28 @@
  "armory.key_redo": "Rehacer",
  "armory.key_redo_alt": "Rehacer (segunda tecla)",
  "armory.tpose": "Pose en T",
- "armory.tpose_title": "Animación desactivada: cada parte queda en su pose base. Pulse de nuevo para seguir desde donde estaba."
+ "armory.tpose_title": "Animación desactivada: cada parte queda en su pose base. Pulse de nuevo para seguir desde donde estaba.",
+ "cards.gen_pose_rig": "Rig IK",
+ "cards.gen_rig_on": "{rig} sobre el esqueleto {skeleton}",
+ "cards.gen_rig": "Rig",
+ "cards.gen_rig_auto": "Según el esqueleto ({rig})",
+ "cards.gen_two_hands": "Dos manos",
+ "cards.gen_two_hands_title": "La mano izquierda sujeta el arma junto con la derecha, en el Pole de la mano derecha, como hace el hueso Switch del kit",
+ "cards.gen_handles": "Controles",
+ "cards.gen_rig_reset": "Volver a la pose base",
+ "cards.gen_library": "Biblioteca de poses",
+ "cards.gen_apply_to": "Aplicar a",
+ "cards.gen_part_whole": "Todo el cuerpo",
+ "cards.gen_part_arms": "Los brazos",
+ "cards.gen_part_legs": "Las piernas",
+ "cards.gen_part_head": "La cabeza",
+ "cards.gen_part_posture": "La postura",
+ "cards.gen_view_hint": "En el render HD: arrastrar con el botón central gira la cámara, Mayús desplaza, la rueda acerca; G mueve y R gira el modelo, X, Y o Z lo sujeta a un eje, un clic o Intro lo deja, Esc lo devuelve.",
+ "cards.gen_place_reset": "Devolver el modelo y el encuadre a su sitio",
+ "cards.gen_rig_hint": "Arrastre los puntos en el render HD: manos, pies, pelvis y torso se mueven, los rombos orientan codos y rodillas, la cabeza gira.",
+ "cards.gen_library_note": {
+  "one": "{count} pose de la biblioteca del kit de Blender; un clic la aplica.",
+  "other": "{count} poses de la biblioteca del kit de Blender; un clic aplica una.",
+  "many": "{count} poses de la biblioteca del kit de Blender; un clic aplica una."
+ }
 }

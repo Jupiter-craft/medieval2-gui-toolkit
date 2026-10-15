@@ -16,8 +16,14 @@
      4. SCALE DOWN through a blur, then colour (exposure, brightness,
                 contrast, gamma, saturation, hue) and a sharpen.
 
-   The HD render is at the top right, the finished pixel card at the bottom
-   right. Cards are 48x64, 68x90 (large) or 180x230 (info), or a size of the
+   99n adds the Blender kit's IK rig and pose library (cgrig.js): its
+   controllers drawn over the HD view and dragged with the mouse, its poses
+   browsed by catalog and applied whole or by body part. 99m gives the HD
+   view the viewport's mouse and keys: the middle button orbits (Shift pans,
+   Ctrl or the wheel zooms), G and R move and turn the model in the frame,
+   X, Y or Z holding them to an axis.
+
+   The HD render is beside the controls, the finished pixel card beside it. Cards are 48x64, 68x90 (large) or 180x230 (info), or a size of the
    user's. Saving writes a .tga (and a .png) under config/armory/cards/, and
    Give to a unit hands it to the unit editor's own card import, which copies
    it to every owning faction's folder through the edit door.
@@ -36,7 +42,9 @@ const CG_POSES = [
 function cg(){
   return state.cg = state.cg || {
     size: 'card', w: 48, h: 64, ss: 10, oneEach: true, pose: 'guard', name: '', unit: '', err: '', saved: null,
-    cam: {yaw: 20, pitch: 4, scale: 1.2, height: 0},
+    cam: {yaw: 20, pitch: 4, scale: 1.2, height: 0, pan: 0},
+    xf: {t: [0, 0, 0], r: [0, 0, 0]},
+    rig: {type: 'auto', basis: {}, handles: true, cat: '', pick: '', part: 'whole'},
     light: {type: 'sun', azimuth: 35, elevation: 40, amount: 0.95, level: 1.0, ambient: 0.38},
     post: {blur: 0.5, exposure: 0, brightness: 0, contrast: 1.0, gamma: 1.0, saturation: 1.0, hue: 0, sharpen: 0.2, outline: 0.3},
   };
@@ -59,11 +67,16 @@ const cgSizeLabel = s => ({card: tt('cards.gen_size_card'), large: tt('cards.gen
 const cgLightLabel = t => t === 'point' ? tt('cards.gen_light_point') : tt('cards.gen_light_sun');
 const cgPoseLabel = id => ({tpose: tt('cards.gen_pose_tpose'), guard: tt('cards.gen_pose_guard'), brace: tt('cards.gen_pose_brace'),
   draw: tt('cards.gen_pose_draw'), riding: tt('cards.gen_pose_riding'), march: tt('cards.gen_pose_march'),
-  anim: tt('cards.gen_pose_anim')})[id] || id;
+  anim: tt('cards.gen_pose_anim'), rig: tt('cards.gen_pose_rig')})[id] || id;
 
 async function renderCardGen(){
   await armEnsureLoaded();
   if(ARM.loading) await ARM.loading;
+  const st = cg();
+  // a maker state from before 99m/99n gets what it lacks
+  st.cam.pan = st.cam.pan || 0;
+  st.xf = st.xf || {t: [0, 0, 0], r: [0, 0, 0]};
+  st.rig = st.rig || {type: 'auto', basis: {}, handles: true, cat: '', pick: '', part: 'whole'};
   if(state.mode !== 'cards' || (state.cardsSub || 'generate') !== 'generate') return;
   const c = cg(), [w, h] = cgDims();
   const sl = (path, key, min, max, step, label) => {
@@ -89,7 +102,7 @@ async function renderCardGen(){
           <label class="cgrange">${tt('cards.gen_render_at')}<input type="range" min="10" max="40" step="5" value="${c.ss}" onchange="cg().ss=+this.value;cgRepaint()"><span class="count">${c.ss}×</span></label>
         </fieldset>
         <fieldset><legend>${tt('cards.gen_pose')}</legend>
-          <div class="armexprow">${CG_POSES.concat([{id: 'anim'}]).map(p => `<button class="mini${c.pose === p.id ? ' on' : ''}" onclick="cgPose('${p.id}')">${cgPoseLabel(p.id)}</button>`).join('')}</div>
+          <div class="armexprow">${CG_POSES.concat([{id: 'anim'}, {id: 'rig'}]).map(p => `<button class="mini${c.pose === p.id ? ' on' : ''}" onclick="cgPose('${p.id}')">${cgPoseLabel(p.id)}</button>`).join('')}</div>
           <div class="armexprow"><label>${tt('armory.skeleton_of')}<select onchange="cgAnimFrom(this.value)">
               <option value="">${tt('cards.gen_pick_entry')}</option>${entries.map(x => `<option value="${esc(armAssetKey(x))}"${(armProj().anim || {}).asset === armAssetKey(x) ? ' selected' : ''}>${esc(armAssetLabel(x))}</option>`).join('')}</select></label>
             ${a.list && a.list.skeletons ? `<select onchange="armAnimSkel(this.value);cgRepaint()">${Object.keys(a.list.skeletons).map(s => `<option${s === (a.skel || '').toLowerCase() ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select>` : ''}</div>
@@ -97,10 +110,13 @@ async function renderCardGen(){
               const k = r.slot != null ? String(r.slot) : 'a:' + r.action;
               return `<option value="${esc(k)}"${a.key === k ? ' selected' : ''}>${esc(r.action)}</option>`; }).join('')}</select>
             <input type="range" min="0" max="1000" value="${armAnimFrac()}" oninput="cgScrub(+this.value)"></div>` : ''}
+          ${c.pose === 'rig' ? cgRigHtml() : ''}
           ${c.poseNote ? `<div class="count">${esc(c.poseNote)}</div>` : ''}
           ${c.poseNote2 ? `<div class="count">${esc(c.poseNote2)}</div>` : ''}
         </fieldset>
         <fieldset><legend>${tt('cards.gen_camera')}</legend>
+          <div class="count">${tt('cards.gen_view_hint')}</div>
+          <div class="armexprow"><button class="mini" onclick="cgPlaceReset()"${c.xf.t.some(Boolean) || c.xf.r.some(Boolean) || c.cam.pan ? '' : ' disabled'}>${tt('cards.gen_place_reset')}</button></div>
           ${sl('cam', 'yaw', -180, 180, 1, tt('cards.gen_turn'))}${sl('cam', 'pitch', -30, 45, 1, tt('cards.gen_tilt'))}
           ${sl('cam', 'scale', 0.4, 3, 0.05, tt('cards.gen_ortho_scale'))}${sl('cam', 'height', -1.5, 1.5, 0.02, tt('cards.gen_height'))}
         </fieldset>
@@ -120,7 +136,8 @@ async function renderCardGen(){
         </fieldset>
       </div>
       <div class="cgout">
-        <div class="cghd"><div class="count">${tt('cards.gen_hd', {w: w * c.ss, h: h * c.ss})}</div><canvas id="cgHd"></canvas></div>
+        <div class="cghd"><div class="count">${tt('cards.gen_hd', {w: w * c.ss, h: h * c.ss})}</div>
+          <div class="cghdview" id="cgHdView"><canvas id="cgHd" tabindex="0"></canvas><canvas id="cgHdUi"></canvas></div></div>
         <div class="cgcard"><div class="count">${tt('cards.gen_card', {w, h})}</div>
           <canvas id="cgCard" width="${w}" height="${h}" style="width:${w * 4}px;height:${h * 4}px"></canvas>
           <div class="armexprow"><label>${tt('cards.gen_name')}<input value="${esc(c.name)}" placeholder="${esc(tt('cards.gen_name_hint'))}" oninput="cg().name=this.value"></label>
@@ -137,6 +154,7 @@ async function renderCardGen(){
       </div>
     </div>`;
   cgRender();
+  cgViewWire();
 }
 function cgRepaint(){ renderCardGen(); }
 function cgSet(path, key, v){
@@ -162,6 +180,7 @@ async function cgPose(id){
   const c = cg(), a = armAnim();
   c.pose = id; c.poseNote = ''; c.poseNote2 = '';
   if(id === 'anim'){ cgRepaint(); return; }
+  if(id === 'rig'){ await cgRigStart(); cgRepaint(); return; }
   if(id === 'tpose'){ armAnimRest(); cgRepaint(); return; }
   const p = CG_POSES.find(x => x.id === id);
   if(!(armProj().anim || {}).asset){
@@ -199,8 +218,10 @@ function cgCamera(objs, w, h){
   // the game's x is mirrored on the way to the screen (ARM_MIRROR)
   const cx = -(b[0][0] + b[1][0]) / 2, cz = (b[0][2] + b[1][2]) / 2;
   const halfH = c.scale / 2, halfW = halfH * w / h;
-  const target = [cx, b[1][1] - halfH * 0.92 + c.height, cz];
   const yaw = c.yaw * Math.PI / 180, pitch = c.pitch * Math.PI / 180, d = 10;
+  // 99m: a pan moves the frame sideways, along the camera's own right
+  const pan = c.pan || 0;
+  const target = [cx + Math.cos(yaw) * pan, b[1][1] - halfH * 0.92 + c.height, cz - Math.sin(yaw) * pan];
   const eye = [target[0] + d * Math.cos(pitch) * Math.sin(yaw), target[1] + d * Math.sin(pitch), target[2] + d * Math.cos(pitch) * Math.cos(yaw)];
   const n = 0.01, f = 40;
   return {proj: [1/halfW,0,0,0, 0,1/halfH,0,0, 0,0,-2/(f-n),0, 0,0,-(f+n)/(f-n),1], view: v3LookAt(eye, target, [0, 1, 0]), eye, target};
@@ -215,7 +236,7 @@ function cgLight(cam){
           pos: [cam.target[0] + dir[0] * 2.2, cam.target[1] + dir[1] * 2.2, cam.target[2] + dir[2] * 2.2]};
 }
 function cgPass(objs, W, H, cam, opts){
-  armRender(objs, W, H, cam, Object.assign({plain: true, card: true, bg: [0, 0, 0]}, opts));
+  armRender(objs, W, H, cam, Object.assign({plain: true, card: true, bg: [0, 0, 0], pre: cgModelMatrix(objs)}, opts));
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const x = cv.getContext('2d', {willReadFrequently: true});
   x.drawImage(ARM.glCanvas, 0, 0, W, H, 0, 0, W, H);
@@ -266,6 +287,8 @@ function cgRender(){
   // the HD render: no blur, no scaling
   hdCv.width = W; hdCv.height = H;
   hdCv.getContext('2d').putImageData(hi, 0, 0);
+  ARM.cgLast = {cam, W, H, objs};
+  cgHandlesDraw();
   // the card: blurred, scaled down, coloured and sharpened
   const big = document.createElement('canvas'); big.width = W; big.height = H;
   const bx = big.getContext('2d');
@@ -355,5 +378,324 @@ async function cgGive(apply){
       c.givePlan = null;
     }
   }catch(e){ c.err = errText(e); }
+  cgRepaint();
+}
+
+/* --- the model's place in the frame (99m) ------------------------------------------- */
+
+/* The card maker's move and turn of the whole model, in the game's space,
+   about the model's own middle, so a turn turns it where it stands. */
+function cgModelMatrix(objs){
+  const x = cg().xf;
+  if(!x || (!x.t.some(Boolean) && !x.r.some(Boolean))) return null;
+  const b = armBounds(objs);
+  const c = b ? [0, 1, 2].map(k => (b[0][k] + b[1][k]) / 2) : [0, 0, 0];
+  let m = armTrans(-c[0], -c[1], -c[2]);
+  m = armMul(armRot(x.r[0], x.r[1], x.r[2]), m);
+  return armMul(armTrans(c[0] + x.t[0], c[1] + x.t[1], c[2] + x.t[2]), m);
+}
+function cgPlaceReset(){ const c = cg(); c.xf = {t: [0, 0, 0], r: [0, 0, 0]}; c.cam.pan = 0; cgRepaint(); }
+
+/* --- the IK rig and the pose library (99n, cgrig.js) ---------------------------------- */
+
+async function cgRigLoad(){
+  if(ARM.poses) return ARM.poses;
+  try{
+    const d = await api.get('/api/armory/poses', 1);
+    ARM.poses = d;
+    ARM.rigs = {};
+    for(const [k, bones] of Object.entries(d.rigs || {})) ARM.rigs[k] = crRig(bones);
+  }catch(e){ ARM.poses = {rigs: {}, poses: [], err: errText(e)}; ARM.rigs = {}; }
+  return ARM.poses;
+}
+/* The layout for the skeleton in use: the kit's dwarf for a dwarf's or a
+   hobbit's, its archer for a bowman's, its infantry otherwise. */
+function cgRigType(){
+  const r = cg().rig;
+  if(r.type && r.type !== 'auto') return r.type;
+  const sk = (armAnim().skel || '').toLowerCase();
+  if(/dwarf|hobbit|halfling/.test(sk)) return 'dwarf';
+  if(/bow|archer/.test(sk)) return 'archer';
+  return 'infantry';
+}
+function cgRigActive(){ return cg().pose === 'rig' && !!(ARM.rigs && ARM.rigs[cgRigType()]); }
+function cgRigSolved(){
+  const rig = ARM.rigs[cgRigType()];
+  return {rig, W: crSolve(rig, cg().rig.basis, cgRigType())};
+}
+function cgRigPose(anim){ const s = cgRigSolved(); return crPoseOn(s.rig, s.W, anim); }
+
+/* The rig poses a skeleton, so a skeleton is needed: the chosen entry's,
+   any of its actions read once for its bones, and nothing played. */
+async function cgRigStart(){
+  const c = cg(), a = armAnim();
+  await cgRigLoad();
+  if(ARM.poses.err){ c.poseNote = ARM.poses.err; return; }
+  if(!a.list){
+    // the entry the project's animations come from, else the first loaded
+    const first = armAnimEntries()[0];
+    const key = (armProj().anim || {}).asset || (first ? armAssetKey(first) : '');
+    if(!key){ c.poseNote = tt('cards.gen_no_entry'); return; }
+    await armAnimFrom(key);
+  }
+  if(!a.data && a.list && a.list.skeletons){
+    const sk = a.list.skeletons[(a.skel || '').toLowerCase()];
+    const row = sk && (sk.actions || []).find(r => r.playable);
+    if(row) await armAnimPick(row.slot != null ? String(row.slot) : 'a:' + row.action);
+  }
+  a.playing = false;
+  if(!c.rig.cat) c.rig.cat = cgRigType() === 'dwarf' ? 'IK Dwarves Full/1H' : 'IK Full/1H';
+  c.poseNote = a.data ? tt('cards.gen_rig_on', {rig: cgRigLabel(cgRigType()), skeleton: a.skel}) : tt('cards.gen_no_entry');
+}
+const cgRigLabel = t => ({infantry: 'IK_Infantry', archer: 'IK_Archer', dwarf: 'IK_Dwarf'})[t] || t;
+const cgPartLabel = p => ({whole: tt('cards.gen_part_whole'), arms: tt('cards.gen_part_arms'), legs: tt('cards.gen_part_legs'),
+  head: tt('cards.gen_part_head'), posture: tt('cards.gen_part_posture')})[p] || p;
+
+function cgRigHtml(){
+  const c = cg(), r = c.rig, P = ARM.poses;
+  if(!P) return `<div class="count">${tt('armory.reading')}</div>`;
+  const cats = [...new Set(P.poses.map(p => p.c))].sort();
+  const list = P.poses.map((p, i) => [p, i]).filter(([p]) => p.c === r.cat);
+  const two = ((r.basis.Switch || {}).l || [0, 0, 0])[1] > 0;
+  return `<div class="cgrig">
+    <div class="armexprow"><label>${tt('cards.gen_rig')}<select onchange="cg().rig.type=this.value;cgRepaint()">${['auto', 'infantry', 'archer', 'dwarf'].map(t =>
+        `<option value="${t}"${r.type === t ? ' selected' : ''}>${t === 'auto' ? esc(tt('cards.gen_rig_auto', {rig: cgRigLabel(cgRigType())})) : cgRigLabel(t)}</option>`).join('')}</select></label>
+      <label class="armcheck" title="${esc(tt('cards.gen_two_hands_title'))}"><input type="checkbox"${two ? ' checked' : ''} onchange="cgRigTwoHands(this.checked)"> ${tt('cards.gen_two_hands')}</label>
+      <label class="armcheck"><input type="checkbox"${r.handles ? ' checked' : ''} onchange="cg().rig.handles=this.checked;cgHandlesDraw()"> ${tt('cards.gen_handles')}</label>
+      <button class="mini" onclick="cgRigReset()">${tt('cards.gen_rig_reset')}</button></div>
+    <div class="count">${tt('cards.gen_rig_hint')}</div>
+    <div class="armexprow"><label>${tt('cards.gen_library')}<select onchange="cg().rig.cat=this.value;cgRepaint()">${cats.map(k =>
+        `<option${k === r.cat ? ' selected' : ''}>${esc(k)}</option>`).join('')}</select></label>
+      <label>${tt('cards.gen_apply_to')}<select onchange="cg().rig.part=this.value">${['whole', 'arms', 'legs', 'head', 'posture'].map(p =>
+        `<option value="${p}"${r.part === p ? ' selected' : ''}>${esc(cgPartLabel(p))}</option>`).join('')}</select></label></div>
+    <select class="cgposes" size="8" onchange="cgRigApply(+this.value)">${list.map(([p, i]) =>
+      `<option value="${i}"${r.pick === p.n ? ' selected' : ''}>${esc(p.n)}</option>`).join('')}</select>
+    <div class="count">${ttN('cards.gen_library_note', P.poses.length)}</div>
+  </div>`;
+}
+function cgRigApply(i){
+  const c = cg(), p = ARM.poses.poses[i];
+  if(!p) return;
+  c.rig.basis = crApply(c.rig.basis, p, c.rig.part);
+  c.rig.pick = p.n;
+  cgRender();
+}
+function cgRigReset(){ cg().rig.basis = {}; cg().rig.pick = ''; cgRepaint(); }
+function cgRigTwoHands(on){
+  const b = cg().rig.basis;
+  if(on) b.Switch = {l: [0, 0.05, 0]}; else delete b.Switch;
+  cgRender();
+}
+
+/* --- the controllers over the HD view ------------------------------------------------ */
+
+/* What the kit lets an animator take hold of: the pelvis, the torso, the
+   head, the hands and feet, the poles for the elbows and knees. */
+const CG_HANDLES = [
+  {n: 'IK Pelvis', col: '#f0c040', r: 8}, {n: 'IK Torso Controller', col: '#f0c040', r: 6},
+  {n: 'IK Head', col: '#f0c040', r: 6, turn: true},
+  {n: 'IK frist right', col: '#e8555f', r: 7}, {n: 'IK frist  left', col: '#4f8fe8', r: 7},
+  {n: 'IK elbow right', col: '#e8555f', r: 5, pole: true}, {n: 'IK elbow left', col: '#4f8fe8', r: 5, pole: true},
+  {n: 'IK angle right', col: '#e8555f', r: 7, foot: true}, {n: 'IK angle left', col: '#4f8fe8', r: 7, foot: true},
+  {n: 'IK knee right', col: '#e8555f', r: 5, pole: true}, {n: 'IK knee left', col: '#4f8fe8', r: 5, pole: true},
+  {n: 'Pole', col: '#c8a45c', r: 5, two: true},
+];
+/* The HD canvas's picture inside its box (object-fit: contain), in CSS px. */
+function cgHdBox(){
+  const cv = document.getElementById('cgHd');
+  if(!cv || !cv.width) return null;
+  const r = cv.getBoundingClientRect(), k = Math.min(r.width / cv.width, r.height / cv.height);
+  const w = cv.width * k, h = cv.height * k;
+  return {r, k, x: (r.width - w) / 2, y: (r.height - h) / 2, w, h};
+}
+/* A point of the rig (Blender's space) on the HD view, in CSS px of the box. */
+function cgRigToView(p, L, box){
+  let g = [p[0], p[2], p[1]];
+  const pre = cgModelMatrix(L.objs);
+  if(pre) g = [pre[0]*g[0] + pre[4]*g[1] + pre[8]*g[2] + pre[12], pre[1]*g[0] + pre[5]*g[1] + pre[9]*g[2] + pre[13], pre[2]*g[0] + pre[6]*g[1] + pre[10]*g[2] + pre[14]];
+  const m = armMul(L.cam.proj, L.cam.view), x = -g[0], y = g[1], z = g[2];
+  const w = m[3]*x + m[7]*y + m[11]*z + m[15] || 1;
+  const nx = (m[0]*x + m[4]*y + m[8]*z + m[12]) / w, ny = (m[1]*x + m[5]*y + m[9]*z + m[13]) / w;
+  return [box.x + (nx * 0.5 + 0.5) * box.w, box.y + (1 - (ny * 0.5 + 0.5)) * box.h];
+}
+function cgHandlesAt(){
+  const L = ARM.cgLast, box = cgHdBox();
+  if(!L || !box || !cgRigActive() || !cg().rig.handles) return [];
+  const {rig, W} = cgRigSolved();
+  const two = ((cg().rig.basis.Switch || {}).l || [0, 0, 0])[1] > 0;
+  return CG_HANDLES.filter(h => rig.byName.has(h.n) && (!h.two || two)).map(h => {
+    const i = rig.byName.get(h.n);
+    return Object.assign({at: cgRigToView(crPos(W[i]), L, box)}, h);
+  });
+}
+function cgHandlesDraw(){
+  const ui = document.getElementById('cgHdUi'), box = cgHdBox();
+  if(!ui || !box) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  Object.assign(ui.style, {left: box.x + 'px', top: box.y + 'px', width: box.w + 'px', height: box.h + 'px'});
+  ui.width = Math.round(box.w * dpr); ui.height = Math.round(box.h * dpr);
+  const x = ui.getContext('2d');
+  x.setTransform(dpr, 0, 0, dpr, -box.x * dpr, -box.y * dpr);
+  x.clearRect(box.x, box.y, box.w, box.h);
+  const hs = cgHandlesAt();
+  // each limb's hand or foot joined to its pole, so a pole reads as its joint's
+  const at = n => (hs.find(h => h.n === n) || {}).at;
+  x.strokeStyle = 'rgba(255,255,255,.35)'; x.setLineDash([3, 3]); x.lineWidth = 1;
+  for(const [a, b] of [['IK frist right', 'IK elbow right'], ['IK frist  left', 'IK elbow left'], ['IK angle right', 'IK knee right'], ['IK angle left', 'IK knee left']]){
+    const p = at(a), q = at(b);
+    if(p && q){ x.beginPath(); x.moveTo(p[0], p[1]); x.lineTo(q[0], q[1]); x.stroke(); }
+  }
+  x.setLineDash([]);
+  const hot = ARM.cgDrag && ARM.cgDrag.h ? ARM.cgDrag.h.n : ARM.cgHover;
+  for(const h of hs){
+    const [px, py] = h.at;
+    x.beginPath();
+    if(h.pole){ x.moveTo(px, py - h.r); x.lineTo(px + h.r, py); x.lineTo(px, py + h.r); x.lineTo(px - h.r, py); x.closePath(); }
+    else if(h.foot) x.rect(px - h.r, py - h.r * 0.7, h.r * 2, h.r * 1.4);
+    else x.arc(px, py, h.r, 0, Math.PI * 2);
+    x.fillStyle = h.n === hot ? '#fff' : h.col;
+    x.globalAlpha = 0.85; x.fill(); x.globalAlpha = 1;
+    x.strokeStyle = '#111'; x.lineWidth = 1.2; x.stroke();
+    if(h.turn){ x.beginPath(); x.arc(px, py, h.r + 4, -0.6, 0.6); x.strokeStyle = h.col; x.stroke(); }
+  }
+}
+function cgHandleHit(e){
+  const box = cgHdBox();
+  if(!box) return null;
+  const px = e.clientX - box.r.left, py = e.clientY - box.r.top;
+  let best = null, bd = 12;
+  for(const h of cgHandlesAt()){ const d = Math.hypot(h.at[0] - px, h.at[1] - py); if(d < bd){ bd = d; best = h; } }
+  return best;
+}
+
+/* A move on screen as a move in the game's space: the camera's right and up
+   (page space), then the page's mirror taken off. One CSS pixel is the
+   frame's height over the box's. */
+function cgScreenToGame(dx, dy){
+  const L = ARM.cgLast, box = cgHdBox();
+  if(!L || !box) return [0, 0, 0];
+  const v = L.cam.view, k = cg().cam.scale / box.h;
+  const right = [v[0], v[4], v[8]], up = [v[1], v[5], v[9]];
+  const page = [0, 1, 2].map(i => (right[i] * dx - up[i] * dy) * k);
+  return [-page[0], page[1], page[2]];
+}
+function cgDragHandle(h, dx, dy){
+  const c = cg(), {rig, W} = cgRigSolved(), i = rig.byName.get(h.n), b = rig.bones[i];
+  const ch = c.rig.basis[h.n] = Object.assign({}, c.rig.basis[h.n] || {});
+  if(h.turn){
+    // the head turns: across the screen about the up axis, up and down about its own
+    const e = crToEuler(ch.q ? crQuat(ch.q) : [1,0,0, 0,1,0, 0,0,1]);
+    e[2] -= dx * 0.012; e[0] += dy * 0.012;
+    ch.q = crToQuat(crEuler(e));
+    return;
+  }
+  let g = cgScreenToGame(dx, dy);
+  const x = c.xf;
+  if(x && x.r.some(Boolean)){
+    const R = armRot(x.r[0], x.r[1], x.r[2]);      // column-major; its transpose turns back
+    g = [R[0]*g[0] + R[1]*g[1] + R[2]*g[2], R[4]*g[0] + R[5]*g[1] + R[6]*g[2], R[8]*g[0] + R[9]*g[1] + R[10]*g[2]];
+  }
+  const d = [g[0], g[2], g[1]];
+  const F = crRot(b.p < 0 ? b.m : crMul(W[b.p], rig.rel[i]));
+  const loc = crR3(crT3(F), d);
+  const l = ch.l || [0, 0, 0];
+  ch.l = [l[0] + loc[0], l[1] + loc[1], l[2] + loc[2]];
+}
+
+/* --- the HD view's mouse and keys (99m) --------------------------------------------- */
+
+function cgViewWire(){
+  const cv = document.getElementById('cgHd');
+  if(!cv || cv.dataset.wired) return;
+  cv.dataset.wired = '1';
+  let drag = null;
+  const later = () => { if(ARM.cgFrame) return; ARM.cgFrame = requestAnimationFrame(() => { ARM.cgFrame = 0; cgRender(); }); };
+  cv.addEventListener('pointerdown', e => {
+    cv.focus({preventScroll: true});
+    if(ARM.cgXform){ e.preventDefault(); cgXformEnd(e.button !== 2); return; }
+    const h = e.button === 0 && !e.altKey ? cgHandleHit(e) : null;
+    const button = e.button === 0 && e.altKey ? 1 : e.button;
+    drag = ARM.cgDrag = {x: e.clientX, y: e.clientY, button, h, moved: false};
+    cv.setPointerCapture(e.pointerId);
+    if(button === 1) e.preventDefault();
+  });
+  cv.addEventListener('pointermove', e => {
+    ARM.cgMouse = [e.clientX, e.clientY];
+    if(ARM.cgXform){ cgXformMove(e); later(); return; }
+    if(!drag){
+      const h = cgHandleHit(e), n = h ? h.n : null;
+      if(n !== ARM.cgHover){ ARM.cgHover = n; cv.style.cursor = n ? 'grab' : ''; cgHandlesDraw(); }
+      return;
+    }
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    drag.x = e.clientX; drag.y = e.clientY; drag.moved = true;
+    const c = cg().cam;
+    if(drag.h){ cgDragHandle(drag.h, dx, dy); later(); return; }
+    if(drag.button !== 1) return;
+    if(e.shiftKey){
+      const box = cgHdBox(), k = c.scale / (box ? box.h : 400);
+      c.pan = (c.pan || 0) - dx * k; c.height += dy * k;
+    }else if(e.ctrlKey) c.scale = Math.max(0.2, Math.min(6, c.scale * Math.exp(dy * 0.01)));
+    else{ c.yaw = ((c.yaw - dx * 0.5 + 540) % 360) - 180; c.pitch = Math.max(-60, Math.min(80, c.pitch + dy * 0.4)); }
+    later();
+  });
+  cv.addEventListener('pointerup', () => {
+    const d = drag; drag = ARM.cgDrag = null;
+    if(d && d.moved && !d.h) cgRepaint();             // the camera's sliders show where it went
+    else cgHandlesDraw();
+  });
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    const c = cg().cam;
+    c.scale = Math.max(0.2, Math.min(6, c.scale * Math.exp(e.deltaY * 0.0012)));
+    later();
+    clearTimeout(ARM.cgWheel); ARM.cgWheel = setTimeout(cgRepaint, 500);
+  }, {passive: false});
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('auxclick', e => e.preventDefault());
+  cv.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase(), x = ARM.cgXform;
+    if(x){
+      e.preventDefault();
+      if(k === 'escape') return cgXformEnd(false);
+      if(k === 'enter') return cgXformEnd(true);
+      const ax = {x: 0, y: 1, z: 2}[k];
+      if(ax !== undefined){ x.axis = x.axis === ax ? null : ax; cgXformMove(null); later(); }
+      return;
+    }
+    if(e.ctrlKey || e.altKey || e.metaKey) return;
+    if(k === 'g' || k === 'r'){ e.preventDefault(); cgXformStart(k === 'g' ? 'grab' : 'rotate'); }
+  });
+}
+/* G and R, as the viewport has them: the mouse moves or turns the model in
+   the frame until a click or Enter keeps it and Esc or the right button puts
+   it back. R turns about the up axis unless X, Y or Z is pressed. */
+function cgXformStart(kind){
+  const c = cg();
+  ARM.cgXform = {kind, axis: null, start: ARM.cgMouse ? ARM.cgMouse.slice() : null,
+                 t: c.xf.t.slice(), r: c.xf.r.slice()};
+}
+function cgXformMove(e){
+  const x = ARM.cgXform, c = cg();
+  if(!x) return;
+  if(e && !x.start) x.start = [e.clientX, e.clientY];
+  const m = ARM.cgMouse || x.start;
+  if(!x.start || !m) return;
+  const dx = m[0] - x.start[0], dy = m[1] - x.start[1];
+  if(x.kind === 'grab'){
+    let g = cgScreenToGame(dx, dy);
+    if(x.axis != null) g = g.map((v, i) => i === x.axis ? v : 0);
+    c.xf.t = x.t.map((v, i) => v + g[i]);
+  }else{
+    const axis = x.axis == null ? 1 : x.axis;
+    c.xf.r = x.r.slice();
+    c.xf.r[axis] = x.r[axis] + dx * 0.5;
+  }
+}
+function cgXformEnd(keep){
+  const x = ARM.cgXform, c = cg();
+  ARM.cgXform = null;
+  if(!x) return;
+  if(!keep){ c.xf.t = x.t; c.xf.r = x.r; }
   cgRepaint();
 }

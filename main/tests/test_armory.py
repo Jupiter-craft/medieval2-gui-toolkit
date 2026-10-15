@@ -687,6 +687,60 @@ console.log(JSON.stringify({n, same: Array.from(d), grey: Array.from(e)}));
     check(f"and saturation 0 makes it grey ({grey})", max(grey[:3]) - min(grey[:3]) <= 1)
 
 # ---------------------------------------------------------------------------
+print("\nThe card maker's IK rig and pose library (99n)")
+
+poses = json.loads((ROOT / "unittransfer" / "data" / "m2_poses.json").read_text(encoding="utf-8"))
+check(f"the kit's three rigs and its pose library ship ({len(poses['poses'])} poses, "
+      f"{', '.join(f'{k} {len(v)} bones' for k, v in poses['rigs'].items())})",
+      set(poses["rigs"]) == {"infantry", "archer", "dwarf"} and len(poses["poses"]) > 200)
+if node:
+    js = (ROOT / "web" / "js" / "cgrig.js").read_text(encoding="utf-8")
+    probe = (js.replace("\nconst ", "\nvar ") + r""";
+function v3aBind(anim){ const out = []; anim.bones.forEach((b, i) => { const par = b.parent >= 0 ? out[b.parent] : [0,0,0];
+  out.push([par[0]+b.pivot[0], par[1]+b.pivot[1], par[2]+b.pivot[2]]); }); return out; }
+const fs = require('fs');
+const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const truth = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+const rig = crRig(data.rigs.infantry);
+const byName = new Map(data.poses.map(p => [p.n, p]));
+const errs = truth.poses.map(t => {
+  const pose = t.pose === '(rest)' ? {b: {}} : byName.get(t.pose);
+  const W = crSolve(rig, pose.b, 'infantry');
+  let worst = 0;
+  for(const [n, m] of Object.entries(t.bones)){
+    if(!n.startsWith('bone_')) continue;
+    const a = W[rig.byName.get(n)];
+    worst = Math.max(worst, Math.hypot(a[3]-m[3], a[7]-m[7], a[11]-m[11]));
+  }
+  return [t.pose, worst];
+});
+// at rest, the skeleton is posed as it is bound
+const anim = {bones: [{name: 'Scene Root', parent: -1, pivot: [0,0,0]}, {name: 'bone_pelvis', parent: 0, pivot: [0,0,0]},
+  {name: 'bone_RThigh', parent: 1, pivot: [0.0952, 0.0008, 0]}, {name: 'bone_Rlowerleg', parent: 2, pivot: [0.0226, -0.4645, 0.0144]}]};
+const rest = crPoseOn(rig, crSolve(rig, {}, 'infantry'), anim);
+const still = rest.every((b, i) => Math.abs(b.m[0] - 1) + Math.abs(b.m[4] - 1) + Math.abs(b.m[8] - 1) < 0.01);
+// a pose applied to the arms leaves the legs as they were
+const legs = {'IK angle right': {l: [0.1, 0, 0]}};
+const armsOnly = crApply(legs, byName.get('IK 2H Full 1'), 'arms');
+console.log(JSON.stringify({errs, still, legsKept: !!armsOnly['IK angle right'] && !armsOnly['IK Pelvis'],
+  armsTaken: !!armsOnly['IK frist right']}));
+""")
+    (tmp / "probe6.js").write_text(probe, encoding="utf-8")
+    out = subprocess.run([node, str(tmp / "probe6.js"), str(ROOT / "unittransfer" / "data" / "m2_poses.json"),
+                          str(ROOT / "tests" / "rig_truth.json")], capture_output=True, text=True, timeout=60)
+    got = json.loads(out.stdout or "null") or {}
+    errs = got.get("errs") or []
+    rest_err = max((e for n, e in errs if n == "(rest)"), default=1)
+    check(f"at rest the rig's Med2 bones are Blender's to the millimetre ({rest_err:.4f} m)", rest_err < 0.002)
+    worst = max((e for n, e in errs), default=1)
+    mid = sorted(e for n, e in errs)[len(errs) // 2] if errs else 1
+    check(f"on thirteen of the kit's poses, Blender's own solve and this one agree (median {mid:.3f} m, worst {worst:.3f} m)",
+          len(errs) == 13 and mid < 0.03 and worst < 0.15)
+    check("the rig at rest leaves the model's skeleton as it is bound", got.get("still") is True)
+    check("a pose applied to the arms takes the arms and keeps the legs",
+          got.get("legsKept") is True and got.get("armsTaken") is True)
+
+# ---------------------------------------------------------------------------
 print("\nThe project")
 armory.save_project({"v": 1, "objects": [{"id": 1}]})
 check("a project saves and loads back", armory.load_project() == {"v": 1, "objects": [{"id": 1}]})

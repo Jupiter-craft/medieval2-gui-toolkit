@@ -90,6 +90,8 @@ def looks_like_prose(s: str, classes: Set[str]) -> bool:
     if re.fullmatch(r"[\w.\-/\\:*?]+\.(txt|tga|dds|cas|mesh|json|xml|bin|dat|idx|db|modeldb|"
                     r"sd|png|zip|lua|log|bat|py|js|html|wav|mp3|ogg|bik)", t, re.I):
         return False                                      # a file name
+    if re.fullmatch(r"IK( +[A-Za-z0-9]+)+(/\w+)?|Pole", t):
+        return False                                      # a bone or catalogue of the Blender kit's rig (99n)
     if re.fullmatch(r"[a-z][a-z0-9_]*:", t):
         return False                                      # a key's prefix: 'minor:' + tab (88c)
     if re.fullmatch(r"""(\s*[\w:-]+\s*=\s*"[^"\w]*")+\s*""", t):

@@ -846,13 +846,16 @@ function armRender(objs, w, h, cam, opts){
     gl.uniform1f(L.uHasN, nTex ? 1 : 0);
     if(nTex){ gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, nTex); gl.uniform1i(L.uNTex, 1); gl.activeTexture(gl.TEXTURE0); }
   };
+  // the card maker's own move and turn of the whole model (99m), in the
+  // game's space, under the page's mirror
+  const top = o.pre ? armMul(ARM_MIRROR, o.pre) : ARM_MIRROR;
   for(const ob of objs){
     // posed by the animation previewer (armanim.js): already in the game's
     // space, its own move, turn and scale in it
     // a card (95m) is drawn plain, but posed
     const posed = (!o.plain || o.card) && typeof armAnimGeoFor === 'function' ? armAnimGeoFor(ob, o.card) : null;
     if(posed){
-      gl.uniformMatrix4fv(L.uModel, false, new Float32Array(ARM_MIRROR));
+      gl.uniformMatrix4fv(L.uModel, false, new Float32Array(top));
       gl.uniform1f(L.uHi, !o.plain && ARM.hover === ob.id ? 1 : 0);
       gl.uniform1f(L.uSel, !o.plain && ARM.sel.has(ob.id) ? 1 : 0);
       gl.uniform1f(L.uXray, !o.plain && ARM.xray ? 1 : 0);
@@ -871,7 +874,7 @@ function armRender(objs, w, h, cam, opts){
       }
       continue;
     }
-    const om = armMul(ARM_MIRROR, armObjMatrix(ob, armPivot(ob)));
+    const om = armMul(top, armObjMatrix(ob, armPivot(ob)));
     for(const pc of ob.src || []){
       const live = ARM.assets.get(pc.asset);
       if(!live || !live.buf || !live.geo) continue;

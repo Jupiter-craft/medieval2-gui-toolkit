@@ -866,6 +866,15 @@
   ],
   "cards.gen_turn": [
    "turn"
+  ],
+  "cards.gen_view_hint": [
+   "turn"
+  ],
+  "cards.gen_place_reset": [
+   "frame"
+  ],
+  "cards.gen_rig_hint": [
+   "turn"
   ]
  },
  "ancillaries.a_character_holds_one_ancillary_per": "Ein Charakter hat pro Typ ein Gefolgsmitglied; das ist also das, was ein neues ersetzt",
@@ -10777,5 +10786,27 @@
  "armory.key_redo_alt": "Wiederholen (zweite Taste)",
  "armory.tpose": "T-Pose",
  "armory.tpose_title": "Animation aus: jedes Teil steht in seiner Bindepose. Erneut drücken, um dort weiterzuspielen, wo sie war.",
- "armory.key_redo": "Wiederholen"
+ "armory.key_redo": "Wiederholen",
+ "cards.gen_pose_rig": "IK-Rig",
+ "cards.gen_rig_on": "{rig} auf dem Skelett {skeleton}",
+ "cards.gen_rig": "Rig",
+ "cards.gen_rig_auto": "Passend zum Skelett ({rig})",
+ "cards.gen_two_hands": "Zwei Hände",
+ "cards.gen_two_hands_title": "Die linke Hand hält die Waffe mit der rechten, am Pole der rechten Hand, wie es der Switch-Knochen des Kits tut",
+ "cards.gen_handles": "Steuerpunkte",
+ "cards.gen_rig_reset": "Zurück in die Ruhepose",
+ "cards.gen_library": "Posen-Bibliothek",
+ "cards.gen_apply_to": "Anwenden auf",
+ "cards.gen_library_note": {
+  "one": "{count} Pose aus der Bibliothek des Blender-Kits; ein Klick wendet sie an.",
+  "other": "{count} Posen aus der Bibliothek des Blender-Kits; ein Klick wendet eine an."
+ },
+ "cards.gen_part_whole": "Den ganzen Körper",
+ "cards.gen_part_arms": "Die Arme",
+ "cards.gen_part_legs": "Die Beine",
+ "cards.gen_part_head": "Den Kopf",
+ "cards.gen_part_posture": "Die Haltung",
+ "cards.gen_view_hint": "Im HD-Bild: Ziehen mit der mittleren Taste dreht die Kamera, Umschalt verschiebt, das Mausrad zoomt; G verschiebt und R dreht das Modell, X, Y oder Z hält es an einer Achse, ein Klick oder Enter behält es, Esc stellt es zurück.",
+ "cards.gen_place_reset": "Modell und Bildausschnitt zurücksetzen",
+ "cards.gen_rig_hint": "Ziehen Sie die Punkte im HD-Bild: Hände, Füße, Becken und Oberkörper bewegen sich, die Rauten richten Ellbogen und Knie aus, der Kopf dreht sich."
 }

@@ -3479,6 +3479,13 @@
   .cghd canvas{display:block;width:100%;height:auto;max-height:calc(100vh - 200px);object-fit:contain;
     background:repeating-conic-gradient(#2a2f37 0 25%,#323844 0 50%) 0 0/16px 16px;border:1px solid var(--edge)}
   .cgcard{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:360px}
+  /* 99m-99n: the HD view takes the mouse, the rig's handles drawn over it */
+  .cghdview{position:relative}
+  .cghdview #cgHd{outline:none;touch-action:none}
+  .cghdview #cgHd:focus-visible{box-shadow:0 0 0 2px var(--accent2)}
+  .cghd #cgHdUi{position:absolute;pointer-events:none;background:none;border:none;max-height:none}
+  .cgrig{display:flex;flex-direction:column;gap:5px}
+  .cgposes{width:100%}
   @container page (max-width:1250px){.cgout{grid-template-columns:1fr}}
   .cgcard canvas{image-rendering:pixelated;background:repeating-conic-gradient(#2a2f37 0 25%,#323844 0 50%) 0 0/16px 16px;border:1px solid var(--edge)}
   @container page (max-width:900px){.cggrid{grid-template-columns:1fr}}
@@ -3701,6 +3708,7 @@
 <script src="js/armexport.js"></script>
 <script src="js/armlib.js"></script>
 <script src="js/cardgen.js"></script>
+<script src="js/cgrig.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->
 <script src="js/v3anim.js"></script>
 <!-- M18: after viewer3d.js, which owns the matrix helpers it shares. -->
