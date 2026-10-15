@@ -10808,5 +10808,42 @@
  "cards.gen_part_posture": "Die Haltung",
  "cards.gen_view_hint": "Im HD-Bild: Ziehen mit der mittleren Taste dreht die Kamera, Umschalt verschiebt, das Mausrad zoomt; G verschiebt und R dreht das Modell, X, Y oder Z hält es an einer Achse, ein Klick oder Enter behält es, Esc stellt es zurück.",
  "cards.gen_place_reset": "Modell und Bildausschnitt zurücksetzen",
- "cards.gen_rig_hint": "Ziehen Sie die Punkte im HD-Bild: Hände, Füße, Becken und Oberkörper bewegen sich, die Rauten richten Ellbogen und Knie aus, der Kopf dreht sich."
+ "cards.gen_rig_hint": "Ziehen Sie die Punkte im HD-Bild: Hände, Füße, Becken und Oberkörper bewegen sich, die Rauten richten Ellbogen und Knie aus, der Kopf dreht sich.",
+ "eng.armory.no_such_session": "keine gespeicherte Sitzung heißt {sid}",
+ "eng.armory.session_needs_name": "eine Sitzung braucht einen Namen",
+ "eng.armory.no_such_backup": "keine Sicherung heißt {file}",
+ "eng.armory.unknown_session_action": "unbekannte Sitzungsaktion {act}",
+ "armory.sess_button": "Sitzungen",
+ "armory.sess_button_title": "Das Modell unter einem Namen speichern, ein anderes öffnen oder zu einer Sicherung zurückkehren",
+ "armory.sess_crash": "Nicht sauber geschlossen: Sicherungen",
+ "armory.sess_crash_title": "Armory Studio wurde beim letzten Mal nicht sauber geschlossen. Das Modell ist so, wie es zuletzt gespeichert wurde; seine Sicherungen sind hier, falls es weiter zurückgehen soll.",
+ "armory.sess_title": "Gespeicherte Sitzungen",
+ "armory.sess_current": "Jetzt geöffnet: {name}. Jede Änderung daran wird gespeichert, sobald sie gemacht wird.",
+ "armory.sess_unsaved": "Dieses Modell ist noch nicht als Sitzung gespeichert. Geben Sie ihm einen Namen, um es neben anderen zu behalten.",
+ "armory.sess_name": "Name",
+ "armory.sess_save_as": "Als Sitzung speichern",
+ "armory.sess_saved": "Sitzungen",
+ "armory.sess_none": "Noch keine Sitzungen gespeichert.",
+ "armory.sess_open_now": "geöffnet",
+ "armory.sess_facts": {
+  "one": "{count} Objekt · gespeichert {when}",
+  "other": "{count} Objekte · gespeichert {when}"
+ },
+ "armory.sess_open": "Öffnen",
+ "armory.sess_duplicate": "Duplizieren",
+ "armory.sess_rename": "Umbenennen",
+ "armory.sess_delete": "Diese Sitzung löschen",
+ "armory.sess_delete_confirm": "Die Sitzung {name} löschen? Ihre Sicherungen bleiben erhalten.",
+ "armory.sess_backups": "Sicherungen der geöffneten Sitzung",
+ "armory.sess_backups_note": "Alle drei Minuten angelegt, solange sich das Modell ändert, und immer, wenn eine Sitzung geöffnet oder eine Sicherung zurückgeholt wird; die letzten zwanzig bleiben erhalten.",
+ "armory.sess_no_backups": "Noch keine Sicherungen.",
+ "armory.sess_backup_facts": {
+  "one": "{count} Objekt",
+  "other": "{count} Objekte"
+ },
+ "armory.sess_revert": "Hierhin zurückkehren",
+ "armory.sess_revert_confirm": "Zu dieser Sicherung zurückkehren? Das Modell, wie es jetzt ist, wird vorher gesichert.",
+ "armory.sess_name_first": "Geben Sie der Sitzung zuerst einen Namen",
+ "armory.sess_saved_as": "Als Sitzung {name} gespeichert",
+ "armory.sess_loaded": "{name} geöffnet"
 }

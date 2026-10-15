@@ -2716,6 +2716,15 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/armory/project":
                 armory.save_project(body.get("project") or {})
                 return self._json({"ok": True})
+            if u.path == "/api/armory/sessions":
+                # 99o: saved sessions, and a revert to a backup
+                try:
+                    return self._json(armory.session_action(body))
+                except armory.ArmoryError as e:
+                    return self._err(400, str(e))
+            if u.path == "/api/armory/closed":
+                armory.closed()
+                return self._json({"ok": True})
             if u.path == "/api/armory/transfer_weights":
                 try:
                     return self._json(armory.transfer_for(
@@ -5683,6 +5692,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"presets": armory.load_presets()})
         if path == "/api/armory/keys":
             return self._json({"keys": armory.load_keys()})
+        if path == "/api/armory/sessions":
+            view = armory.sessions_view()
+            if arg("mark"):
+                armory.opened()     # this page has it open from now, until it says goodbye
+            return self._json(view)
         if path == "/api/armory/poses":
             # 99n: the Blender kit's IK rigs and pose library, read out of it
             return self._file(Path(__file__).resolve().parent / "data" / "m2_poses.json",

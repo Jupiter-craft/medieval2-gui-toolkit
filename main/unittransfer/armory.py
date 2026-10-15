@@ -32,9 +32,11 @@ import base64
 import hashlib
 import json
 import math
+import os
 import re
 import struct
 import threading
+import time
 import xml.etree.ElementTree as ET
 from array import array
 from pathlib import Path
@@ -771,11 +773,209 @@ def save_keys(keys: dict) -> None:
     KEYS.write_text(json.dumps(keys, indent=1), encoding="utf-8")
 
 
-def save_project(project: dict) -> None:
-    ARMORY_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = PROJECT.with_suffix(".tmp")
-    tmp.write_text(json.dumps(project, indent=1), encoding="utf-8")
-    tmp.replace(PROJECT)
+def _write(path: Path, data) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # a temporary file of each writer's own: two saves at once (a page's
+    # last save and its goodbye) must not trip over one another
+    tmp = path.with_name(f"{path.stem}.{os.getpid()}.{threading.get_ident()}.tmp")
+    tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    tmp.replace(path)
+
+
+def save_project(project: dict, now: Optional[float] = None) -> None:
+    """The working project, saved as it changes. From 99o it is also the
+    open session's own file, and backed up now and then (:func:`backup`).
+    A save that would empty a model that has objects backs that model up
+    first, whatever the clock says: an empty project is sent on purpose
+    (New model) and by accident, and the accident must be undoable."""
+    if not (project or {}).get("objects"):
+        was = load_project()
+        if was.get("objects"):
+            backup(was, now, force=True)
+    _write(PROJECT, project)
+    sid = _session_id(project)
+    if sid:
+        _write(_sessions_dir() / f"{sid}.json", project)
+    backup(project, now)
+    _write(ARMORY_DIR / "open.json", {"open": True})
+
+
+# ---------------------------------------------------------------------------
+# saved sessions and backups (99o)
+#
+# A session is a named copy of the project, in sessions/<id>.json; the open
+# one is the working project.json, and every save of it is a save of its
+# session too. Backups are per session (or of the project no session holds),
+# in backups/<id>/<time>.json: one every BACKUP_EVERY seconds while the
+# project changes, the newest BACKUPS_KEPT kept. open.json says the page
+# had the project open and did not say goodbye, which is how a crash is
+# told from a close.
+
+BACKUP_EVERY = 180
+BACKUPS_KEPT = 20
+_UNSAVED = "_unsaved"
+
+
+def _sessions_dir() -> Path:
+    return ARMORY_DIR / "sessions"
+
+
+def _backups_dir(sid: str) -> Path:
+    return ARMORY_DIR / "backups" / (sid or _UNSAVED)
+
+
+def _session_id(project: dict) -> str:
+    sid = str(((project or {}).get("session") or {}).get("id") or "")
+    return sid if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", sid) else ""
+
+
+def _summary(project: dict) -> dict:
+    return {"objects": len(project.get("objects") or []), "assets": len(project.get("assets") or [])}
+
+
+def backup(project: dict, now: Optional[float] = None, force: bool = False) -> Optional[str]:
+    """A backup of the project when the last is BACKUP_EVERY seconds old and
+    the project has changed since; the name written, or None."""
+    now = time.time() if now is None else now
+    folder = _backups_dir(_session_id(project))
+    have = sorted(folder.glob("*.json")) if folder.is_dir() else []
+    body = json.dumps(project, sort_keys=True)
+    if have and not force:
+        last = have[-1]
+        if now - last.stat().st_mtime < BACKUP_EVERY:
+            return None
+        try:
+            if json.dumps(json.loads(last.read_text(encoding="utf-8")), sort_keys=True) == body:
+                return None
+        except (OSError, ValueError):
+            pass
+    name = time.strftime("%Y%m%d-%H%M%S", time.localtime(now))
+    path = folder / f"{name}.json"
+    k = 1
+    while path.exists():
+        path = folder / f"{name}-{k}.json"
+        k += 1
+    _write(path, project)
+    os.utime(path, (now, now))
+    for old in sorted(folder.glob("*.json"))[:-BACKUPS_KEPT]:
+        old.unlink(missing_ok=True)
+    return path.name
+
+
+def _read(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def sessions_view() -> dict:
+    """Every saved session, the open one, its backups, and whether the page
+    last left the project open without closing (a crash)."""
+    out = []
+    folder = _sessions_dir()
+    for f in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+        p = _read(f)
+        meta = p.get("session") or {}
+        out.append(dict({"id": f.stem, "name": meta.get("name") or f.stem,
+                         "saved": f.stat().st_mtime}, **_summary(p)))
+    out.sort(key=lambda x: -x["saved"])
+    current = load_project()
+    sid = _session_id(current)
+    bfolder = _backups_dir(sid)
+    backups = []
+    for f in sorted(bfolder.glob("*.json"), reverse=True) if bfolder.is_dir() else []:
+        backups.append(dict({"file": f.name, "time": f.stat().st_mtime}, **_summary(_read(f))))
+    unclean = bool(_read(ARMORY_DIR / "open.json").get("open"))
+    return {"sessions": out, "current": sid, "name": ((current.get("session") or {}).get("name") or ""),
+            "backups": backups, "unclean": unclean}
+
+
+def opened() -> None:
+    """A page has the project open: until it says goodbye, a next open is
+    one after a crash."""
+    _write(ARMORY_DIR / "open.json", {"open": True})
+
+
+def closed() -> None:
+    """The page said goodbye: the next open is not after a crash."""
+    _write(ARMORY_DIR / "open.json", {"open": False})
+
+
+def _new_id(name: str) -> str:
+    stem = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_")[:40] or "session"
+    sid, k = stem, 2
+    while (_sessions_dir() / f"{sid}.json").exists():
+        sid, k = f"{stem}_{k}", k + 1
+    return sid
+
+
+def session_action(body: dict, now: Optional[float] = None) -> dict:
+    """save (the working project under a new name), open, duplicate,
+    rename, delete a session; revert the working project to a backup. Each
+    answers with the working project as it now is."""
+    act = body.get("action") or ""
+    name = str(body.get("name") or "").strip()
+    sid = str(body.get("id") or "")
+    folder = _sessions_dir()
+    current = load_project()
+
+    def path_of(i):
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", i or "") or not (folder / f"{i}.json").is_file():
+            raise ArmoryError(_i18n.msg("eng.armory.no_such_session", "no saved session is called {sid}", sid=i))
+        return folder / f"{i}.json"
+
+    if act == "save":
+        if not name:
+            raise ArmoryError(_i18n.msg("eng.armory.session_needs_name", "a session needs a name"))
+        project = body.get("project") if isinstance(body.get("project"), dict) else current
+        project = dict(project, session={"id": _new_id(name), "name": name})
+        save_project(project, now)
+        backup(project, now, force=True)
+        return {"project": project}
+    if act == "open":
+        project = _read(path_of(sid))
+        # the one left is backed up as it was, so nothing is lost by opening
+        if current.get("objects"):
+            backup(current, now, force=True)
+        project["session"] = {"id": sid, "name": (project.get("session") or {}).get("name") or sid}
+        save_project(project, now)
+        return {"project": project}
+    if act == "duplicate":
+        src = _read(path_of(sid))
+        nm = name or ((src.get("session") or {}).get("name") or sid) + " (2)"
+        new = _new_id(nm)
+        _write(folder / f"{new}.json", dict(src, session={"id": new, "name": nm}))
+        return {"project": current}
+    if act == "rename":
+        if not name:
+            raise ArmoryError(_i18n.msg("eng.armory.session_needs_name", "a session needs a name"))
+        p = _read(path_of(sid))
+        p["session"] = {"id": sid, "name": name}
+        _write(folder / f"{sid}.json", p)
+        if _session_id(current) == sid:
+            current["session"] = p["session"]
+            _write(PROJECT, current)
+        return {"project": current}
+    if act == "delete":
+        path_of(sid).unlink()
+        if _session_id(current) == sid:
+            current.pop("session", None)
+            _write(PROJECT, current)
+        return {"project": current}
+    if act == "revert":
+        f = str(body.get("file") or "")
+        bpath = _backups_dir(_session_id(current)) / f
+        if not re.fullmatch(r"[\w-]+\.json", f) or not bpath.is_file():
+            raise ArmoryError(_i18n.msg("eng.armory.no_such_backup", "no backup is called {file}", file=f))
+        project = _read(bpath)
+        # the state reverted from is a backup of its own
+        backup(current, now, force=True)
+        if current.get("session"):
+            project["session"] = current["session"]
+        save_project(project, now)
+        return {"project": project}
+    raise ArmoryError(_i18n.msg("eng.armory.unknown_session_action", "unknown session action {act}", act=act))
 
 
 # ---------------------------------------------------------------------------

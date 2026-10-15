@@ -989,6 +989,12 @@
   ],
   "cards.gen_rig_hint": [
    "turn"
+  ],
+  "armory.sess_open_now": [
+   "open"
+  ],
+  "armory.sess_loaded": [
+   "open"
   ]
  },
  "ancillaries.a_character_holds_one_ancillary_per": "Un personaje solo puede tener un séquito de cada tipo, así que este es el que sustituiría uno nuevo",
@@ -11286,5 +11292,44 @@
   "one": "{count} pose de la biblioteca del kit de Blender; un clic la aplica.",
   "other": "{count} poses de la biblioteca del kit de Blender; un clic aplica una.",
   "many": "{count} poses de la biblioteca del kit de Blender; un clic aplica una."
- }
+ },
+ "eng.armory.no_such_session": "ninguna sesión guardada se llama {sid}",
+ "eng.armory.session_needs_name": "una sesión necesita un nombre",
+ "eng.armory.no_such_backup": "ninguna copia de seguridad se llama {file}",
+ "eng.armory.unknown_session_action": "acción de sesión desconocida {act}",
+ "armory.sess_button": "Sesiones",
+ "armory.sess_button_title": "Guardar el modelo con un nombre, abrir otro o volver a una copia de seguridad",
+ "armory.sess_crash": "No se cerró bien: copias de seguridad",
+ "armory.sess_crash_title": "Armory Studio no se cerró bien la última vez. El modelo está como se guardó por última vez; aquí están sus copias de seguridad por si hay que volver más atrás.",
+ "armory.sess_title": "Sesiones guardadas",
+ "armory.sess_current": "Abierta ahora: {name}. Cada cambio se guarda en cuanto se hace.",
+ "armory.sess_unsaved": "Este modelo aún no está guardado como sesión. Póngale un nombre para conservarlo junto a otros.",
+ "armory.sess_name": "Nombre",
+ "armory.sess_save_as": "Guardar como sesión",
+ "armory.sess_saved": "Sesiones",
+ "armory.sess_none": "Aún no hay sesiones guardadas.",
+ "armory.sess_facts": {
+  "one": "{count} objeto · guardada {when}",
+  "many": "{count} objetos · guardada {when}",
+  "other": "{count} objetos · guardada {when}"
+ },
+ "armory.sess_open": "Abrir",
+ "armory.sess_duplicate": "Duplicar",
+ "armory.sess_delete": "Eliminar esta sesión",
+ "armory.sess_delete_confirm": "¿Eliminar la sesión {name}? Sus copias de seguridad se conservan.",
+ "armory.sess_backups": "Copias de seguridad de la sesión abierta",
+ "armory.sess_backups_note": "Se hacen cada tres minutos mientras el modelo cambia, y siempre que se abre una sesión o se recupera una copia; se conservan las veinte últimas.",
+ "armory.sess_no_backups": "Aún no hay copias de seguridad.",
+ "armory.sess_backup_facts": {
+  "one": "{count} objeto",
+  "many": "{count} objetos",
+  "other": "{count} objetos"
+ },
+ "armory.sess_revert": "Volver a esta",
+ "armory.sess_revert_confirm": "¿Volver a esta copia de seguridad? Antes se guarda una copia del modelo tal como está ahora.",
+ "armory.sess_name_first": "Ponga primero un nombre a la sesión",
+ "armory.sess_saved_as": "Guardado como la sesión {name}",
+ "armory.sess_rename": "Cambiar nombre",
+ "armory.sess_open_now": "abierta",
+ "armory.sess_loaded": "Abierta {name}"
 }

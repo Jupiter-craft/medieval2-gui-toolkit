@@ -746,6 +746,68 @@ armory.save_project({"v": 1, "objects": [{"id": 1}]})
 check("a project saves and loads back", armory.load_project() == {"v": 1, "objects": [{"id": 1}]})
 
 # ---------------------------------------------------------------------------
+print("\nSaved sessions and backups (99o)")
+
+T0 = 1_800_000_000.0
+armory.save_project({"v": 1, "objects": [{"id": 1}], "extra": {"cam": {"dist": 3}}}, now=T0)
+got = armory.session_action({"action": "save", "name": "Elf guard"}, now=T0 + 1)
+sid = got["project"]["session"]["id"]
+view = armory.sessions_view()
+check(f"the open model saves as a named session ({sid})",
+      [x["name"] for x in view["sessions"]] == ["Elf guard"] and view["current"] == sid)
+armory.save_project(dict(got["project"], objects=[{"id": 1}, {"id": 2}]), now=T0 + 2)
+check("every save of the open model is a save of its session",
+      len(json.loads((armory.ARMORY_DIR / "sessions" / f"{sid}.json").read_text(encoding="utf-8"))["objects"]) == 2)
+armory.session_action({"action": "duplicate", "id": sid, "name": "Orc guard"}, now=T0 + 3)
+other = next(x["id"] for x in armory.sessions_view()["sessions"] if x["name"] == "Orc guard")
+opened = armory.session_action({"action": "open", "id": other}, now=T0 + 4)["project"]
+check("a duplicate opens as a session of its own, the camera with it",
+      opened["session"]["id"] == other and opened["extra"]["cam"]["dist"] == 3
+      and armory.load_project()["session"]["id"] == other)
+armory.session_action({"action": "rename", "id": other, "name": "Uruk guard"})
+check("a session renames", armory.load_project()["session"]["name"] == "Uruk guard")
+# backups: one every BACKUP_EVERY seconds while the model changes
+before = len(armory.sessions_view()["backups"])
+proj = armory.load_project()
+armory.save_project(dict(proj, objects=[{"id": 9}]), now=T0 + 10)
+armory.save_project(dict(proj, objects=[{"id": 9}, {"id": 10}]), now=T0 + 11)
+mid = len(armory.sessions_view()["backups"])
+armory.save_project(dict(proj, objects=[{"id": 9}, {"id": 10}, {"id": 11}]), now=T0 + 10 + armory.BACKUP_EVERY + 1)
+after = armory.sessions_view()["backups"]
+check(f"a backup is taken when the last is {armory.BACKUP_EVERY} s old, not before ({before}, {mid}, {len(after)})",
+      mid == before and len(after) == before + 1)
+armory.save_project(dict(proj, objects=[{"id": 9}, {"id": 10}, {"id": 11}]), now=T0 + 10 + 3 * armory.BACKUP_EVERY)
+check("and not when nothing changed", len(armory.sessions_view()["backups"]) == len(after))
+oldest = after[-1]["file"]
+back = armory.session_action({"action": "revert", "file": oldest}, now=T0 + 5000)["project"]
+check(f"a backup puts the model back, as the session it was ({back['session']['name']})",
+      back["session"]["id"] == other and armory.load_project()["objects"] == back["objects"])
+for k in range(armory.BACKUPS_KEPT + 5):
+    armory.save_project(dict(proj, objects=[{"id": 100 + k}]), now=T0 + 10_000 + k * (armory.BACKUP_EVERY + 1))
+check(f"only the last {armory.BACKUPS_KEPT} backups are kept",
+      len(armory.sessions_view()["backups"]) == armory.BACKUPS_KEPT)
+n_before = len(armory.sessions_view()["backups"])
+had = armory.load_project()["objects"]
+armory.save_project(dict(armory.load_project(), objects=[], assets=[]), now=T0 + 10_000 + 26 * (armory.BACKUP_EVERY + 1) + 5)
+saved = [json.loads((armory.ARMORY_DIR / "backups" / other / b["file"]).read_text(encoding="utf-8"))
+         for b in armory.sessions_view()["backups"][:1]]
+check("a save that would empty a model backs it up first, however recent the last backup",
+      saved and saved[0]["objects"] == had)
+armory.closed()
+check("a page that says goodbye leaves no crash behind", armory.sessions_view()["unclean"] is False)
+armory.opened()
+check("one that never did, does", armory.sessions_view()["unclean"] is True)
+try:
+    armory.session_action({"action": "open", "id": "../../etc"})
+    refused = False
+except armory.ArmoryError:
+    refused = True
+check("a session id is a name, never a path", refused)
+armory.session_action({"action": "delete", "id": other})
+check("a session deletes, and the open model stays, as no session",
+      "session" not in armory.load_project() and other not in [x["id"] for x in armory.sessions_view()["sessions"]])
+
+# ---------------------------------------------------------------------------
 print("\nA real mod")
 game = _realmod.game(required=False)
 mods = sorted(p for p in (game / "mods").iterdir() if (p / "data").is_dir()) if game.is_dir() else []

@@ -110,7 +110,9 @@ function armProj(){
 function armSave(){
   armUndoNote();
   clearTimeout(ARM.saveTimer);
+  if(!ARM.projReady) return;
   ARM.saveTimer = setTimeout(() => {
+    if(typeof armExtrasInto === 'function') armExtrasInto(armProj());
     api.post('/api/armory/project', {project: armProj()}).catch(() => {});
   }, 600);
 }
@@ -126,7 +128,7 @@ function armSave(){
 const ARM_UNDO_MAX = 200;
 function armUndoState(){
   const p = armProj();
-  return JSON.stringify(Object.assign({}, p, {ui: undefined, anim: undefined,
+  return JSON.stringify(Object.assign({}, p, {ui: undefined, anim: undefined, extra: undefined, session: undefined,
     assets: (p.assets || []).map(a => Object.assign({}, a, {open: undefined, show: undefined}))}));
 }
 function armUndoNote(){
@@ -195,11 +197,16 @@ async function armEnsureLoaded(){
   if(ARM.loaded) return;
   ARM.loaded = true;
   try{ state.armProj = await api.get('/api/armory/project'); }catch(e){ state.armProj = null; }
+  // 99o: from here the page's project is the one on disk, and only from
+  // here may it be sent back (a page closing while it loads sends nothing)
+  ARM.projReady = true;
   const p = armProj();
   p.objects = p.objects || []; p.assets = p.assets || []; p.collections = p.collections || [];
   // 95e kept one source per object; an object holds pieces from 95f on
   for(const o of p.objects) if(!o.src){ o.src = [{asset: o.asset, group: o.group}]; delete o.asset; delete o.group; }
   armUndoReset();
+  // 99o: the camera and the card maker's and export's settings ride with it
+  if(typeof armExtrasFrom === 'function'){ armExtrasFrom(p); armSessCheck(); }
   ARM.loading = Promise.all(p.assets.map(a => armLoadAsset(a)));
   armLoadPresets().then(() => { if(state.mode === 'armory') armPaintObjects(); });
 }
@@ -233,12 +240,15 @@ function armPaintBar(){
   if(!el) return;
   const p = armProj();
   const tris = p.objects.filter(o => !o.hidden).reduce((s, o) => s + armObjTris(o), 0);
-  el.innerHTML = `<b>${esc(p.name || tt('armory.untitled'))}</b>
+  const sess = (p.session || {}).name;
+  el.innerHTML = `<b>${esc(sess || p.name || tt('armory.untitled'))}</b>
+    ${ARM.unclean ? `<button class="mini warn" onclick="armSessOpen()" title="${esc(tt('armory.sess_crash_title'))}">${tt('armory.sess_crash')}</button>` : ''}
     <span class="count">${tt('armory.bar_counts', {objects: p.objects.length, tris: tris.toLocaleString()})}</span>
     <span style="flex:1"></span>
     <button class="mini" id="armUndoBtn" onclick="armUndo(false)" title="${esc(tt('armory.undo_title'))}"${ARM.undo && ARM.undo.past.length ? '' : ' disabled'}>↶</button>
     <button class="mini" id="armRedoBtn" onclick="armUndo(true)" title="${esc(tt('armory.redo_title'))}"${ARM.undo && ARM.undo.future.length ? '' : ' disabled'}>↷</button>
     <button class="mini" onclick="armFrameAll()" title="${esc(tt('armory.frame_all_title'))}">${tt('armory.frame_all')}</button>
+    <button class="mini" onclick="armSessOpen()" title="${esc(tt('armory.sess_button_title'))}">${tt('armory.sess_button')}</button>
     <button class="mini" onclick="armLibOpen()" title="${esc(tt('armory.lib_open_title'))}">${tt('armory.lib_open')}</button>
     <button class="mini" onclick="armNew()">${tt('armory.new_project')}</button>
     <button class="mini primary" onclick="armExportOpen()"${p.objects.length ? '' : ' disabled'} title="${esc(tt('armory.export_title'))}">${tt('armory.export_button')}</button>`;

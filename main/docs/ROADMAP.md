@@ -423,7 +423,7 @@ and their lettered pieces are commits. Build the majors in this order.
 |---|---|---|---|---|
 | **0. Six reports** (done 2026-10-14) | **98** | Six reports of 2026-10-13: the Spanish wording, a Ko-fi link, the Strat map 3D panel losing its model, building art that needs a refresh, texture paths that point somewhere else, vanilla files read from the game's packs (and the shipped building art dropped) | 98a-98f | both |
 | **I. Models Editor and Armory Studio** (done 2026-10-14) | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
-| **I b. Armory Studio after its first use** (next) | **99** | Fifteen requests of 2026-10-15: Pull keeping its place, face orientation as Blender colours it, the card maker's gap, side panels and the top menu that fold, a themed scrollbar, import as a gallery, rename in place, undo and redo, T-pose, a view gizmo, a crop to the UVs exactly, moving the unit in the card maker, the Blender kit's IK rig and pose library, saved sessions with backups | 99a-99o | both |
+| **I b. Armory Studio after its first use** (done 2026-10-15) | **99** | Fifteen requests of 2026-10-15: Pull keeping its place, face orientation as Blender colours it, the card maker's gap, side panels and the top menu that fold, a themed scrollbar, import as a gallery, rename in place, undo and redo, T-pose, a view gizmo, a crop to the UVs exactly, moving the unit in the card maker, the Blender kit's IK rig and pose library, saved sessions with backups | 99a-99o | both |
 | **II. Campaign map** | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
 | | 96b-96d | Two layout faults (the green box, the bottom gap), ports and the capital by icon with one port per region, the garrison in the settlement editor | 96b, 96c, 96d | beta |
 | | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
@@ -2674,6 +2674,113 @@ every few minutes while it changes (a set number kept), and a list of its
 backups with their times reverts it to any of them, as does reopening after
 a crash. The export dialog's settings, the camera and the card maker's
 settings ride with the session.
+
+## Phase 99, done 2026-10-15
+
+On the user's word ("Complete all the stuff related to armory studio"), in
+five commits: `7b43740f` (99a-99f), `cccb34af` (99g-99k), `92a68acb` (99l),
+`94992d28` (99m-99n) and the one for 99o. German and Spanish complete in each.
+
+* **99a**: the asset and object panels keep their scroll, and the page its
+  own, when a Pull repaints them; scroll anchoring off in both.
+* **99b**: confirmed inverted. The viewport mirrors x (`ARM_MIRROR`) and keeps
+  the game's winding, so a face's front is what GL calls its back; the
+  `.glb` export reverses the winding for the same reason. The shader now
+  takes `!gl_FrontFacing` as the front: on the user's open model 91,440
+  pixels read blue and 532 red.
+* **99c**: the card maker's output is a grid, the HD render filling its
+  column and the card beside it; stacked below 1,250 px.
+* **99d**: Loaded assets and Objects fold to a 34 px strip with their names
+  upright, the viewport taking the room; settings `armory_left_shut` and
+  `armory_right_shut`.
+* **99e**: a fold button at the right of the top bar hides the bar, the trail
+  under it and the module's tab strip (`#main > .mftabs`, not a second-level
+  strip), in every mode; a tab at the top middle brings them back. Setting
+  `top_shut`.
+* **99f**: one scrollbar in `index.html`'s shared styles: 10 px, no track, a
+  rounded thumb in the theme's grey that turns the accent under the pointer;
+  Firefox takes `scrollbar-width: thin` instead. `.mftabs` lost its own
+  rule. The toolkit has one theme, the dark one.
+* **99g**: List / Gallery in the import dialog for a mod's units (a row per
+  unit, as 95b), its model entries and the library, setting
+  `armory_import_view`. The gallery (`gallery.js`) now holds a model by mod
+  and name, so any installed mod, and the library's several mods, draw
+  through its one context; it lets go of tiles that left the page. A file on
+  disk in the library shows its name, no tile.
+* **99h**: a double click on an object's mesh name, a group's fold (every
+  object of that group type) or a collection's fold edits it in place; a
+  trailing `.001` and `__opt` go, a whole `type__mesh` is split and fixed as
+  Fix names does, a group type loses any `__`. A click on the one object
+  already selected no longer repaints the panel, which is what lets the
+  double click land.
+* **99i**: a snapshot of the project at each save (folds, an asset's list or
+  gallery, the animation chosen, the session and its extras left out), two
+  hundred kept; Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y and ↶ ↷ on the bar, editable as
+  95g's keys and working anywhere in the workbench. `armKeyName` now writes
+  Shift for a letter held with Ctrl or Alt.
+* **99j**: T-pose beside the animation window's fold, and a key of its own
+  (unbound): the clock stops, the parts stand in their bind pose, and it
+  plays on from the same frame. The card maker poses whatever it says.
+* **99k**: Blender's gizmo at the top right, the game's axes (Y up, the axes
+  the sliders and G/R/S use), X red, Y green, Z blue, negative ends hollow,
+  turning with the view; a click looks down that axis, a drag orbits.
+* **99l**: a block is its shape: the texels under its UV triangles (edges
+  drawn too) grown by the margin. Islands fold only when a texel is under
+  both; blocks are set down column by column against a depth profile, so an
+  empty corner of one takes the next, three ways of choosing tried until one
+  fits and the one leaving least kept (no single way won on all four
+  soldiers measured); the bake copies only the masked texels, the normal map
+  likewise; the export dialog draws each sheet's shapes from a picture the
+  plan sends. At 512 the Dunedain knights need a scale of 0.54 (rectangles
+  0.50), Mordor's bodyguard 0.69 (0.65), the reference horse 0.998 (0.902).
+  The dye preview's crop dyes only the texels under the piece. **Not looked
+  at while building it, raised by the user afterwards: SimpleBake.** It has
+  no packer of its own; it calls Blender's `uv.pack_islands` with the
+  concave shape method, any rotation, merge overlapping and a margin method,
+  then rebakes through Cycles. Two things worth taking, offered to the user:
+  a placer that fills holes and side pockets (a full mask search), and free
+  rotation as an opt-in at the cost of a resample.
+* **99m**: the HD view takes the mouse: middle drag orbits the card camera,
+  Shift pans (`cam.pan`, new), Ctrl or the wheel zooms the ortho scale; G and
+  R (X, Y, Z for an axis; click or Enter keeps, Esc or the right button puts
+  back) move and turn the model about its middle in the frame. `armRender`
+  takes a `pre` matrix for it.
+* **99n**: upstream (WK-313/Medieval-2-Toolkit) checked first: the rig data
+  is the same, the catalogs now spell Javelin, and the controller hides the
+  Med2 skeleton. Blender 5.1 (`D:/Blender-5.1.2`, not 4.5, whose folder holds
+  no executable) read the three rigs and the 231 pose assets out of the kit
+  into `unittransfer/data/m2_poses.json` (163 KB, the 18 old mount poses
+  left out), served at `/api/armory/poses`. `web/js/cgrig.js` solves the rig
+  as Blender does (chained rests and pose channels; two-bone IK with
+  Blender's pole rule, bent in the rest plane and falling back to the plane
+  of shoulder, target and pole where that would put the elbow on the far
+  side; the torso chain keeping its controller's twist, Copy Rotation taken
+  without scale; the Switch pinning the left fist to the Pole's tail) and
+  puts each Med2 bone's turn on the model's skeleton, Blender's y and z
+  swapped. Against Blender's own solve of every pose on all three rigs (414)
+  the Med2 bones agree within 1.1 cm at the median and 9 cm at the 90th
+  centile; the worst is an orc pose on the dwarf rig, 31 cm. In the card
+  maker: an IK rig pose (rig by skeleton, or chosen), its controllers drawn
+  over the HD view and dragged (the head turns), the library by catalog
+  applied whole or by arms, legs, head or posture, two hands, back to rest;
+  the six presets kept. `tests/rig_truth.json` keeps Blender's solve of
+  thirteen poses for the suite. **Open: whether the pose data may ship.**
+  The kit's repository carries no licence; the data is in the repo, and
+  nothing has been released.
+* **99o**: sessions in `config/armory/sessions/<id>.json`, the open one the
+  working `project.json` (`project.session`), every save a save of both;
+  backups in `config/armory/backups/<id or _unsaved>/`, one every 180 s while
+  the model changes, twenty kept, and one more whenever a session is opened,
+  a backup put back, or a save would empty a model that has objects. The
+  camera, the card maker's settings and the export settings ride in
+  `project.extra`. A page that closes sends its project and goodbye by
+  beacon (`/api/armory/closed`); one that never did shows "Not closed
+  cleanly" on the bar. A Sessions dialog saves, opens, duplicates, renames,
+  deletes and reverts. Found while testing: a reload while the project was
+  still loading could have sent an empty project over the user's (the write
+  failed only because two writes shared one temporary file). Fixed three
+  ways: nothing is sent before the project has loaded, each write has its
+  own temporary file, and an emptying save backs up first.
 
 # Phase 98 - six reports, scheduled 2026-10-13, first in the schedule
 

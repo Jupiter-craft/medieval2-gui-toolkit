@@ -3460,6 +3460,11 @@
   .armwide{width:320px;max-width:100%}
   /* 95l: the asset library (armlib.js) */
   .armlib{display:flex;flex-direction:column;gap:8px}
+  /* 99o: saved sessions and their backups */
+  .armsesslist{display:flex;flex-direction:column;gap:3px;max-height:30vh;overflow:auto}
+  .armsessrow{display:flex;gap:8px;align-items:center;padding:4px 6px;border:1px solid var(--edge);border-radius:6px;background:var(--panel2);flex-wrap:wrap}
+  .armsessrow.on{border-color:var(--accent)}
+  button.mini.warn{border-color:var(--warn);color:var(--warn)}
   .armlibrows{max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
   .armlibgroup{border:1px solid var(--edge);border-radius:7px;padding:4px 6px;background:var(--panel2)}
   .armlibrow{border-top:1px solid var(--edge);padding:5px 2px;display:flex;flex-direction:column;gap:4px}
@@ -3707,6 +3712,7 @@
 <script src="js/armanim.js"></script>
 <script src="js/armexport.js"></script>
 <script src="js/armlib.js"></script>
+<script src="js/armsess.js"></script>
 <script src="js/cardgen.js"></script>
 <script src="js/cgrig.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->
