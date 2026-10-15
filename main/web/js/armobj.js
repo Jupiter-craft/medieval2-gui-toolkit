@@ -598,6 +598,29 @@ function armPieceUvBox(live, pc){
   return x0 === Infinity ? null : [x0, y0, x1, y1, us];
 }
 
+/* A piece's UV triangles drawn into a crop of its sheet, grown by two
+   texels: RGBA, the alpha set where the piece is. */
+function armPieceMask(live, pc, crop, W, H, w, h){
+  const U = live.geo.uvs;
+  if(!U) return null;
+  const us = live.objTex ? 1 : (live.uScale || 0.5);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', {willReadFrequently: true});
+  x.fillStyle = x.strokeStyle = '#fff'; x.lineWidth = 4; x.lineJoin = 'round';
+  const g = live.geo.groups[pc.group], I = live.geo.indices;
+  const tris = pc.tris || [...Array(g.count / 3).keys()];
+  for(const t of tris){
+    x.beginPath();
+    for(let k = 0; k < 3; k++){
+      const v = I[g.start + t*3 + k];
+      const px = (U[v*2] * us - crop[0]) * W, py = (U[v*2+1] - crop[1]) * H;
+      if(k) x.lineTo(px, py); else x.moveTo(px, py);
+    }
+    x.closePath(); x.fill(); x.stroke();
+  }
+  return x.getImageData(0, 0, w, h).data;
+}
+
 function armDyedTexture(o, pc){
   const stamps = o.stamps || [];
   // 95j: the normal map's preview is made from the same crop
@@ -614,7 +637,7 @@ function armDyedTexture(o, pc){
   if(hit && hit.sig === sig && !hit.stale) return hit;
   const W = img.width, H = img.height;
   const box = armPieceUvBox(live, pc);
-  let crop = [0, 0, 1, 1], px = [0, 0, W, H];
+  let crop = [0, 0, 1, 1], px = [0, 0, W, H], cropped = false;
   if(box){
     // an edge vertex a texel past a boundary (mesh.TILE_EPS) does not make
     // a part wrap
@@ -627,6 +650,7 @@ function armDyedTexture(o, pc){
       const bx = Math.min(W, Math.ceil((box[2] - fx) * W) + 2), by = Math.min(H, Math.ceil((box[3] - fy) * H) + 2);
       px = [ax, ay, Math.max(1, bx - ax), Math.max(1, by - ay)];
       crop = [fx + ax / W, fy + ay / H, px[2] / W, px[3] / H];
+      cropped = true;
     }
   }
   const c = document.createElement('canvas');
@@ -634,6 +658,10 @@ function armDyedTexture(o, pc){
   const ctx = c.getContext('2d', {willReadFrequently: true});
   ctx.drawImage(img, px[0], px[1], px[2], px[3], 0, 0, px[2], px[3]);
   const im = ctx.getImageData(0, 0, px[2], px[3]);
+  // 99l: as the bake, only the texels under the piece's UV triangles (and
+  // the two beside them that filtering reads) are dyed and stamped
+  const keep = cropped ? armPieceMask(live, pc, crop, W, H, px[2], px[3]) : null;
+  const was = keep ? im.data.slice() : null;
   if(o.dye){
     const centers = o.dye.pattern && Object.keys(o.dye.pattern.colors || {}).length ? o.dye.pattern.centers : null;
     armDyePixels(im.data, o.dye, o.material, centers);
@@ -646,6 +674,9 @@ function armDyedTexture(o, pc){
       const simg = armStampImage(st.path);
       if(simg) armStampPixels(im.data, px[2], px[3], st, simg, ab);
     }
+  }
+  if(keep) for(let i = 0, n = px[2] * px[3]; i < n; i++) if(!keep[i * 4 + 3]){
+    im.data[i*4] = was[i*4]; im.data[i*4+1] = was[i*4+1]; im.data[i*4+2] = was[i*4+2];
   }
   ctx.putImageData(im, 0, 0);
   let nTex = null;

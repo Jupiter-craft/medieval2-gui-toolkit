@@ -12,6 +12,10 @@ pointing at its source's sheets. Exporting it makes it a model of its own:
   same art never takes room twice, and packs the blocks onto the main and the
   attachment sheet. A block moves and turns by quarter turns, never scales
   unless the user asks, and keeps a margin round it as a share of the sheet.
+  From 99l a block is its **shape**, not its rectangle: the texels under its
+  UV triangles grown by the margin, a mask. Islands fold only where their
+  texels truly overlap, and blocks are packed by their masks, so one slides
+  into another's empty corner; only the masked texels are copied.
   When a sheet runs out of room it says which blocks did not fit and what each
   would take, and ``auto`` picks a way out (said to cost quality).
 * :func:`bake` copies each block's source texels onto its sheet, the margin
@@ -495,10 +499,20 @@ def _islands(indices: Sequence[int], lo: int, hi: int) -> List[List[int]]:
 
 
 class _Island:
-    __slots__ = ("obj", "verts", "src", "rect", "tile", "origin")
+    __slots__ = ("obj", "verts", "src", "rect", "tile", "origin", "polys", "_mask")
 
-    def __init__(self, obj, verts, src, rect, tile, origin):
+    def __init__(self, obj, verts, src, rect, tile, origin, polys=()):
         self.obj, self.verts, self.src, self.rect, self.tile, self.origin = obj, verts, src, rect, tile, origin
+        #: its triangles, each three points in its source's texels (99l)
+        self.polys = list(polys)
+        self._mask = None
+
+    def mask(self) -> np.ndarray:
+        """Its texels at scale 1 over its own rect, without a margin."""
+        if self._mask is None:
+            self._mask = raster(self.polys, self.rect, 1.0, 0,
+                                self.rect[2] - self.rect[0], self.rect[3] - self.rect[1])
+        return self._mask
 
 
 def _source_of(sheets: _Sheets, pc: dict, umin: float, umax: float):
@@ -546,7 +560,9 @@ def gather(project: dict, objs: List[dict], mod_of, sheets: _Sheets):
                 origin = "main" if sheets.external(pc) else ("attach" if tile == 1 else "main")
                 if not sheets.external(pc) and span == 2.0:
                     origin = "both"
-                islands.append(_Island(o, verts, (sid, img, base, span, pc), rect, tile, origin))
+                at = {v: ((uvs[v * 2] - base) * W / span, uvs[v * 2 + 1] * H) for v in verts}
+                polys = [(at[ix[t * 3]], at[ix[t * 3 + 1]], at[ix[t * 3 + 2]]) for t in tris]
+                islands.append(_Island(o, verts, (sid, img, base, span, pc), rect, tile, origin, polys))
     return meshes, islands
 
 
@@ -557,10 +573,62 @@ def _dye_key(o: dict, dyes: bool) -> str:
     return json.dumps([o.get("dye"), o.get("material"), o.get("stamps")], sort_keys=True)
 
 
+# ---------------------------------------------------------------------------
+# shapes (99l): the texels under the UV triangles, as masks
+
+
+def raster(polys, rect, scale: float, margin: int, w: int, h: int) -> np.ndarray:
+    """``polys`` (triangles in source texels) drawn into a ``h + 2 margin``
+    by ``w + 2 margin`` mask whose art corner is ``rect``'s, at ``scale``,
+    then grown by the margin. A texel a triangle touches at all is in it: the
+    edge is drawn as well as the inside, so the texel a vertex sits on is
+    kept, and the margin (at least one texel) keeps the one bilinear
+    filtering reads beside it. No triangles is the whole rectangle."""
+    from PIL import ImageDraw
+    W, H = w + 2 * margin, h + 2 * margin
+    if not polys:
+        return np.ones((H, W), bool)
+    im = Image.new("L", (W, H), 0)
+    dr = ImageDraw.Draw(im)
+    ox, oy = rect[0], rect[1]
+    for tri in polys:
+        pts = [((x - ox) * scale + margin, (y - oy) * scale + margin) for x, y in tri]
+        dr.polygon(pts, fill=1, outline=1)
+    m = np.asarray(im, bool).copy()
+    return grow(m, margin) if margin else m
+
+
+def grow(m: np.ndarray, r: int) -> np.ndarray:
+    """A square dilation by ``r`` texels, rows then columns."""
+    if r <= 0 or not m.any():
+        return m
+    out = m.copy()
+    for _ in range(r):
+        prev = out.copy()
+        out[:, 1:] |= prev[:, :-1]
+        out[:, :-1] |= prev[:, 1:]
+    for _ in range(r):
+        prev = out.copy()
+        out[1:, :] |= prev[:-1, :]
+        out[:-1, :] |= prev[1:, :]
+    return out
+
+
+def _masks_meet(a: "_Island", b: "_Island") -> bool:
+    """Whether two islands of one source use a texel in common."""
+    ra, rb = a.rect, b.rect
+    x0, y0, x1, y1 = max(ra[0], rb[0]), max(ra[1], rb[1]), min(ra[2], rb[2]), min(ra[3], rb[3])
+    if x0 >= x1 or y0 >= y1:
+        return False
+    ma = a.mask()[y0 - ra[1]:y1 - ra[1], x0 - ra[0]:x1 - ra[0]]
+    mb = b.mask()[y0 - rb[1]:y1 - rb[1], x0 - rb[0]:x1 - rb[0]]
+    return bool((ma & mb).any())
+
+
 class Block:
     """Islands whose art overlaps in one source, packed and baked as one."""
     __slots__ = ("id", "islands", "src", "rect", "objs", "sheet", "scale", "w", "h",
-                 "x", "y", "rot", "placed", "dkey")
+                 "x", "y", "rot", "placed", "dkey", "_shape")
 
     def __init__(self, islands, src, rect, dkey):
         self.islands, self.src, self.rect, self.dkey = islands, src, rect, dkey
@@ -570,6 +638,19 @@ class Block:
         self.w = self.h = self.x = self.y = 0
         self.rot = False
         self.placed = False
+        self._shape = None
+
+    def shape(self, margin: int) -> np.ndarray:
+        """Its mask on the sheet, the margin round it included, turned as it
+        was placed: the texels it takes and the only ones baked (99l)."""
+        key = (self.scale, margin)
+        if self._shape is None or self._shape[0] != key:
+            w = max(1, int(math.ceil(self.src_w * self.scale)))
+            h = max(1, int(math.ceil(self.src_h * self.scale)))
+            polys = [t for i in self.islands for t in i.polys]
+            self._shape = (key, raster(polys, self.rect, self.scale, margin, w, h))
+        m = self._shape[1]
+        return np.rot90(m, k=-1) if self.rot else m
 
     @property
     def src_w(self):
@@ -595,22 +676,30 @@ def make_blocks(islands: List[_Island], dyes: bool = True, scales: Optional[dict
         buckets.setdefault(key, []).append(isl)
     blocks: List[Block] = []
     for key, items in buckets.items():
-        groups = [([i], list(i.rect)) for i in items]
-        merged = True
-        while merged:
-            merged = False
-            out: List[tuple] = []
-            for members, r in groups:
-                for k, (om, orr) in enumerate(out):
-                    if _overlap(r, orr):
-                        out[k] = (om + members, [min(r[0], orr[0]), min(r[1], orr[1]),
-                                                 max(r[2], orr[2]), max(r[3], orr[3])])
-                        merged = True
-                        break
-                else:
-                    out.append((members, r))
-            groups = out
-        for members, r in groups:
+        # 99l: two islands fold when a texel is under both, not when their
+        # rectangles cross: rectangles chained most of a sheet into one block
+        parent = list(range(len(items)))
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+        order = sorted(range(len(items)), key=lambda i: items[i].rect[0])
+        for n, i in enumerate(order):
+            ri = items[i].rect
+            for j in order[n + 1:]:
+                rj = items[j].rect
+                if rj[0] >= ri[2]:
+                    break
+                if find(i) != find(j) and _overlap(ri, rj) and _masks_meet(items[i], items[j]):
+                    parent[find(j)] = find(i)
+        groups: Dict[int, List[_Island]] = {}
+        for i in range(len(items)):
+            groups.setdefault(find(i), []).append(items[i])
+        for members in groups.values():
+            r = [min(m.rect[0] for m in members), min(m.rect[1] for m in members),
+                 max(m.rect[2] for m in members), max(m.rect[3] for m in members)]
             b = Block(members, members[0].src, r, key[3])
             b.scale = key[4]
             blocks.append(b)
@@ -618,91 +707,129 @@ def make_blocks(islands: List[_Island], dyes: bool = True, scales: Optional[dict
 
 
 # ---------------------------------------------------------------------------
-# packing: a skyline, bottom-left, quarter turns allowed
-
-
-class _Skyline:
-    def __init__(self, size: int):
-        self.size = size
-        self.segs = [[0, 0, size]]     # x, y, width
-
-    def _fit(self, i: int, w: int, h: int) -> Optional[int]:
-        x = self.segs[i][0]
-        if x + w > self.size:
-            return None
-        y, left, j = 0, w, i
-        while left > 0:
-            if j >= len(self.segs):
-                return None
-            y = max(y, self.segs[j][1])
-            if y + h > self.size:
-                return None
-            left -= self.segs[j][2]
-            j += 1
-        return y
-
-    def place(self, w: int, h: int, turn: bool) -> Optional[Tuple[int, int, bool]]:
-        best = None
-        for rot in ((False, True) if turn and w != h else (False,)):
-            ww, hh = (h, w) if rot else (w, h)
-            for i in range(len(self.segs)):
-                y = self._fit(i, ww, hh)
-                if y is None:
-                    continue
-                score = (y + hh, self.segs[i][0])
-                if best is None or score < best[0]:
-                    best = (score, i, self.segs[i][0], y, ww, hh, rot)
-        if best is None:
-            return None
-        _s, _i, x, y, ww, hh, rot = best
-        self._add(x, y, ww, hh)
-        return x, y, rot
-
-    def _add(self, x, y, w, h):
-        new = [x, y + h, w]
-        out = []
-        for s in self.segs:
-            sx, sy, sw = s
-            if sx + sw <= x or sx >= x + w:
-                out.append(s)
-                continue
-            if sx < x:
-                out.append([sx, sy, x - sx])
-            if sx + sw > x + w:
-                out.append([x + w, sy, sx + sw - x - w])
-        out.append(new)
-        out.sort(key=lambda s: s[0])
-        merged = []
-        for s in out:
-            if merged and merged[-1][1] == s[1] and merged[-1][0] + merged[-1][2] == s[0]:
-                merged[-1][2] += s[2]
-            else:
-                merged.append(s)
-        self.segs = merged
+# packing: by shape (99l), quarter turns allowed
 
 
 def margin_px(pct: float, size: int) -> int:
     return max(0, int(math.ceil(size * float(pct) / 100.0)))
 
 
+def _coarse(m: np.ndarray, cell: int) -> np.ndarray:
+    """A mask on a grid of ``cell`` texels, a cell taken if any texel is."""
+    if cell == 1:
+        return m
+    h, w = m.shape
+    H, W = -(-h // cell) * cell, -(-w // cell) * cell
+    pad = np.zeros((H, W), bool)
+    pad[:h, :w] = m
+    return pad.reshape(H // cell, cell, W // cell, cell).any(axis=(1, 3))
+
+
+class _Profile:
+    """The sheet as columns, each filled down to a depth (99l): a block's mask
+    is set down from the top as far as each of its columns lets it, so a
+    block's empty top corner takes another's bottom one. Masks never overlap;
+    a hole left under a block is not used again.
+
+    ``score`` is how a place is chosen: ``"gap"`` the room left empty under
+    the block, ``"mix"`` that and how low the block's bottom reaches, ``"end"``
+    the bottom alone (bottom-left)."""
+
+    def __init__(self, size: int, cell: int, score: str = "mix"):
+        self.cols = self.rows = -(-size // cell)
+        self.sky = np.zeros(self.cols, np.int64)
+        self.score = score
+
+    def place(self, shapes) -> Optional[Tuple[int, int, int]]:
+        """The best of ``shapes`` (coarse masks, one per turn) and where it
+        goes, ``(x, y, which)`` in cells."""
+        from numpy.lib.stride_tricks import sliding_window_view
+        low = np.iinfo(np.int64).min // 4
+        best = None
+        for which, m in enumerate(shapes):
+            h, w = m.shape
+            if w > self.cols or h > self.rows:
+                continue
+            filled = m.any(axis=0)
+            top = np.where(filled, m.argmax(axis=0), 0)
+            bottom = np.where(filled, h - m[::-1].argmax(axis=0), 0)
+            need = np.where(filled, -top, low)
+            win = sliding_window_view(self.sky, w)
+            ys = np.maximum((win + need).max(axis=1), 0)
+            ok = ys + h <= self.rows
+            if not ok.any():
+                continue
+            ends = ys + int(bottom.max())
+            if self.score == "end":
+                rank = ends
+            else:
+                gap = (((ys[:, None] + top[None, :]) - win) * filled[None, :]).sum(axis=1)
+                rank = gap + ends * w if self.score == "mix" else gap
+            rank = np.where(ok, rank, np.iinfo(np.int64).max)
+            x = int(rank.argmin())
+            score = (int(rank[x]), int(ys[x]), x)
+            if best is None or score < best[0]:
+                best = (score, x, int(ys[x]), which, filled, bottom)
+        if best is None:
+            return None
+        _s, x, y, which, filled, bottom = best
+        seg = self.sky[x:x + len(filled)]
+        self.sky[x:x + len(filled)] = np.where(filled, np.maximum(seg, y + bottom), seg)
+        return x, y, which
+
+
 def pack(blocks: List[Block], size: int, margin: int) -> List[Block]:
-    """Blocks placed on one sheet; the ones that did not fit come back."""
+    """Blocks placed on one sheet by their shapes (99l); the ones that did
+    not fit come back."""
     for b in blocks:
         b.w = max(1, int(math.ceil(b.src_w * b.scale)))
         b.h = max(1, int(math.ceil(b.src_h * b.scale)))
         b.placed = False
     # the margin keeps blocks apart, and may run off the sheet's own edge,
-    # where no bleed is ever sampled: a block as wide as the sheet still fits
-    sky = _Skyline(size + 2 * margin)
-    left = []
-    for b in sorted(blocks, key=lambda b: (-max(b.w, b.h), -b.w * b.h)):
-        got = sky.place(b.w + 2 * margin, b.h + 2 * margin, True)
-        if got is None:
-            left.append(b)
-            continue
-        b.x, b.y, b.rot = got[0], got[1], got[2]
-        b.placed = True
+    # where no bleed is ever sampled: a block as wide as the sheet still fits.
+    # A sheet past 1024 is packed on a grid of 2 or 4 texels, for time.
+    cell = max(1, size // 1024)
+    shapes = {}
+    for b in blocks:
+        b.rot = False
+        flat = _coarse(b.shape(margin), cell)
+        shapes[id(b)] = [flat] + ([np.rot90(flat, k=-1)] if b.w != b.h else [])
+    # no one way of choosing wins on every model (measured on four soldiers
+    # at 512: each of these three was the best on one), so the next is tried
+    # while blocks are left over, and the one leaving the least is kept
+    best = None
+    for score, order in _PACK_WAYS:
+        prof = _Profile(size + 2 * margin, cell, score)
+        left, spots = [], {}
+        for b in sorted(blocks, key=order):
+            got = prof.place(shapes[id(b)])
+            if got is None:
+                left.append(b)
+            else:
+                spots[id(b)] = got
+        lost = sum(b.w * b.h for b in left)
+        if best is None or lost < best[0]:
+            best = (lost, left, spots)
+        if not left:
+            break
+    _lost, left, spots = best
+    for b in blocks:
+        got = spots.get(id(b))
+        b.placed = got is not None
+        if got is not None:
+            b.x, b.y, b.rot = got[0] * cell, got[1] * cell, got[2] == 1
+        else:
+            b.rot = False
     return left
+
+
+#: How :func:`pack` chooses, in the order tried: a place's score, and the
+#: order the blocks are set down in.
+_PACK_WAYS = (
+    ("mix", lambda b: -b.w * b.h),
+    ("gap", lambda b: (-b.h, -b.w)),
+    ("end", lambda b: (-b.h, -b.w)),
+)
 
 
 def _needs(area: float, margin_pct: float = MARGIN_PCT) -> int:
@@ -715,6 +842,40 @@ def _needs(area: float, margin_pct: float = MARGIN_PCT) -> int:
 
 # ---------------------------------------------------------------------------
 # the plan
+
+
+def _colour(oid) -> Tuple[int, int, int]:
+    """An object's colour in the export dialog, as ``armExpColour`` makes it."""
+    import colorsys
+    h = (float(oid or 0) * 137.508) % 360
+    r, g, b = colorsys.hls_to_rgb(h / 360.0, 0.58, 0.62)
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+def _sheet_picture(blocks: List[Block], size: int, margin: int, side: int = 320) -> str:
+    """The sheet as the export dialog shows it (99l): each placed block's
+    shape in its object's colour, a PNG data URL ``side`` pixels wide."""
+    import base64
+    k = side / float(size)
+    pic = np.zeros((side, side, 3), np.float32)
+    pic[:] = (29, 33, 40)
+    for b in blocks:
+        if not b.placed:
+            continue
+        m = b.shape(margin)
+        h, w = m.shape
+        x0, y0 = int((b.x - margin) * k), int((b.y - margin) * k)
+        tw, th = max(1, int(round(w * k))), max(1, int(round(h * k)))
+        small = np.asarray(Image.fromarray(m.astype(np.uint8) * 255).resize((tw, th), Image.BILINEAR)) > 40
+        ax, ay, bx, by = max(0, x0), max(0, y0), min(side, x0 + tw), min(side, y0 + th)
+        if ax >= bx or ay >= by:
+            continue
+        sub = small[ay - y0:by - y0, ax - x0:bx - x0]
+        region = pic[ay:by, ax:bx]
+        region[sub] = region[sub] * 0.25 + np.array(_colour(b.objs[0] if b.objs else 0), np.float32) * 0.75
+    buf = io.BytesIO()
+    Image.fromarray(pic.astype(np.uint8), "RGB").save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def _sheet_of(b: Block, settings: dict, rooms: Dict[str, float]) -> str:
@@ -853,8 +1014,9 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
         size = p["size"]
         sheets_out[s] = {
             "size": size, "needs": p["needs"], "area": p["area"],
-            "fill": (sum((b.w + 2 * margin_px(margin_pct, size)) * (b.h + 2 * margin_px(margin_pct, size))
+            "fill": (sum(int(b.shape(margin_px(margin_pct, size)).sum())
                          for b in p["blocks"] if b.placed) / (size * size)) if size else 0,
+            "picture": _sheet_picture(p["blocks"], size, margin_px(margin_pct, size)) if size else "",
             "margin_px": margin_px(margin_pct, size) if size else 0,
             "recommended_margin": round(SCALED_MARGIN_PX * 100.0 / size, 2) if size else 0,
             "blocks": [{"id": b.id, "objs": b.objs, "x": b.x, "y": b.y, "w": b.w, "h": b.h,
@@ -1115,7 +1277,9 @@ def bake(project: dict, mod_of, settings: Optional[dict], out_dir: str, stem: st
             h, w = px.shape[:2]
             ax, ay = max(0, x), max(0, y)
             bx, by = min(size, x + w), min(size, y + h)
-            canvas[ay:by, ax:bx] = px[ay - y:by - y, ax - x:bx - x]
+            # 99l: only the texels under the block's triangles, with its margin
+            keep = b.shape(margin)[ay - y:by - y, ax - x:bx - x]
+            canvas[ay:by, ax:bx][keep] = px[ay - y:by - y, ax - x:bx - x][keep]
         name = stem if s == "main" else stem + "_attach"
         written += _write_sheet(out, name, canvas)
         sheet_files[s] = name
@@ -1131,7 +1295,10 @@ def bake(project: dict, mod_of, settings: Optional[dict], out_dir: str, stem: st
             fh = (b.w if b.rot else b.h) + 2 * margin
             x, y = max(0, b.x - margin), max(0, b.y - margin)
             x1, y1 = min(size, b.x - margin + fw), min(size, b.y - margin + fh)
-            nmap[y:y1, x:x1] = normal_pixels(canvas[y:y1, x:x1], setting)
+            # blocks nest into each other's rectangles: each writes its shape
+            ox, oy = b.x - margin, b.y - margin
+            keep = b.shape(margin)[y - oy:y1 - oy, x - ox:x1 - ox]
+            nmap[y:y1, x:x1][keep] = normal_pixels(canvas[y:y1, x:x1], setting)[keep]
         written += _write_sheet(out, name + "_normal", nmap)
     # the UVs: each vertex goes where its island's block went
     new_uv: Dict[int, Dict[int, Tuple[float, float]]] = {}

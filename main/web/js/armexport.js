@@ -282,6 +282,13 @@ function armExpDrawSheets(){
     if(!cv || !S.size) continue;
     const ctx = cv.getContext('2d'), k = cv.width / S.size;
     ctx.fillStyle = '#1d2128'; ctx.fillRect(0, 0, cv.width, cv.height);
+    // 99l: the server draws each block's shape, the texels it takes
+    if(S.picture){
+      const img = new Image();
+      img.onload = () => { if(cv.isConnected) ctx.drawImage(img, 0, 0, cv.width, cv.height); };
+      img.src = S.picture;
+      continue;
+    }
     for(const b of S.blocks){
       if(!b.placed) continue;
       const w = (b.rot ? b.h : b.w) * k, h = (b.rot ? b.w : b.h) * k;

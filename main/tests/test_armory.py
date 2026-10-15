@@ -338,19 +338,62 @@ if horse is not None:
     check(f"every island measured and packed ({P['islands']} islands in {P['blocks']} blocks)",
           P["fits"] and P["islands"] >= P["blocks"] > 0)
     bl = st["blocks"]
-    twice = any(a.src[0] == b.src[0] and a.src[2] == b.src[2] and a.dkey == b.dkey and armbake._overlap(a.rect, b.rect)
-                for i, a in enumerate(bl) for b in bl[i + 1:])
+    # 99l: art is the same when a texel is under two islands, not when their
+    # rectangles cross
+    def _texels(b):
+        out = set()
+        for isl in b.islands:
+            m = isl.mask()
+            ys, xs = np.nonzero(m)
+            out |= set(zip((xs + isl.rect[0]).tolist(), (ys + isl.rect[1]).tolist()))
+        return out
+    tex = [_texels(b) for b in bl]
+    twice = any(a.src[0] == b.src[0] and a.src[2] == b.src[2] and a.dkey == b.dkey and tex[i] & tex[i + 1 + j]
+                for i, a in enumerate(bl) for j, b in enumerate(bl[i + 1:]))
     check(f"art that overlaps in its source is packed once ({P['folded']} islands folded into others)",
           P["folded"] > 0 and not twice)
-    placed = [b for s in P["sheets"].values() for b in s["blocks"]]
-    def _foot(b):
-        return (b["x"], b["y"], b["x"] + (b["h"] if b["rot"] else b["w"]), b["y"] + (b["w"] if b["rot"] else b["h"]))
-    clash = any(armbake._overlap(_foot(a), _foot(b)) for s in P["sheets"].values()
-                for i, a in enumerate(s["blocks"]) for b in s["blocks"][i + 1:])
-    check("no two blocks overlap on a sheet", not clash)
-    inside = all(0 <= f[0] and 0 <= f[1] and f[2] <= P["sheets"][s]["size"] and f[3] <= P["sheets"][s]["size"]
-                 for s in P["sheets"] for f in map(_foot, P["sheets"][s]["blocks"]))
+    rect_blocks = 0
+    for key in {(i.src[0], i.src[2]) for i in st["islands"]}:
+        items = [i for i in st["islands"] if (i.src[0], i.src[2]) == key]
+        groups = [[list(i.rect)] for i in items]
+        merged = True
+        while merged:
+            merged = False
+            out = []
+            for g in groups:
+                for o in out:
+                    if any(armbake._overlap(a, b) for a in g for b in o):
+                        o.extend(g); merged = True; break
+                else:
+                    out.append(g)
+            groups = out
+        rect_blocks += len(groups)
+    check(f"islands whose rectangles cross but whose texels do not stay apart ({P['blocks']} blocks, {rect_blocks} by rectangles)",
+          P["blocks"] >= rect_blocks)
+    # no texel of a sheet is taken twice, margins included, and every block
+    # is on its sheet (its margin may run past the edge)
+    clash, inside = False, True
+    for sh, S in st["per"].items():
+        if not S["size"]:
+            continue
+        mg = armbake.margin_px(st["margin_pct"], S["size"])
+        taken = np.zeros((S["size"] + 2 * mg, S["size"] + 2 * mg), np.int32)
+        for b in S["blocks"]:
+            m = b.shape(mg)
+            h, w = m.shape
+            if b.x < 0 or b.y < 0 or b.x + w > taken.shape[1] or b.y + h > taken.shape[0]:
+                inside = False
+                continue
+            taken[b.y:b.y + h, b.x:b.x + w] += m
+        clash = clash or bool((taken > 1).any())
+    check("no two blocks' shapes overlap on a sheet", not clash)
     check("and every one is on its sheet", inside)
+    nested = any(armbake._overlap((a.x, a.y, a.x + a.shape(0).shape[1], a.y + a.shape(0).shape[0]),
+                                  (b.x, b.y, b.x + b.shape(0).shape[1], b.y + b.shape(0).shape[0]))
+                 for S in st["per"].values() for i, a in enumerate(S["blocks"]) for b in S["blocks"][i + 1:])
+    check("blocks nest: a rectangle reaches into another's empty corner", nested)
+    check("the dialog's picture of each sheet comes with the plan",
+          all(S["picture"].startswith("data:image/png;base64,") for S in P["sheets"].values() if S["size"]))
 
     small = armbake.plan(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.0}, image_of=im_of)
     check(f"a sheet too small says what did not fit ({len(small['sheets']['main']['left'])} on the main sheet)",
