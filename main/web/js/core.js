@@ -450,12 +450,21 @@ function startHeartbeat(){
   window.addEventListener('pagehide',bye);
   window.addEventListener('beforeunload',bye);
 }
+/* 99e: the top bar and the tab strip under it fold away and come back, in
+   every mode, remembered as a setting. */
+function topFoldApply(){document.body.classList.toggle('topshut',!!(state.settings||{}).top_shut);}
+function topFold(shut){
+  state.settings.top_shut=shut;api.post('/api/settings',{top_shut:shut}).catch(()=>{});
+  topFoldApply();
+  if(state.mode==='armory'&&typeof armFrame==='function')armFrame();
+}
 async function init(){
   try{
     startHeartbeat();
     paintBuildTag();                       // not awaited: a tag, not a dependency
     const s=await api.get('/api/settings');state.settings=s;
     uiScaleApply();
+    topFoldApply();
     facSort.value=facBy();                 // remembered across runs like the rest
     restoreFilters();                      // …and so are the filters themselves
     // ?mod=&edit= - how "open this unit in a new tab" arrives. It picks the mod
@@ -1651,6 +1660,7 @@ function wire(){
     render();};
   document.querySelectorAll('.era').forEach(cb=>cb.onchange=()=>{cb.checked?state.sel.era.add(cb.value):state.sel.era.delete(cb.value);filtersChanged();});
   settingsBtn.onclick=openSettings;
+  topFoldBtn.onclick=()=>topFold(true); topOpenBtn.onclick=()=>topFold(false);
   // …but not `logBtn.onclick=openLog`: a handler is called WITH the click,
   // and openLog's first argument is the mode to filter by. That filter
   // matched nothing, so the header's own button opened an empty log.

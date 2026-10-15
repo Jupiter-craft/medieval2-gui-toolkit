@@ -55,7 +55,12 @@ void main(){
   vec2 st = (vec2(vUv.x * uUScale, vUv.y) - uCrop.xy) / uCrop.zw;
   vec4 base = uHasTex > 0.5 ? texture2D(uTex, st) : vec4(0.72, 0.66, 0.56, 1.0);
   if(uHasTex > 0.5 && base.a < 0.35) discard;
-  vec3 n = normalize(vNormal) * (gl_FrontFacing ? 1.0 : uFlip);
+  // 99b: the page mirrors x (ARM_MIRROR) and keeps the game's winding, so a
+  // face the game shows from outside winds clockwise here: its front is
+  // what GL calls the back. The .glb export reverses the winding for the
+  // same reason (modelexport.py), and Blender agrees with that.
+  bool front = !gl_FrontFacing;
+  vec3 n = normalize(vNormal) * (front ? 1.0 : uFlip);
   if(uHasN > 0.5){
     // 95j: the normal map's preview, its tangents worked out per pixel
     // from how the UVs run across the surface (a cotangent frame)
@@ -81,7 +86,7 @@ void main(){
   col = mix(col, vec3(0.36, 0.55, 0.94), uHi * 0.28);
   col = mix(col, vec3(0.97, 0.62, 0.18), uSel * 0.30);
   // face orientation, Blender's colours: blue the front, red the back
-  if(uFlip < 0.0) col = mix(col, gl_FrontFacing ? vec3(0.2, 0.4, 1.0) : vec3(1.0, 0.15, 0.15), 0.55);
+  if(uFlip < 0.0) col = mix(col, front ? vec3(0.2, 0.4, 1.0) : vec3(1.0, 0.15, 0.15), 0.55);
   gl_FragColor = vec4(col, uXray > 0.5 ? 0.45 : 1.0);
 }`;
 
@@ -138,7 +143,7 @@ async function renderArmory(){
     await armEnsureLoaded();
     if(stale('armory')) return;
   }
-  main.innerHTML = bmdbTabsHtml(tt('armory.tab_note')) + `<div class="armgrid" id="armGrid">
+  main.innerHTML = bmdbTabsHtml(tt('armory.tab_note')) + `<div class="armgrid${armSideShut('left') ? ' lshut' : ''}${armSideShut('right') ? ' rshut' : ''}" id="armGrid">
     <aside class="armleft" id="armLeft"></aside>
     <section class="armmid">
       <div class="armbar" id="armBar"></div>
@@ -200,21 +205,44 @@ function armPaintAssets(){
   const el = document.getElementById('armLeft');
   if(!el) return;
   const p = armProj();
-  const open = !(state.armUi && state.armUi.assetsShut);
-  el.innerHTML = `<div class="armhead">
-      <button class="armfold" onclick="armToggleAssets()">${open ? '▾' : '▸'} ${tt('armory.loaded_assets')}</button>
-      <span class="count">${p.assets.length}</span>
-      <span style="flex:1"></span>
-      <button class="mini primary" onclick="armImportOpen()">${tt('armory.import')}</button>
-    </div>
-    ${open ? (p.assets.length ? p.assets.map(armAssetHtml).join('')
-      : `<div class="empty armempty">${tt('armory.no_assets_yet')}</div>`) : ''}`;
+  if(armSideShut('left')){ el.innerHTML = armStripHtml('left', tt('armory.loaded_assets'), p.assets.length); return; }
+  armKeepScroll(el, () => {
+    el.innerHTML = `<div class="armhead">
+        <button class="armfold" onclick="armSideToggle('left')" title="${esc(tt('armory.panel_fold'))}">◂ ${tt('armory.loaded_assets')}</button>
+        <span class="count">${p.assets.length}</span>
+        <span style="flex:1"></span>
+        <button class="mini primary" onclick="armImportOpen()">${tt('armory.import')}</button>
+      </div>
+      ${p.assets.length ? p.assets.map(armAssetHtml).join('')
+        : `<div class="empty armempty">${tt('armory.no_assets_yet')}</div>`}`;
+  });
   armThumbsPaint();
 }
-function armToggleAssets(){
-  state.armUi = state.armUi || {};
-  state.armUi.assetsShut = !state.armUi.assetsShut;
-  armPaintAssets();
+
+/* 99a: a panel repainted keeps its scroll, and so does the page under it;
+   a Pull used to move both when the rows under the cursor were rebuilt. */
+function armKeepScroll(el, paint){
+  const doc = document.scrollingElement, top = el.scrollTop, page = doc ? doc.scrollTop : 0;
+  paint();
+  el.scrollTop = top;
+  if(doc && doc.scrollTop !== page) doc.scrollTop = page;
+}
+
+/* 99d: Loaded assets (left) and Objects (right) fold to a strip and open
+   again, the viewport taking the room; how they were left is a setting. */
+const armSideShut = side => !!(state.settings || {})['armory_' + side + '_shut'];
+function armSideToggle(side){
+  const k = 'armory_' + side + '_shut', v = !armSideShut(side);
+  state.settings[k] = v;
+  api.post('/api/settings', {[k]: v}).catch(() => {});
+  const g = document.getElementById('armGrid');
+  if(g){ g.classList.toggle('lshut', armSideShut('left')); g.classList.toggle('rshut', armSideShut('right')); }
+  if(side === 'left') armPaintAssets(); else armPaintObjects();
+  armFrame();
+}
+function armStripHtml(side, label, n){
+  return `<button class="armstrip" onclick="armSideToggle('${side}')" title="${esc(tt('armory.panel_open'))}">
+    <span>${side === 'left' ? '▸' : '◂'}</span><span class="armstriptext">${esc(label)}</span><span class="count">${n}</span></button>`;
 }
 
 function armAssetHtml(a){

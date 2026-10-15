@@ -11240,5 +11240,9 @@
  "cards.gen_turn": "Giro",
  "cards.gen_pose_no_mount": "No hay ningún esqueleto de jinete cargado, así que el jinete está de pie; cargue la entrada de una unidad montada para tenerlo.",
  "armory.exp_sheets": "Hojas",
- "armory.exp_sheets_title": "La hoja principal y la del elemento acoplado, siempre del mismo tamaño, como las texturas del juego"
+ "armory.exp_sheets_title": "La hoja principal y la del elemento acoplado, siempre del mismo tamaño, como las texturas del juego",
+ "app.top_fold": "Plegar la barra superior y las pestañas de debajo",
+ "app.top_open": "Volver a mostrar la barra superior",
+ "armory.panel_fold": "Plegar este panel a una franja; la vista ocupa su espacio",
+ "armory.panel_open": "Volver a abrir este panel"
 }

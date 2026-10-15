@@ -10763,5 +10763,9 @@
  "cards.gen_turn": "Drehung",
  "cards.gen_pose_no_mount": "Kein Skelett für ein Reittier ist geladen, also steht der Reiter; laden Sie dafür den Eintrag einer berittenen Einheit.",
  "armory.exp_sheets": "Sheets",
- "armory.exp_sheets_title": "Haupt- und Attachment-Sheet, immer gleich groß, wie die Skins des Spiels"
+ "armory.exp_sheets_title": "Haupt- und Attachment-Sheet, immer gleich groß, wie die Skins des Spiels",
+ "app.top_fold": "Die obere Leiste und die Reiter darunter einklappen",
+ "app.top_open": "Die obere Leiste wieder zeigen",
+ "armory.panel_fold": "Dieses Feld zu einem Streifen einklappen; die Ansicht nimmt seinen Platz ein",
+ "armory.panel_open": "Dieses Feld wieder öffnen"
 }

@@ -77,7 +77,9 @@ function armPaintObjects(){
     groups.get(o.name).push(o);
   }
   const sel = armSelected();
-  el.innerHTML = `<div class="armhead"><b>${tt('armory.objects')}</b>
+  if(armSideShut('right')){ el.innerHTML = armStripHtml('right', tt('armory.objects'), p.objects.length); return; }
+  armKeepScroll(el, () => { el.innerHTML = `<div class="armhead">
+      <button class="armfold" onclick="armSideToggle('right')" title="${esc(tt('armory.panel_fold'))}">▸ ${tt('armory.objects')}</button>
       <span class="count">${p.objects.length}</span><span style="flex:1"></span>
       <button class="mini" onclick="armBlank()" title="${esc(tt('armory.blank_title'))}">${tt('armory.blank')}</button>
       <button class="mini" onclick="armNewCollection()" title="${esc(tt('armory.new_collection_title'))}">${tt('armory.new_collection')}</button>
@@ -91,7 +93,7 @@ function armPaintObjects(){
     ${[...groups].map(([name, objs]) => armFoldHtml('g:' + name, name, objs, null)).join('')}
     ${p.collections.map(c => armFoldHtml('c:' + c.id, c.name, p.objects.filter(o => o.coll === c.id), c)).join('')}
     <div id="armProps">${sel.length === 1 ? armPropsHtml(sel[0]) : sel.length ? `<div class="count armnote">${ttN('armory.n_selected', sel.length)}</div>` : ''}</div>
-    ${p.objects.length && typeof armNormalsHtml === 'function' ? `<div class="armnorms">${armNormalsHtml()}</div>` : ''}`;
+    ${p.objects.length && typeof armNormalsHtml === 'function' ? `<div class="armnorms">${armNormalsHtml()}</div>` : ''}`; });
 }
 
 function armFoldHtml(key, name, objs, coll){
