@@ -2737,9 +2737,16 @@ five commits: `7b43740f` (99a-99f), `cccb34af` (99g-99k), `92a68acb` (99l),
   at while building it, raised by the user afterwards: SimpleBake.** It has
   no packer of its own; it calls Blender's `uv.pack_islands` with the
   concave shape method, any rotation, merge overlapping and a margin method,
-  then rebakes through Cycles. Two things worth taking, offered to the user:
-  a placer that fills holes and side pockets (a full mask search), and free
-  rotation as an opt-in at the cost of a resample.
+  then rebakes through Cycles. Two things worth taking; the user said yes
+  to both (2026-10-15), scheduled as 99p.
+
+**99p - SimpleBake's two ideas for the packer, scheduled 2026-10-15, next.**
+The user: "yes both". (1) A placer that fills holes and side pockets: a
+full mask search over the sheet's occupancy (a coarse grid, then the exact
+texels), not 99l's column profile, which loses every hole under a block.
+(2) Free rotation as an opt-in in the UV step: any angle, said to cost a
+resample (the bake is a 1:1 texel copy otherwise), quarter turns staying
+the default. Measured on the four soldiers 99l was measured on, at 512.
 * **99m**: the HD view takes the mouse: middle drag orbits the card camera,
   Shift pans (`cam.pan`, new), Ctrl or the wheel zooms the ortho scale; G and
   R (X, Y, Z for an axis; click or Enter keeps, Esc or the right button puts
@@ -2764,9 +2771,8 @@ five commits: `7b43740f` (99a-99f), `cccb34af` (99g-99k), `92a68acb` (99l),
   over the HD view and dragged (the head turns), the library by catalog
   applied whole or by arms, legs, head or posture, two hands, back to rest;
   the six presets kept. `tests/rig_truth.json` keeps Blender's solve of
-  thirteen poses for the suite. **Open: whether the pose data may ship.**
-  The kit's repository carries no licence; the data is in the repo, and
-  nothing has been released.
+  thirteen poses for the suite. The pose data ships: the user made the kit
+  (2026-10-15, "im the creator of blenderkit").
 * **99o**: sessions in `config/armory/sessions/<id>.json`, the open one the
   working `project.json` (`project.session`), every save a save of both;
   backups in `config/armory/backups/<id or _unsaved>/`, one every 180 s while
