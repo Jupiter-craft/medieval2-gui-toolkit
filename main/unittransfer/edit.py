@@ -40,7 +40,7 @@ from typing import Dict, List, Optional, Tuple
 
 from . import config
 from . import edu as edu_mod
-from . import educeil, eop, localization, modeldb, modflags, unitrefs
+from . import educeil, eop, localization, modeldb, modflags, mounts, unitrefs
 from .logutil import counted, file_op, fingerprint, log, stamp_written
 from .mod import Mod
 # where a unit falls back to when card_pic_dir / info_pic_dir isn't pinned; shared
@@ -125,7 +125,8 @@ class NewModel:
 @dataclass
 class DeleteOptions:
     remove_loc: bool = True
-    remove_models: bool = False       # only entries no other unit/mount uses
+    remove_models: bool = True        # only entries no other unit/mount uses,
+                                      # and the unit's mount when nothing else rides it
     remove_assets: bool = False       # mesh/texture files of those entries
     remove_icons: bool = False
 
@@ -301,6 +302,8 @@ class EditPlan:
     entry_renames: Dict[str, str] = field(default_factory=dict)   # old -> new
     new_entries: List[Tuple[str, str, bool]] = field(default_factory=list)  # (name, raw, pad)
     entry_deletes: List[str] = field(default_factory=list)
+    #: descr_mount.txt after a delete took a mount out ("" = unchanged)
+    mount_text: str = ""
     copies: List[Tuple[Path, str]] = field(default_factory=list)  # (src abs, rel under data/)
     icon_copies: List[Tuple[Path, str]] = field(default_factory=list)
     # imported icons in a format the engine can't read: re-encoded to TGA on
@@ -1469,8 +1472,35 @@ def _plan_delete(plan: EditPlan, unit) -> EditPlan:
             plan.changes.append(f"text entry '{unit.dictionary}' removed")
 
     users = _model_users(mod, skip_unit=unit.type)
+    # the unit's mount goes with it when no other unit rides it: every block
+    # of that type (a transfer run twice used to append it twice, and the
+    # game draws such a mount invisible), and its model with it unless
+    # something else still uses that
+    mount = (getattr(unit, "mount", "") or "").strip()
+    if opts.remove_models and mount and not any(
+            (getattr(u, "mount", "") or "").strip().lower() == mount.lower()
+            for u in mod.edu.units if u.type != unit.type):
+        mf = mod.mount_file
+        gone = [m for m in mf.mounts if m.type.lower() == mount.lower()]
+        if gone:
+            mf.mounts = [m for m in mf.mounts if m.type.lower() != mount.lower()]
+            plan.mount_text = mf.to_text()
+            plan.changes.append(f"mount '{mount}' removed from descr_mount.txt"
+                                + (f" ({len(gone)} copies)" if len(gone) > 1 else ""))
+            for m in gone:
+                k = (m.model or "").lower()
+                if k and k in users:
+                    users[k] = [x for x in users[k] if x.lower() != f"mount:{mount.lower()}"]
+                    if not users[k]:
+                        del users[k]
+            extra = [m.model for m in gone if m.model and m.model.lower() not in users]
+        else:
+            extra = []
+    else:
+        extra = []
     entries = mod.modeldb.by_name()
-    orphans = [m.lower() for m in unit.model_names() if m.lower() not in users]
+    orphans = [m.lower() for m in list(unit.model_names()) + extra if m.lower() not in users]
+    orphans = list(dict.fromkeys(orphans))
     shared = [m for m in unit.model_names() if m.lower() in users]
     if opts.remove_models:
         for name in orphans:
@@ -1641,6 +1671,8 @@ def apply_edit(plan: EditPlan) -> Dict:
     if plan.modeldb_touched:
         write_text("unit_models/battle_models.modeldb", _modeldb_text(plan),
                    modeldb.ENCODING)
+    if plan.mount_text:
+        write_text("descr_mount.txt", plan.mount_text, mounts.ENCODING)
     for src, rel in plan.copies + plan.icon_copies:
         copy_file(src, rel)
     # one decode per source file however many faction folders it lands in

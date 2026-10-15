@@ -7805,7 +7805,7 @@
  "packs.in_a_comment_and_still_protected": " (in einem Kommentar und weiterhin geschützt)",
  "packs.into": "nach",
  "packs.is_not_in_this_mod": "{x} ist nicht in dieser Mod",
- "packs.its_battle_model_entries_only_ones": "seine Schlachtmodell-Einträge: nur solche, die keine andere Einheit und kein anderes Reittier verwendet",
+ "packs.its_battle_model_entries_only_ones": "seine Schlachtmodell-Einträge und sein Reittier: nur solche, die keine andere Einheit und kein anderes Reittier verwendet",
  "packs.its_model_stays_named_in": "sein Modell bleibt: genannt in",
  "packs.its_model_stays_still_used_by": "sein Modell bleibt: wird noch verwendet von {kept_by}",
  "packs.its_text_entry_from_export_units": "sein Texteintrag (<code>{dictionary}</code>) aus export_units.txt",

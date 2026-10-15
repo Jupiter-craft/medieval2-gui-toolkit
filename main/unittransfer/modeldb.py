@@ -931,6 +931,19 @@ def entry_path_spans(raw: str, pad: bool = False) -> List[Tuple[int, int, str, s
     return out
 
 
+def path_key(p: str) -> str:
+    """One file however a modeldb spells it: one entry's rows often name the
+    same texture with other case, backslashes or a leading ``data/``, and the
+    game finds the one file for all of them."""
+    p = (p or "").replace("\\", "/")
+    while "//" in p:
+        p = p.replace("//", "/")
+    p = p.lstrip("/")
+    if p.lower().startswith("data/"):
+        p = p[5:]
+    return p.lower()
+
+
 def rewrite_entry_paths(raw: str, path_map: Dict[str, str], pad: bool = False) -> str:
     """Return ``raw`` with mesh/texture paths remapped via ``path_map``.
 
@@ -941,11 +954,15 @@ def rewrite_entry_paths(raw: str, path_map: Dict[str, str], pad: bool = False) -
     """
     if not path_map:
         return raw
+    # a row that spells a mapped file another way is moved with it: left
+    # behind, it named a file the destination may hold for another unit
+    # (the first row right, the rows below a glitched texture)
+    by_key = {path_key(k): v for k, v in path_map.items()}
     spans = entry_path_spans(raw, pad=pad)
     out: List[str] = []
     pos = 0
     for start, end, val, _kind in spans:
-        new = path_map.get(val)
+        new = path_map.get(val) or by_key.get(path_key(val))
         if not new or new == val:
             continue
         out.append(raw[pos:start])

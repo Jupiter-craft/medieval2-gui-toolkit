@@ -7686,7 +7686,7 @@
 "packs.in_a_comment_and_still_protected": " (in a comment, and still protected)",
 "packs.into": "into",
 "packs.is_not_in_this_mod": "{x} is not in this mod",
-"packs.its_battle_model_entries_only_ones": "its battle-model entries: only ones no other unit or mount uses",
+"packs.its_battle_model_entries_only_ones": "its battle-model entries and its mount: only ones no other unit or mount uses",
 "packs.its_model_stays_named_in": "its model stays: named in",
 "packs.its_model_stays_still_used_by": "its model stays: still used by {kept_by}",
 "packs.its_text_entry_from_export_units": "its text entry (<code>{dictionary}</code>) from export_units.txt",

@@ -549,7 +549,7 @@ function edDeleteDialog(){
       <div class="warnbox">${tt('packs.this_removes_the_units_block_from')}</div>
       <fieldset><legend>${tt('packs.also_remove')}</legend>
         <label class="chk"><input type="checkbox" id="dOptLoc" checked> ${tt('packs.its_text_entry_from_export_units',{dictionary:esc(e.d.dictionary)})}</label><br>
-        <label class="chk"><input type="checkbox" id="dOptModels"> ${tt('packs.its_battle_model_entries_only_ones')}</label><br>
+        <label class="chk"><input type="checkbox" id="dOptModels" checked> ${tt('packs.its_battle_model_entries_only_ones')}</label><br>
         <label class="chk"><input type="checkbox" id="dOptAssets"> ${tt('packs.the_mesh_texture_files_of_those')}</label><br>
         <label class="chk"><input type="checkbox" id="dOptIcons"> ${tt('packs.its_unit_card_and_info_card')}</label>
       </fieldset>

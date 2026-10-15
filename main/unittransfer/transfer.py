@@ -2485,9 +2485,12 @@ def plan_transfer(source: Mod, unit_type: str, dest: Mod,
 
         # assets for this model
         for rel in entry.mesh_files() + entry.texture_files():
-            if rel in seen_assets:
+            # one file however the entry spells it (modeldb.path_key): copied
+            # once, and every row that names it rewritten with it
+            rel = rel.replace("\\", "/")
+            if modeldb.path_key(rel) in seen_assets:
                 continue
-            seen_assets.add(rel)
+            seen_assets.add(modeldb.path_key(rel))
             src_abs = source.data / rel
             if src_abs.exists():
                 plan.asset_files.append((src_abs, rel))
@@ -2495,9 +2498,9 @@ def plan_transfer(source: Mod, unit_type: str, dest: Mod,
                 if rel.lower().endswith(".spr"):
                     sheets = _sprite_sheets(source, rel)
                     for sheet_abs, sheet_rel in sheets:
-                        if sheet_rel in seen_assets:
+                        if modeldb.path_key(sheet_rel) in seen_assets:
                             continue
-                        seen_assets.add(sheet_rel)
+                        seen_assets.add(modeldb.path_key(sheet_rel))
                         plan.asset_files.append((sheet_abs, sheet_rel))
                     if not sheets:
                         plan.warnings.append(
@@ -2528,9 +2531,21 @@ def plan_transfer(source: Mod, unit_type: str, dest: Mod,
                 _i18n.msg("eng.transfer.mount_has_no_entry_in_the", "mount '{mount}' has no entry in the source descr_mount.txt", mount=unit.mount))
         else:
             dst_m = dest.mount_def(unit.mount)
+            # the same mount already in the destination under any name (an
+            # earlier transfer's renamed copy, its model renamed with it) is
+            # reused: each run used to append another copy, and the game drew
+            # such units' mounts invisible
+            as_added = mounts._parse_block(mounts.rewrite_mount_raw(src_m.raw, model_map=plan.model_renames))
+            twin = next((m for m in dest.mount_file.mounts
+                         if m.content_equals(src_m) or m.content_equals(as_added)), None)
             if dst_m is not None and dst_m.content_equals(src_m):
                 plan.mount_action = "reuse"
                 plan.mount_name = dst_m.type
+            elif twin is not None:
+                plan.mount_action = "reuse"
+                plan.mount_name = twin.type
+                if twin.type.lower() != unit.mount.lower():
+                    plan.mount_rename = (unit.mount, twin.type)
             elif dst_m is not None:
                 new_name = mounts.unique_mount_name(
                     unit.mount, dest.mount_file.by_type(), _tag(source))

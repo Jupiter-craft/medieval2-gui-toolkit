@@ -8163,7 +8163,7 @@
  "packs.in_a_comment_and_still_protected": " (en un comentario, y sigue protegida)",
  "packs.into": "en",
  "packs.is_not_in_this_mod": "{x} no está en este mod",
- "packs.its_battle_model_entries_only_ones": "sus entradas de modelo de batalla: solo las que no usa ninguna otra unidad ni montura",
+ "packs.its_battle_model_entries_only_ones": "sus entradas de modelo de batalla y su montura: solo las que no usa ninguna otra unidad ni montura",
  "packs.its_model_stays_named_in": "su modelo se queda: lo nombra",
  "packs.its_model_stays_still_used_by": "su modelo se queda: aún lo usa {kept_by}",
  "packs.its_text_entry_from_export_units": "su entrada de texto (<code>{dictionary}</code>) de export_units.txt",
