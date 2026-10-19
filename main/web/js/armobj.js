@@ -117,7 +117,7 @@ function armFoldHtml(key, name, objs, coll){
 function armObjRowHtml(o){
   const sw = o.dye && o.dye.color ? `<span class="armswatch" style="background:rgb(${o.dye.color.join(',')})"></span>` : '';
   const empty = !(o.src || []).length;
-  return `<div class="armrow${ARM.sel.has(o.id) ? ' sel' : ''}${o.hidden ? ' off' : ''}" onclick="armSelect(${o.id}, event)"
+  return `<div class="armrow${ARM.sel.has(o.id) ? ' sel' : ''}${o.hidden ? ' off' : ''}" data-id="${o.id}" onclick="armSelectRow(${o.id}, event)"
       onmouseenter="armHoverRow(${o.id})" onmouseleave="armHoverRow(null)">
     <button class="mini armeye" onclick="event.stopPropagation();armHide(${o.id})" title="${esc(tt('armory.hide_show'))}">${o.hidden ? '◌' : '●'}</button>
     <span class="armrowname" ondblclick="event.stopPropagation();armRenameRow(${o.id}, this)" title="${esc(tt('armory.rename_hint'))}">${esc(o.mesh)}${o.flag ? ` <i class="count">${tt('armory.opt')}</i>` : ''}${empty ? ` <i class="count">${tt('armory.empty_object')}</i>` : ''}</span>
@@ -139,6 +139,24 @@ function armSelect(id, ev){
   if(add && ARM.sel.has(id)) ARM.sel.delete(id); else if(id != null) ARM.sel.add(id);
   armPaintObjects(); armFrame();
   if(typeof armPaintSliders === 'function') armPaintSliders();
+}
+// 100d: in the list, Ctrl adds or takes one row and Shift selects the run
+// from the last row clicked, across folds and collections in the order they
+// are drawn; the viewport keeps Blender's Shift-adds (armSelect)
+function armSelectRow(id, ev){
+  if(ev && ev.shiftKey && ARM.anchor != null && ARM.anchor !== id){
+    const ids = [...document.querySelectorAll('.armrow[data-id]')].map(r => +r.dataset.id);
+    const a = ids.indexOf(ARM.anchor), b = ids.indexOf(id);
+    if(a >= 0 && b >= 0){
+      if(!ev.ctrlKey) ARM.sel.clear();
+      ids.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(x => ARM.sel.add(x));
+      armPaintObjects(); armFrame();
+      if(typeof armPaintSliders === 'function') armPaintSliders();
+      return;
+    }
+  }
+  ARM.anchor = id;
+  armSelect(id, ev && {ctrlKey: ev.ctrlKey, shiftKey: ev.shiftKey && !ev.ctrlKey});
 }
 function armHide(id){
   const o = armObj(id); if(!o) return;

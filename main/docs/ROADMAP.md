@@ -2746,6 +2746,12 @@ own, https://github.com/ProJ-Yeet/Quick-Cleanup-Blender-Addon-.
   unmarked owner tiles are of that kind, nothing found on disk for them;
   Divide and Conquer has one borrowed tile. `tests/test_cards` (+4);
   checked in the running app.
+* **100d** (2026-10-19): in the object list, Ctrl+click adds or takes one
+  row and Shift+click selects the run from the last row clicked, in the
+  order the rows are drawn across folds and collections (Ctrl+Shift adds
+  the run); a folded group's rows are not drawn, so not in a run. The
+  viewport keeps Blender's Shift-adds. `armSelectRow` in `armobj.js`;
+  checked in the running app.
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 
