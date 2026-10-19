@@ -10861,6 +10861,11 @@
   "other": "{count} objetos fusionados en uno"
  },
  "armory.working": "Trabajando…",
+ "app.shared_cards": "cartas prestadas",
+ "app.shared_cards_title": "Agrupado por facción: solo las fichas cuya facción no tiene carta propia para la unidad y toma prestada la de otra",
+ "core.card_borrowed": "prestada",
+ "core.card_borrowed_title": "{fac} no tiene carta propia para esta unidad en su carpeta; esta es la carta a la que recurre",
+ "core.no_borrowed_cards": "Cada facción tiene su propia carta para cada unidad mostrada.",
  "armory.rig_bones": "Enlazar a huesos",
  "armory.rig_bones_title": "Poner cada vértice de los objetos seleccionados (o de este) sobre el hueso elegido, o sobre dos, tomando el primero la proporción fijada; sus pesos anteriores se sustituyen, Deshacer los recupera",
  "armory.rig_first": "El hueso al que enlazar",

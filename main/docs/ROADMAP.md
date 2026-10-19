@@ -2734,6 +2734,18 @@ own, https://github.com/ProJ-Yeet/Quick-Cleanup-Blender-Addon-.
   equal); no other list of bones in the workbench needed reordering.
   `/api/armory/rig_bones`. `tests/test_armory` (+4); checked against the
   running server on the user's project.
+* **100c** (2026-10-19): grouped by faction, each tile of the Unit Editor's
+  list asks for that faction's own card (`/icon?...&fac=`,
+  `Mod.find_unit_card(unit, faction)`), else the card the unit falls back to.
+  `/api/units` says which owners have a card of their own (`card_facs`,
+  `Mod.own_card_factions`) and the `card_pic_dir` pin (`card_pin`, which
+  sends every faction to one folder, so none is marked). A tile whose
+  faction borrows another's card gets a *borrowed* mark and a dashed
+  outline, and a *borrowed cards* checkbox beside *mercs* keeps only those.
+  A unit with no card anywhere is not marked: on Heirs of Elendil all 1,025
+  unmarked owner tiles are of that kind, nothing found on disk for them;
+  Divide and Conquer has one borrowed tile. `tests/test_cards` (+4);
+  checked in the running app.
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 

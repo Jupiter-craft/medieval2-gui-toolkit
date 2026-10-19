@@ -263,5 +263,20 @@ empty = cards.audit(Mod(bare))
 check("says so rather than raising",
       all(k["dictionaries"] == 0 and k["unused"] == [] for k in empty["kinds"]))
 
+print("\n== each faction's own card (100c) ==")
+root3 = fresh_mod()
+(root3 / "data/ui/units/england/#beta.tga").unlink()
+m3 = Mod(root3)
+by = m3.edu.by_type()
+beta, gamma = by["beta unit"], by["gamma unit"]
+check(f"the factions with a card of their own ({m3.own_card_factions(beta)})",
+      m3.own_card_factions(beta) == ["france"])
+check("a faction's own card is the one shown for it",
+      m3.find_unit_card(beta, "france").read_bytes() == b"beta-card-france")
+check("a faction with none is shown the card it falls back to",
+      m3.find_unit_card(beta, "england") == m3.find_unit_card(beta))
+check("a card_pic_dir pins them all, so no faction has one of its own",
+      m3.own_card_factions(gamma) == [])
+
 print(f"\n{sum(ok)}/{len(ok)} checks - {'ALL PASSED' if all(ok) else 'FAILURES ABOVE'}")
 sys.exit(0 if all(ok) else 1)

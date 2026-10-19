@@ -419,7 +419,7 @@ function facCheckRow(code,name,onchange,checked,note,edited){
    `imgUrlOf` strips `_ib` again, which is what keeps a busted picture
    right-clickable. */
 const iconBust=()=>state.iconV?`&_ib=${state.iconV}`:'';
-const iconUrl=(mod,type,kind)=>`/icon?mod=${encodeURIComponent(mod)}&type=${encodeURIComponent(type)}&kind=${kind||'card'}`+iconBust();
+const iconUrl=(mod,type,kind,fac)=>`/icon?mod=${encodeURIComponent(mod)}&type=${encodeURIComponent(type)}&kind=${kind||'card'}`+(fac?`&fac=${encodeURIComponent(fac)}`:'')+iconBust();
 // Icon requests can be dropped when a page fires dozens at once (connection
 // bursts). A missing icon returns a valid blank PNG (onload), so onerror only
 // fires on a genuine connection failure - retry it a few times with backoff.
@@ -630,7 +630,7 @@ function restoreFilters(){
   state.sel={faction:new Set(f.faction||[]),category:new Set(f.category||[]),
              class:new Set(f.class||[]),era:new Set(f.era||[])};
   if(f.group_by)groupBy.value=f.group_by;
-  mercOnly.checked=!!f.merc_only;
+  mercOnly.checked=!!f.merc_only; sharedCards.checked=!!f.shared_cards;
   state.folded=new Set(state.settings.folded_groups||[]);
   syncEraBoxes();
 }
@@ -641,7 +641,7 @@ function saveFilters(){                       // debounced: ticking is a burst
   _saveFiltersT=setTimeout(()=>{
     state.settings.filters={faction:[...state.sel.faction],category:[...state.sel.category],
       class:[...state.sel.class],era:[...state.sel.era],
-      group_by:groupBy.value,merc_only:mercOnly.checked};
+      group_by:groupBy.value,merc_only:mercOnly.checked,shared_cards:sharedCards.checked};
     api.post('/api/settings',{filters:state.settings.filters});
   },400);
 }
@@ -1653,7 +1653,7 @@ function wire(){
     if((state.mode==='soundbanks'||state.mode==='soundscripts')&&state.sbk&&document.getElementById('sbkList'))
       return void(document.getElementById('sbkList').innerHTML=sbkListHtml());
     render();};
-  mercOnly.onchange=filtersChanged; groupBy.onchange=filtersChanged;
+  mercOnly.onchange=filtersChanged; groupBy.onchange=filtersChanged; sharedCards.onchange=filtersChanged;
   // rebuilds the faction list (its A→Z changes) but keeps whatever is ticked
   facSort.onchange=()=>{state.settings.faction_sort=facSort.value;
     api.post('/api/settings',{faction_sort:facSort.value});
@@ -1737,8 +1737,9 @@ function applyMode(persist){
   if(bm||stm)cleanBtn.textContent=bm?tt('core.clean_up_bmdb'):tt('core.clean_up_strat_map');
   sndBtn.style.display=snd?'inline-block':'none';
   unusedWrap.style.display=(bm||stm)?'inline-flex':'none';
-  mercOnly.parentElement.style.display=
+  sharedCards.parentElement.style.display=
     (bm||snd||sbk||spr||bld||str||trt||anc||gld||cdb||mnr||fac||raw||home||stm||cas||crd||cmp||own)?'none':'inline-flex';
+  mercOnly.parentElement.style.display=sharedCards.parentElement.style.display;
   // these bring their own filters - the sidebar's faction/era ones say nothing
   // about a voice entry, and nothing at all about a modeldb record or a sprite
   document.getElementById('unitFilters').style.display=
@@ -1881,8 +1882,12 @@ function render(){
   const byPicked=(ka,kb,la,lb)=>(picked.has(kb)-picked.has(ka))||la.localeCompare(lb);
   let groups;
   if(gb==='none')groups=[[tt('core.all_units'),units]];
-  else if(gb==='faction'){const map=new Map();for(const u of units){for(const f of (u.ownership.length?u.ownership:['(none)']))(map.get(f)||map.set(f,[]).get(f)).push(u);}
-    groups=[...map.entries()].sort((a,b)=>byPicked(a[0],b[0],facLabel(a[0]),facLabel(b[0]))).map(([f,us])=>[facLabel(f),us]);}
+  // 100c: grouped by faction, each tile shows that faction's own card, and
+  // "only borrowed cards" keeps the tiles that fall back to another's
+  else if(gb==='faction'){const map=new Map();for(const u of units){for(const f of (u.ownership.length?u.ownership:['(none)'])){
+      if(sharedCards.checked&&!cardBorrowed(u,f))continue;(map.get(f)||map.set(f,[]).get(f)).push(u);}}
+    groups=[...map.entries()].sort((a,b)=>byPicked(a[0],b[0],facLabel(a[0]),facLabel(b[0]))).map(([f,us])=>[facLabel(f),us,f]);
+    if(!groups.length){main.innerHTML=`<div class="empty">${tt('core.no_borrowed_cards')}</div>`;return;}}
   // An era is a list of factions per era slot, so a unit lands in every era it
   // is fielded in - the same one-card-per-group rule faction grouping follows.
   else if(gb==='era'){const map=new Map();
@@ -1891,14 +1896,14 @@ function render(){
     groups=ERA_KEYS.concat('-').filter(e=>map.has(e)).map(e=>[ERA_LABEL[e],map.get(e)]);}
   else{const map=new Map();for(const u of units){const k=u[gb]||'(none)';(map.get(k)||map.set(k,[]).get(k)).push(u);}
     groups=[...map.entries()].sort((a,b)=>byPicked(a[0],b[0],a[0],b[0]));}
-  main.innerHTML=groups.map(([g,us])=>{
+  main.innerHTML=groups.map(([g,us,fac])=>{
     const key=gb+':'+g,off=state.folded.has(key);
     return `<section class="faction-group${off?' folded':''}">
     <div class="faction-head" onclick="toggleGroup('${q1(esc(key))}')"
       title="${off?tt('core.show_these_units_again'):tt('core.fold_this_group_away')}">
       <span class="fold">${off?'▸':'▾'}</span>
       <h2>${esc(g)}</h2><span class="n">${tt('core.units',{us_n:us.length})}</span></div>
-    ${off?'':`<div class="grid">${us.map(cardHtml).join('')}</div>`}</section>`;}).join('');
+    ${off?'':`<div class="grid">${us.map(u=>cardHtml(u,fac)).join('')}</div>`}</section>`;}).join('');
   main.querySelectorAll('.card').forEach(c=>c.onclick=()=>onCard(c.dataset.type));
 }
 // Custom-battle era slots, in the order the EDU writes them.
@@ -1914,11 +1919,19 @@ function toggleGroup(key){
   api.post('/api/settings',{folded_groups:state.settings.folded_groups});
   render();
 }
-function cardHtml(u){
+// A faction's tile shows a card that is not its own: the unit has a card in
+// some folder, but none in this faction's, and no card_pic_dir sends it there.
+function cardBorrowed(u,fac){
+  return !!fac&&fac!=='(none)'&&u.has_card&&!u.card_pin&&!u.mercenary&&!(u.card_facs||[]).includes(fac);
+}
+function cardHtml(u,fac){
   const s=(state.selMode&&state.selected.has(u.type))?'sel':'';
-  return `<div class="card ${s}" data-type="${esc(u.type)}">
+  const own=fac&&(u.card_facs||[]).includes(fac)?fac:'';
+  const lent=cardBorrowed(u,fac);
+  return `<div class="card ${s}${lent?' lent':''}" data-type="${esc(u.type)}">
     <div class="tick">✓</div>
-    <img loading="lazy" onerror="iconRetry(this)" src="${iconUrl(state.src,u.type)}" alt="">
+    ${lent?`<div class="lentmark" title="${ttA('core.card_borrowed_title',{fac:esc(fac)})}">${tt('core.card_borrowed')}</div>`:''}
+    <img loading="lazy" onerror="iconRetry(this)" src="${iconUrl(state.src,u.type,'card',own)}" alt="">
     <div class="meta"><div class="nm">${esc(u.name)}</div><div class="sub">${esc(u.type)}</div>
     <div>${u.eop?`<span class="badge eop" title="${ttA('core.m2tweop_unit_defined_in_rather_than',{eop_file:esc(u.eop_file||tt('core.an_eop_unit_file'))})}">${tt('core.eop')}</span>`:''}${u.mercenary?`<span class="badge merc">${tt('core.merc')}</span>`:''}<span class="badge">${esc(u.kind||u.category||'?')}</span>${u.class?`<span class="badge cls">${esc(u.class)}</span>`:''}</div></div></div>`;
 }

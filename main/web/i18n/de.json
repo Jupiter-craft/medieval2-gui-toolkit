@@ -10387,6 +10387,11 @@
   "other": "{count} Objekte zu einem zusammengeführt"
  },
  "armory.working": "Wird bearbeitet…",
+ "app.shared_cards": "geliehene Karten",
+ "app.shared_cards_title": "Nach Fraktion gruppiert: nur die Kacheln, deren Fraktion keine eigene Karte für die Einheit hat und die einer anderen leiht",
+ "core.card_borrowed": "geliehen",
+ "core.card_borrowed_title": "{fac} hat in seinem Ordner keine eigene Karte für diese Einheit; das ist die Karte, auf die es zurückfällt",
+ "core.no_borrowed_cards": "Jede Fraktion hat für jede gezeigte Einheit ihre eigene Karte.",
  "armory.rig_bones": "An Knochen binden",
  "armory.rig_bones_title": "Jeden Vertex der ausgewählten Objekte (oder dieses einen) an den gewählten Knochen binden oder an zwei, wobei der erste den eingestellten Anteil nimmt; ihre alten Knochengewichte werden ersetzt, Rückgängig stellt sie wieder her",
  "armory.rig_first": "Der Knochen, an den gebunden wird",

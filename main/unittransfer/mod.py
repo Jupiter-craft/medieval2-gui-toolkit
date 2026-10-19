@@ -546,10 +546,27 @@ class Mod:
         return sorted(seen, key=lambda f: (-seen[f], f))
 
     # ---- icon resolution -----------------------------------------------
-    def find_unit_card(self, unit: "edu.Unit") -> Optional[Path]:
-        """Locate the in-game unit card: data/ui/units/<faction>/#<dict>.tga."""
+    def find_unit_card(self, unit: "edu.Unit", faction: str = "") -> Optional[Path]:
+        """Locate the in-game unit card: data/ui/units/<faction>/#<dict>.tga.
+
+        With ``faction``, that faction's own card where it has one (100c: a
+        faction can wear its own card for a unit the others share), else the
+        card the unit falls back to."""
+        if faction and faction in self.own_card_factions(unit):
+            return self._find_icon(self.ui_units_dir, [faction],
+                                   f"#{unit.dictionary}", (".tga", ".dds"))
         return self._find_icon(self.ui_units_dir, unit.card_dirs(),
                                f"#{unit.dictionary}", (".tga", ".dds"))
+
+    def own_card_factions(self, unit: "edu.Unit") -> List[str]:
+        """The owning factions with a card of their own for ``unit`` in their
+        own folder (100c). A unit whose ``card_pic_dir`` pins every faction to
+        one folder has none: the game never looks in theirs."""
+        if unit.card_pic_dir:
+            return []
+        stem = f"#{unit.dictionary}".lower()
+        return [f for f in unit.ownership
+                if any(stem + ext in self._dir_index(self.ui_units_dir / f) for ext in (".tga", ".dds"))]
 
     def find_unit_info(self, unit: "edu.Unit") -> Optional[Path]:
         """Locate the info card: data/ui/unit_info/<faction>/<dict>_info.tga.

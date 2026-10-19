@@ -1311,6 +1311,9 @@ def _unit_payload(m: Mod, u) -> dict:
         # projectile(s) the unit fires (stat_pri/stat_sec slot 3); [] for melee.
         "projectiles": u.projectiles(),
         "has_card": m.find_unit_card(u) is not None,
+        # 100c: the factions that wear a card of their own, and the folder a
+        # card_pic_dir pins them all to
+        "card_facs": m.own_card_factions(u), "card_pin": u.card_pic_dir or "",
         "has_info": m.find_unit_info(u) is not None,
         # M2TWEOP unit: defined in one of the extender's own files rather than in
         # data/export_descr_unit.txt. The UI badges these, and the 500-unit cap
@@ -6188,7 +6191,8 @@ class Handler(BaseHTTPRequestHandler):
                 m = self.registry.get(name)
                 unit = m.edu.by_type().get(utype)
                 if unit is not None:
-                    src = m.find_unit_info(unit) if kind == "info" else m.find_unit_card(unit)
+                    src = m.find_unit_info(unit) if kind == "info" else \
+                        m.find_unit_card(unit, (q.get("fac") or [""])[0])
                     if src is None:
                         # Said here rather than in the icon cache, which only ever
                         # sees a path: a blank card is normal (the mod ships no art
