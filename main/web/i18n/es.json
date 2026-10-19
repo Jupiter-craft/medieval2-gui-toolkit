@@ -10861,6 +10861,19 @@
   "other": "{count} objetos fusionados en uno"
  },
  "armory.working": "Trabajando…",
+ "armory.rig_bones": "Enlazar a huesos",
+ "armory.rig_bones_title": "Poner cada vértice de los objetos seleccionados (o de este) sobre el hueso elegido, o sobre dos, tomando el primero la proporción fijada; sus pesos anteriores se sustituyen, Deshacer los recupera",
+ "armory.rig_first": "El hueso al que enlazar",
+ "armory.rig_second": "Sin segundo hueso",
+ "armory.rig_second_title": "Un segundo hueso que comparte el peso con el primero",
+ "armory.rig_share": "Primer hueso",
+ "armory.rig_share_title": "Cuánto del peso de cada vértice toma el primer hueso, del 50 % al 100 %",
+ "armory.rig_done": {
+   "one": "{count} objeto enlazado a {bones}",
+   "other": "{count} objetos enlazados a {bones}"
+ },
+ "armory.weights_rigged": "Propios, enlazados a {bones}",
+ "eng.armory.pick_a_bone": "elige un hueso al que enlazar",
  "armory.weights_done": {
   "one": "Pesos de huesos para {count} vértice, de {bones} huesos",
   "many": "Pesos de huesos para {count} vértices, de {bones} huesos",

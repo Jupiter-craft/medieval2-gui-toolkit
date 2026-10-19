@@ -389,6 +389,27 @@ async function armTransferWeights(id){
   }catch(e){ toast(errText(e), 6000); }
   armRepaint();
 }
+// the Med2 skeleton in the user's order (100b): head, torso, pelvis, the
+// right arm from the hand in, the left, then the legs; armory.MED2_BONES
+const ARM_BONES = ['bone_head', 'bone_torso', 'bone_abs', 'bone_pelvis',
+  'bone_rhand', 'bone_relbow', 'bone_rupperarm', 'bone_rclavical',
+  'bone_lhand', 'bone_lelbow', 'bone_lupperarm', 'bone_lclavical',
+  'bone_rthigh', 'bone_rlowerleg', 'bone_rfoot', 'bone_lthigh', 'bone_llowerleg', 'bone_lfoot',
+  'bone_jaw', 'bone_eyebrow'];
+async function armRigBones(id){
+  const ids = ARM.sel.size ? [...ARM.sel] : [id];
+  const val = k => (document.getElementById(k) || {}).value || '';
+  const bones = [val('armRigA'), val('armRigB')].filter(Boolean);
+  const share = (+val('armRigShare') || 100) / 100;
+  try{
+    const r = await api.post('/api/armory/rig_bones', {project: armProj(), ids, bones, share});
+    if(r.error) throw new Error(r.error);
+    let n = 0;
+    for(const [k, w] of Object.entries(r)){ const o = armObj(+k); if(o){ o.weights = w; n++; } }
+    toast(ttN('armory.rig_done', n, {bones: bones.join(' + ')}));
+  }catch(e){ toast(errText(e), 6000); }
+  armRepaint();
+}
 function armClearWeights(id){ const o = armObj(id); if(!o) return; o.weights = null; armRepaint(); }
 
 /* --- the properties of one object ------------------------------------------ */
@@ -443,10 +464,16 @@ function armPropsHtml(o){
     ${armStampsHtml(o)}
     ${typeof armNormalObjHtml === 'function' ? armNormalObjHtml(o) : ''}
     <div class="armsect">${tt('armory.weights')}</div>
-    <div class="armpropsrow"><span class="count">${o.weights ? tt('armory.weights_own', {mode: armWModeLabel(o.weights.mode)}) : tt('armory.weights_from_source')}</span></div>
+    <div class="armpropsrow"><span class="count">${!o.weights ? tt('armory.weights_from_source')
+      : o.weights.mode === 'rig' ? tt('armory.weights_rigged', {bones: (o.weights.bones || []).join(' + ')})
+      : tt('armory.weights_own', {mode: armWModeLabel(o.weights.mode)})}</span></div>
     <div class="armpropsrow"><select id="armWMode">${['face', 'vertex', 'edge'].map(m => `<option value="${m}">${esc(armWModeLabel(m))}</option>`).join('')}</select>
       <button class="mini" id="armWGo" onclick="armTransferWeights(${o.id})" title="${esc(tt('armory.transfer_weights_title'))}">${tt('armory.transfer_weights')}</button>
       ${o.weights ? `<button class="mini" onclick="armClearWeights(${o.id})">${tt('armory.clear_weights')}</button>` : ''}</div>
+    <div class="armpropsrow"><select id="armRigA" title="${esc(tt('armory.rig_first'))}">${ARM_BONES.map(b => `<option>${b}</option>`).join('')}</select>
+      <select id="armRigB" title="${esc(tt('armory.rig_second_title'))}"><option value="">${tt('armory.rig_second')}</option>${ARM_BONES.map(b => `<option>${b}</option>`).join('')}</select></div>
+    <div class="armpropsrow"><label class="armrange" title="${esc(tt('armory.rig_share_title'))}">${tt('armory.rig_share')}<input type="range" id="armRigShare" min="50" max="100" value="100"></label>
+      <button class="mini" onclick="armRigBones(${o.id})" title="${esc(tt('armory.rig_bones_title'))}">${tt('armory.rig_bones')}</button></div>
     <div class="count armnote">${tt('armory.object_facts', {tris: armObjTris(o).toLocaleString(), pieces: (o.src || []).length})}</div>
   </div>`;
 }

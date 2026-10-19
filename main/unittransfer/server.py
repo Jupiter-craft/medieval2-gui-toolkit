@@ -2732,6 +2732,14 @@ class Handler(BaseHTTPRequestHandler):
                         body.get("mode") or "face", self.registry.get))
                 except (armory.ArmoryError, mesh.MeshError, KeyError) as e:
                     return self._err(400, str(e))
+            if u.path == "/api/armory/rig_bones":
+                # 100b: every vertex of the chosen objects on one or two bones
+                try:
+                    return self._json(armory.rig_to_bones(
+                        body.get("project") or {}, body.get("ids") or [],
+                        body.get("bones") or [], body.get("share", 1.0), self.registry.get))
+                except (armory.ArmoryError, mesh.MeshError, KeyError, ValueError) as e:
+                    return self._err(400, str(e))
             if u.path == "/api/armory/presets":
                 armory.save_presets(body.get("presets") or [])
                 return self._json({"ok": True})

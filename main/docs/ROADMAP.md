@@ -2724,6 +2724,16 @@ own, https://github.com/ProJ-Yeet/Quick-Cleanup-Blender-Addon-.
   alike, and the suite's horse head takes back its own strongest bone on 94%
   of its vertices (the check asks for 70%). The tooltip
   says it overwrites (100b's question). `tests/test_armory` (+6).
+* **100b** (2026-10-19): *Rig to bones* under Weights: a bone, an optional
+  second and the first one's share (50% to 100%); every vertex of the
+  selected objects (or the one shown) goes on them, the old weights
+  replaced, one Undo step. The bones are the kit's Med2 spelling
+  (`clavical`) in the user's order, head, torso, abs, pelvis, the right arm
+  from the hand in, the left, the legs, then jaw and eyebrow
+  (`armory.MED2_BONES`, `ARM_BONES` in `armobj.js`, a check holds the two
+  equal); no other list of bones in the workbench needed reordering.
+  `/api/armory/rig_bones`. `tests/test_armory` (+4); checked against the
+  running server on the user's project.
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 

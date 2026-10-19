@@ -1203,7 +1203,7 @@ _RIGID_PART = re.compile(r"shield|weapon\d|primary(active|passive)|secondary(act
                          r"|ramrod|cannon ?ball|ballista ?arrow", re.I)
 # the side a Med2 bone is on: bone_lfoot, bone_Lhand, bone_RThigh
 _SIDE = re.compile(r"^bone_([lr])(?=foot|lowerleg|thigh|upperarm|elbow|hand|forearm"
-                   r"|shoulder|clavicle|calf|toe|finger)", re.I)
+                   r"|shoulder|clavical|clavicle|calf|toe|finger)", re.I)
 
 
 def bone_side(name: str) -> str:
@@ -1440,6 +1440,41 @@ def transfer_for(project: dict, obj_id: int, mode: str, mod_of) -> dict:
     w, ids, bones = transfer_weights(tm, sources, mode=mode, own=own, rigid=rigid)
     return {"n": tm.vertices, "bones": bones, "mode": mode, "rigid": rigid,
             "data": base64.b64encode(w.tobytes() + ids).decode("ascii")}
+
+
+# the Med2 skeleton's bones in the order the workbench lists them (100b, the
+# user's order): head, torso and pelvis, the right arm from the hand in,
+# the left, then the legs; the kit's spelling (``control_rig_data.py``)
+MED2_BONES = ["bone_head", "bone_torso", "bone_abs", "bone_pelvis",
+              "bone_rhand", "bone_relbow", "bone_rupperarm", "bone_rclavical",
+              "bone_lhand", "bone_lelbow", "bone_lupperarm", "bone_lclavical",
+              "bone_rthigh", "bone_rlowerleg", "bone_rfoot",
+              "bone_lthigh", "bone_llowerleg", "bone_lfoot",
+              "bone_jaw", "bone_eyebrow"]
+
+
+def rig_to_bones(project: dict, obj_ids: Sequence[int], bones: Sequence[str],
+                 share: float, mod_of) -> Dict[str, dict]:
+    """The page's *Rig to bones* (100b): every vertex of each object on the
+    first bone, or on two with ``share`` of the weight on the first. The
+    answer per object id is what :func:`transfer_for` stores."""
+    names = [b for b in bones if b][:2]
+    if not names:
+        raise ArmoryError(_i18n.msg("eng.armory.pick_a_bone", "pick a bone to rig to"))
+    share = 1.0 if len(names) == 1 else min(1.0, max(0.5, float(share)))
+    pair = names if len(names) == 2 else names * 2
+    assets = project_assets(project)
+    out: Dict[str, dict] = {}
+    for oid in obj_ids:
+        o = next((x for x in project.get("objects") or [] if x.get("id") == oid), None)
+        if o is None:
+            continue
+        n = object_mesh(dict(o, weights=None), assets, mod_of).vertices
+        w = array("f", [share, 1.0 - share] * n)
+        ids = bytes((0, 1, 0, 0)) * n if len(names) == 2 else bytes(4 * n)
+        out[str(oid)] = {"n": n, "bones": list(dict.fromkeys(pair)), "mode": "rig",
+                         "data": base64.b64encode(w.tobytes() + ids).decode("ascii")}
+    return out
 
 
 # ---------------------------------------------------------------------------

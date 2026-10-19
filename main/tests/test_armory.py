@@ -197,6 +197,25 @@ if horse is not None:
     agree = sum(a.lower() == b.lower() for a, b in zip(first, was)) / len(was)
     check(f"and the head's strongest bone comes back as it was on {agree:.0%} of them", agree > 0.7)
 
+    # 100b: rig a whole object to chosen bones
+    rig = armory.rig_to_bones(project, [head_i + 1], ["bone_head"], 1.0, None)[str(head_i + 1)]
+    project["objects"][head_i]["weights"] = rig
+    back = armory.object_mesh(project["objects"][head_i], assets, None)
+    check(f"rigged to one bone, every vertex on it at 1.0 ({rig['n']})",
+          rig["n"] == own.vertices and {back.bones[back.bone_ids[v * 4 + 2]] for v in range(back.vertices)} == {"bone_head"}
+          and all(abs(back.weights[v * 2] - 1) < 1e-6 for v in range(back.vertices)))
+    rig = armory.rig_to_bones(project, [head_i + 1], ["bone_head", "bone_torso"], 0.7, None)[str(head_i + 1)]
+    project["objects"][head_i]["weights"] = rig
+    back = armory.object_mesh(project["objects"][head_i], assets, None)
+    check("rigged to two, the first taking the share set",
+          back.bones[back.bone_ids[2]] == "bone_head" and back.bones[back.bone_ids[1]] == "bone_torso"
+          and abs(back.weights[0] - 0.7) < 1e-6 and abs(back.weights[1] - 0.3) < 1e-6)
+    try:
+        armory.rig_to_bones(project, [head_i + 1], [], 1.0, None)
+        check("no bone is refused", False)
+    except armory.ArmoryError:
+        check("no bone is refused", True)
+
     remap, missing = armory.bone_remap(["bone_RThigh", "bone_Rhand", "bone_tail"],
                                        ["bone_rthigh", "bone_rhand", "bone_pelvis"])
     check("bones match across the archer and melee spellings", remap == [0, 1, -1] and missing == ["bone_tail"])
@@ -259,6 +278,12 @@ hand = strip([0.0, 0.01], lambda x: "bone_lhand")
 got = tops(armory.transfer_weights(hand, [strip([0.0, 0.01], lambda x: "bone_lelbow", y=0.001)],
                                    own=[{"bone_lhand": 1.0}] * hand.vertices, smooth=0))
 check(f"a bone no source carries is kept ({set(got)})", set(got) == {"bone_lhand"})
+import re as _re
+_js = (ROOT / "web" / "js" / "armobj.js").read_text(encoding="utf-8")
+_page = _re.findall(r"'(bone_\w+)'", _js[_js.index("const ARM_BONES"):_js.index("];", _js.index("const ARM_BONES"))])
+check("the page lists the bones in the server's order, head, torso, pelvis, right arm, left arm, legs",
+      _page == armory.MED2_BONES and armory.MED2_BONES.index("bone_rhand") < armory.MED2_BONES.index("bone_lhand")
+      < armory.MED2_BONES.index("bone_rthigh"))
 check("bone sides read the Med2 spellings",
       [armory.bone_side(b) for b in ("bone_Lhand", "bone_RThigh", "bone_rfoot", "bone_pelvis", "bone_head")]
       == ["l", "r", "r", "", ""])

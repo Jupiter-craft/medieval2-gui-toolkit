@@ -10387,6 +10387,19 @@
   "other": "{count} Objekte zu einem zusammengeführt"
  },
  "armory.working": "Wird bearbeitet…",
+ "armory.rig_bones": "An Knochen binden",
+ "armory.rig_bones_title": "Jeden Vertex der ausgewählten Objekte (oder dieses einen) an den gewählten Knochen binden oder an zwei, wobei der erste den eingestellten Anteil nimmt; ihre alten Knochengewichte werden ersetzt, Rückgängig stellt sie wieder her",
+ "armory.rig_first": "Der Knochen, an den gebunden wird",
+ "armory.rig_second": "Kein zweiter Knochen",
+ "armory.rig_second_title": "Ein zweiter Knochen, der sich das Gewicht mit dem ersten teilt",
+ "armory.rig_share": "Erster Knochen",
+ "armory.rig_share_title": "Wie viel vom Gewicht jedes Vertex der erste Knochen nimmt, 50 % bis 100 %",
+ "armory.rig_done": {
+   "one": "{count} Objekt an {bones} gebunden",
+   "other": "{count} Objekte an {bones} gebunden"
+ },
+ "armory.weights_rigged": "Eigene, an {bones} gebunden",
+ "eng.armory.pick_a_bone": "einen Knochen zum Binden wählen",
  "armory.weights_done": {
   "one": "Knochengewichte für {count} Vertex, aus {bones} Knochen",
   "other": "Knochengewichte für {count} Vertices, aus {bones} Knochen"
