@@ -635,7 +635,7 @@
 "armory.tpose": "T-pose",
 "armory.tpose_title": "Animation off: every part stands in its bind pose. Press again to play on from where it was.",
 "armory.transfer_weights": "Transfer weights",
-"armory.transfer_weights_title": "Take this object's weights from the nearest of every other visible object, then smooth them five times, as the Blender kit does",
+"armory.transfer_weights_title": "Replace this object's weights (its old ones are not kept; Undo puts them back) with those of the nearest visible object, then smooth them five times as the Blender kit does. A vertex nothing reaches within 5 cm, or whose own bone no other object carries, keeps its own; a left-side vertex takes no right-side bone; a shield, a weapon or a part on one bone comes out on one bone; and body parts take nothing from shields and weapons",
 "armory.undo_title": "Undo the last change to the model (Ctrl+Z)",
 "armory.uniform_scale": "Scale all three together",
 "armory.units": "Units",

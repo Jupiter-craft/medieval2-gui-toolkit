@@ -2701,7 +2701,29 @@ remove loose geometry and empty groups, clean UV layers and number suffixes
 their report. The whole run is one Undo step. **To find first**: the quick
 mesh cleanup addon is not under `C:\Users\projy\OneDrive\Coding\Blender` by
 any of those names (searched 2026-10-19); ask the user where it lives and
-take its exact list of steps from it.
+take its exact list of steps from it. *Found 2026-10-19:* it is the user's
+own, https://github.com/ProJ-Yeet/Quick-Cleanup-Blender-Addon-.
+
+## Phase 100, as it goes
+
+* **100a** (2026-10-19): reproduced on the user's open project (Dunedain
+  knights with an elf shield). The shield, rigid on `bone_lelbow` in its
+  mod, came out split over `lhand`, `lelbow` and `lupperarm`; the legs' 94
+  foot vertices came out with no foot bone, because nothing but the legs
+  reaches the feet (11 cm away at the median); the left hand took the
+  forearm while the right took `rhand` off the spear. `transfer_weights`
+  now takes the part's own weights (`own`): a vertex with no source surface
+  within 5 cm, or whose own strongest bone no source carries, keeps its own,
+  and one whose own bones are on one side takes no bone of the other
+  (`bone_side`). A part named as the kit's prefixes name a shield or weapon,
+  or rigid on one bone, comes out on one bone (`rigid`): the one most
+  vertices take, or its own where a quarter of them would. A body part takes
+  nothing from a shield or weapon. The smoothing is now Blender's vertex
+  group smooth at 0.5, as the kit runs it, not a full average. On the
+  project every part now comes back on the bones it wore, left and right
+  alike, and the suite's horse head takes back its own strongest bone on 94%
+  of its vertices (the check asks for 70%). The tooltip
+  says it overwrites (100b's question). `tests/test_armory` (+6).
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 

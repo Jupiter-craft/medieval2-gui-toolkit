@@ -201,6 +201,68 @@ if horse is not None:
                                        ["bone_rthigh", "bone_rhand", "bone_pelvis"])
     check("bones match across the archer and melee spellings", remap == [0, 1, -1] and missing == ["bone_tail"])
 
+# 100a: transferred weights that tore shields and legs. A strip of quads
+# along x, each vertex on the bones given, stands in for a part.
+print("\nTransfer weights keeps what it should (100a)")
+
+
+def strip(xs, bones_of, y=0.0):
+    from array import array as _a
+    m = mesh.MeshFile(source="t", format="mesh")
+    names = []
+    w, ids = _a("f"), bytearray()
+    for x in xs:
+        for z in (0.0, 0.01):
+            m.positions.extend((x, y, z))
+            b = bones_of(x)
+            if b not in names:
+                names.append(b)
+            w.extend((1.0, 0.0))
+            ids += bytes((0, names.index(b), names.index(b), 0))
+    m.bones, m.weights, m.bone_ids = names, w, bytes(ids)
+    ix = []
+    for i in range(len(xs) - 1):
+        a = i * 2
+        ix += [a, a + 1, a + 2, a + 1, a + 3, a + 2]
+    m.groups.append(mesh.MeshGroup("part", "part", ix, 0))
+    return m
+
+
+def tops(res):
+    w, ids, names = res
+    return [names[ids[v * 4 + 2]] for v in range(len(ids) // 4)]
+
+
+src = strip([i * 0.01 for i in range(11)], lambda x: "bone_rhand" if x > 0.05 else "bone_relbow")
+shield = strip([i * 0.01 for i in range(11)], lambda x: "bone_relbow")
+got = tops(armory.transfer_weights(shield, [src], rigid=True,
+                                   own=[{"bone_relbow": 1.0}] * shield.vertices))
+check(f"a rigid part comes out on one bone, its own where a quarter would take it ({set(got)})",
+      set(got) == {"bone_relbow"})
+loose = strip([i * 0.01 for i in range(11)], lambda x: "bone_relbow")
+got = tops(armory.transfer_weights(loose, [src], rigid=True))
+check(f"and on the bone most vertices take when it had none ({set(got)})", len(set(got)) == 1)
+foot = strip([0.0, 0.01, 0.30, 0.31], lambda x: "bone_rfoot" if x > 0.1 else "bone_rlowerleg")
+own = [{"bone_rfoot" if foot.positions[v * 3] > 0.1 else "bone_rlowerleg": 1.0} for v in range(foot.vertices)]
+shin = strip([0.0, 0.01, 0.02], lambda x: "bone_rlowerleg")
+got = tops(armory.transfer_weights(foot, [shin, strip([0.5, 0.51], lambda x: "bone_rfoot", y=1.0)],
+                                   own=own, smooth=0))
+check(f"a vertex no source reaches keeps its own bone ({got})", got[-1].lower() == "bone_rfoot")
+left = strip([0.0, 0.01], lambda x: "bone_lthigh")
+right = strip([0.0, 0.01], lambda x: "bone_rthigh", y=0.001)
+got = tops(armory.transfer_weights(left, [right, strip([0.0, 0.01], lambda x: "bone_pelvis", y=0.02),
+                                          strip([0.0, 0.01], lambda x: "bone_lthigh", y=1.0)],
+                                   own=[{"bone_lthigh": 1.0}] * left.vertices, smooth=0))
+check(f"a left vertex takes no right bone, keeping its own where that is all there is ({set(got)})",
+      set(got) == {"bone_lthigh"})
+hand = strip([0.0, 0.01], lambda x: "bone_lhand")
+got = tops(armory.transfer_weights(hand, [strip([0.0, 0.01], lambda x: "bone_lelbow", y=0.001)],
+                                   own=[{"bone_lhand": 1.0}] * hand.vertices, smooth=0))
+check(f"a bone no source carries is kept ({set(got)})", set(got) == {"bone_lhand"})
+check("bone sides read the Med2 spellings",
+      [armory.bone_side(b) for b in ("bone_Lhand", "bone_RThigh", "bone_rfoot", "bone_pelvis", "bone_head")]
+      == ["l", "r", "r", "", ""])
+
 import subprocess
 node = shutil.which("node")
 if node:

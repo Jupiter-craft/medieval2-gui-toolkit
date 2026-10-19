@@ -1197,24 +1197,56 @@ def _closest_on_triangle(p, a, b, c):
     return (1 - v - w, v, w)
 
 
+# the parts that hold one bone in the game, as the Blender kit's prefixes
+# name them (``qol_panel.py``): a shield or a weapon moves as one piece
+_RIGID_PART = re.compile(r"shield|weapon\d|primary(active|passive)|secondary(active|passive)"
+                         r"|ramrod|cannon ?ball|ballista ?arrow", re.I)
+# the side a Med2 bone is on: bone_lfoot, bone_Lhand, bone_RThigh
+_SIDE = re.compile(r"^bone_([lr])(?=foot|lowerleg|thigh|upperarm|elbow|hand|forearm"
+                   r"|shoulder|clavicle|calf|toe|finger)", re.I)
+
+
+def bone_side(name: str) -> str:
+    """``"l"``, ``"r"`` or ``""`` for a Med2 bone name."""
+    m = _SIDE.match(name or "")
+    return m.group(1).lower() if m else ""
+
+
 def transfer_weights(target: mesh.MeshFile, sources: Sequence[mesh.MeshFile],
-                     mode: str = "face", smooth: int = 5) -> Tuple[array, bytes, List[str]]:
+                     mode: str = "face", smooth: int = 5,
+                     own: Optional[Sequence[Dict[str, float]]] = None,
+                     reach: float = 0.05, rigid: bool = False,
+                     factor: float = 0.5) -> Tuple[array, bytes, List[str]]:
     """Weights for every vertex of ``target`` out of the nearest of ``sources``.
 
     The Blender kit's *Transfer weights* (``qol_panel.py``): nearest face,
     interpolated, by default, or the nearest vertex or edge; then ``smooth``
-    passes that average each vertex with its neighbours. Each vertex keeps
+    passes of Blender's vertex group smooth at ``factor``. Each vertex keeps
     its two strongest bones, as the format holds. Returns ``(weights,
     bone_ids, bones)`` laid out as :class:`~unittransfer.mesh.MeshFile` keeps
     them.
+
+    ``own`` is the target's weights before the transfer, a ``{bone name:
+    weight}`` per vertex (100a). Where it is given, a vertex with no source
+    surface within ``reach`` keeps its own (a foot below every other part
+    took the shin), as does one whose own strongest bone no source carries
+    at all (the hands took the forearm), and a vertex whose own bones are on
+    one side takes no bone of the other. ``rigid`` puts every vertex on one bone at 1.0, the
+    one most vertices would take, or the part's own where a quarter of them
+    would: a shield split over the hand, forearm and upper arm tore apart
+    as the arm moved.
     """
     bones: List[str] = []
 
-    def bone_of(src, b):
-        name = src.bones[b] if b < len(src.bones) else ""
-        if name not in bones:
+    def bone_named(name):
+        low = [x.lower() for x in bones]
+        if name.lower() not in low:
             bones.append(name)
-        return bones.index(name)
+            return len(bones) - 1
+        return low.index(name.lower())
+
+    def bone_of(src, b):
+        return bone_named(src.bones[b] if b < len(src.bones) else "")
 
     tris: List[Tuple[int, int, int]] = []
     infl: List[Dict[int, float]] = []
@@ -1286,9 +1318,14 @@ def transfer_weights(target: mesh.MeshFile, sources: Sequence[mesh.MeshFile],
                                 best, best_d = (ti, bary), d
             if best is not None and math.sqrt(best_d) < ring * cell:
                 break
-        return best
+        return best and (best[0], best[1], math.sqrt(best_d))
 
     n = target.vertices
+    carried = {k for d in infl for k in d}
+    mine: List[Dict[int, float]] = []
+    for v in range(n):
+        d0 = (own[v] if own is not None and v < len(own) else None) or {}
+        mine.append({bone_named(k): w for k, w in d0.items() if w > 0})
     per: List[Dict[int, float]] = []
     for v in range(n):
         hit = near((target.positions[v * 3], target.positions[v * 3 + 1], target.positions[v * 3 + 2]))
@@ -1298,7 +1335,31 @@ def transfer_weights(target: mesh.MeshFile, sources: Sequence[mesh.MeshFile],
             for vi, w in zip((a, b, c), bary):
                 for bone, bw in infl[vi].items():
                     d[bone] = d.get(bone, 0.0) + bw * w
+        if mine[v]:
+            if hit is None or hit[2] > reach or max(mine[v], key=mine[v].get) not in carried:
+                d = dict(mine[v])
+            else:
+                sides = {bone_side(bones[k]) for k in mine[v]} - {""}
+                if len(sides) == 1:
+                    other = "r" if sides == {"l"} else "l"
+                    d = {k: w for k, w in d.items() if bone_side(bones[k]) != other} or dict(mine[v])
         per.append(d)
+    if rigid and n:
+        def tally(rows):
+            out: Dict[int, int] = {}
+            for d in rows:
+                if d:
+                    k = max(d, key=d.get)
+                    out[k] = out.get(k, 0) + 1
+            return out
+        votes, home_votes = tally(per), tally(mine)
+        pick = max(votes, key=votes.get) if votes else 0
+        if home_votes:
+            home = max(home_votes, key=home_votes.get)
+            if votes.get(home, 0) * 4 >= n:
+                pick = home
+        per = [{pick: 1.0} for _ in range(n)]
+        smooth = 0
     if smooth and target.groups:
         nbr: List[set] = [set() for _ in range(n)]
         for g in target.groups:
@@ -1311,10 +1372,16 @@ def transfer_weights(target: mesh.MeshFile, sources: Sequence[mesh.MeshFile],
         for _ in range(smooth):
             nxt = []
             for v in range(n):
-                acc = dict(per[v])
+                if not nbr[v]:
+                    nxt.append(per[v])
+                    continue
+                # Blender's vertex group smooth: each weight moves ``factor``
+                # of the way to its neighbours' mean
+                acc = {b: w * (1 - factor) for b, w in per[v].items()}
+                share = factor / len(nbr[v])
                 for u in nbr[v]:
                     for bone, w in per[u].items():
-                        acc[bone] = acc.get(bone, 0.0) + w
+                        acc[bone] = acc.get(bone, 0.0) + w * share
                 tot = sum(acc.values()) or 1.0
                 nxt.append({b: w / tot for b, w in acc.items()})
             per = nxt
@@ -1344,15 +1411,34 @@ def transfer_for(project: dict, obj_id: int, mode: str, mod_of) -> dict:
         raise ArmoryError(_i18n.msg("eng.armory.no_such_object", "that object is not in the model"))
     clean = dict(target, weights=None)
     tm = object_mesh(clean, assets, mod_of)
+    # what the part wore before, so a vertex nothing reaches keeps it (100a)
+    own: List[Dict[str, float]] = []
+    for v in range(tm.vertices):
+        d: Dict[str, float] = {}
+        if len(tm.bone_ids) >= (v + 1) * 4:
+            b = tm.bone_ids[v * 4:v * 4 + 4]
+            for k, w in ((2, tm.weights[v * 2]), (1, tm.weights[v * 2 + 1])):
+                name = tm.bones[b[k]] if b[k] < len(tm.bones) else ""
+                if w > 0 and name:
+                    d[name] = d.get(name, 0.0) + w
+        own.append(d)
+    tops = {max(d, key=d.get).lower() for d in own if d}
+    whole = all(d and max(d.values()) >= 0.999 for d in own)
+    named = f"{target.get('name') or ''} {target.get('mesh') or ''}"
+    rigid = bool(_RIGID_PART.search(named)) or (len(tops) == 1 and whole)
     sources = []
     for o in objs:
         if o is target or o.get("hidden"):
             continue
+        # a body part takes nothing from a shield or a weapon: the spear in
+        # the right hand gave that hand its bone and the left none (100a)
+        if not rigid and _RIGID_PART.search(f"{o.get('name') or ''} {o.get('mesh') or ''}"):
+            continue
         om = object_mesh(o, assets, mod_of)
         if has_weights(om):
             sources.append(om)
-    w, ids, bones = transfer_weights(tm, sources, mode=mode)
-    return {"n": tm.vertices, "bones": bones, "mode": mode,
+    w, ids, bones = transfer_weights(tm, sources, mode=mode, own=own, rigid=rigid)
+    return {"n": tm.vertices, "bones": bones, "mode": mode, "rigid": rigid,
             "data": base64.b64encode(w.tobytes() + ids).decode("ascii")}
 
 

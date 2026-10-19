@@ -10919,7 +10919,7 @@
  "armory.wmode_vertex": "vértice más cercano",
  "armory.wmode_edge": "arista más cercana",
  "armory.transfer_weights": "Transferir pesos de huesos",
- "armory.transfer_weights_title": "Tomar los pesos de huesos de este objeto del más cercano de los demás objetos visibles y suavizarlos cinco veces, como hace el kit de Blender",
+ "armory.transfer_weights_title": "Sustituye los pesos de huesos de este objeto (los anteriores no se conservan; Deshacer los recupera) por los del objeto visible más cercano y luego los suaviza cinco veces, como hace el kit de Blender. Un vértice al que nada llega a menos de 5 cm, o cuyo hueso propio no lleva ningún otro objeto, conserva los suyos; un vértice del lado izquierdo no toma huesos del derecho; un escudo, un arma o una pieza sobre un solo hueso queda sobre un solo hueso; y las partes del cuerpo no toman nada de escudos ni armas",
  "armory.clear_weights": "Borrar",
  "armory.object_facts": "{tris} triángulos de {pieces} piezas",
  "armory.no_pixels": "Esta pieza tiene demasiados pocos píxeles en su hoja para ordenarlos.",

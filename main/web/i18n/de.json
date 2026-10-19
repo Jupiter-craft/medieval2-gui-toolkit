@@ -10444,7 +10444,7 @@
  "armory.wmode_vertex": "nächster Vertex",
  "armory.wmode_edge": "nächste Kante",
  "armory.transfer_weights": "Knochengewichte übertragen",
- "armory.transfer_weights_title": "Die Knochengewichte dieses Objekts vom nächstgelegenen aller anderen sichtbaren Objekte übernehmen und dann fünfmal glätten, wie das Blender-Kit es tut",
+ "armory.transfer_weights_title": "Ersetzt die Knochengewichte dieses Objekts (die alten bleiben nicht erhalten; Rückgängig stellt sie wieder her) durch die des nächstgelegenen sichtbaren Objekts und glättet sie dann fünfmal, wie das Blender-Kit es tut. Ein Vertex, den im Umkreis von 5 cm nichts erreicht oder dessen eigenen Knochen kein anderes Objekt trägt, behält seine eigenen; ein Vertex der linken Seite nimmt keinen Knochen der rechten; ein Schild, eine Waffe oder ein Teil an einem einzigen Knochen bleibt an einem Knochen; und Körperteile übernehmen nichts von Schilden und Waffen",
  "armory.clear_weights": "Leeren",
  "armory.object_facts": "{tris} Dreiecke aus {pieces} Stücken",
  "armory.no_pixels": "Dieses Teil hat zu wenige Pixel auf seinem Sheet, um sie zu ordnen.",
