@@ -424,6 +424,8 @@ and their lettered pieces are commits. Build the majors in this order.
 | **0. Six reports** (done 2026-10-14) | **98** | Six reports of 2026-10-13: the Spanish wording, a Ko-fi link, the Strat map 3D panel losing its model, building art that needs a refresh, texture paths that point somewhere else, vanilla files read from the game's packs (and the shipped building art dropped) | 98a-98f | both |
 | **I. Models Editor and Armory Studio** (done 2026-10-14) | **95** | The Models Editor rebuilt around Armory Studio 3D: galleries and filters, unit rows, the strat split, a `.mesh` writer, the workbench (assets, objects, viewport, animations, UV packing and bake, normal maps, import), the asset library, the card maker | 95a-95m | both |
 | **I b. Armory Studio after its first use** (done 2026-10-15) | **99** | Fifteen requests of 2026-10-15: Pull keeping its place, face orientation as Blender colours it, the card maker's gap, side panels and the top menu that fold, a themed scrollbar, import as a gallery, rename in place, undo and redo, T-pose, a view gizmo, a crop to the UVs exactly, moving the unit in the card maker, the Blender kit's IK rig and pose library, saved sessions with backups | 99a-99o | both |
+| **I c. Armory Studio's second round** | **100** | Fourteen pieces of 2026-10-19: transferred weights that tear shields and legs, rig a mesh to chosen bones (transfer overwrites, checked), each faction's own card in the Unit Editor, shift-select and several objects at once, Duplicate and Detail beside the sliders, sliders on the wheel, Loaded assets counting what is used, a full view mode, the import dialog's filters, gallery and closer look, textures from a file on disk, a Textures tab with an outside editor, a UV edit mode, Optimize | 100a-100n | both |
+| | 99p | SimpleBake's two ideas for the packer: holes and side pockets filled, free rotation as an opt-in | one | both |
 | **II. Campaign map** | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
 | | 96b-96d | Two layout faults (the green box, the bottom gap), ports and the capital by icon with one port per region, the garrison in the settlement editor | 96b, 96c, 96d | beta |
 | | 89 | Four reports from users: the resource list open on M2EX, a new resource, a watchtower's line of sight, the real-world map | 89a-89d | a, b both; c, d beta |
@@ -436,6 +438,10 @@ and their lettered pieces are commits. Build the majors in this order.
 | **IV. Interface** | 90 | A layout that fits the window at every interface size | 90a-90c | both |
 | | 93 | Two reports on getting around | 93a-93b | both |
 | **V. Translations** | 88 | The remaining catalogues through 88d's workflow: 88e French, 88h Portuguese (Brazil), 88i Polish, 88l Turkish, 88m Russian, 88o Simplified Chinese with the CJK fonts and line breaking, 88p Traditional Chinese, 88q Japanese, 88r Korean | nine catalogues | both |
+
+**Phase 100 put next on 2026-10-19** (the user: "Add all these as immediate
+next step to our roadmap"): Armory Studio requests, a weights bug and a
+player's Unit Editor suggestion, ahead of 99p and major II.
 
 **Phase 99 put next on 2026-10-15** (the user: "Add these as immediate next
 phase"): fifteen requests after the first model out of Armory Studio, ahead
@@ -2554,6 +2560,148 @@ character and agent drawn as its strat model (`descr_model_strat.txt` and the
 level's and culture's strat model (`settlemodel.py`), on its tile. Placing an
 agent and moving one work in 3D (97a). Many models at once, so share one
 loaded model per kind and drop detail with distance.
+
+# Phase 100 - Armory Studio's second round, and faction cards in the Unit Editor, scheduled 2026-10-19, first in the schedule
+
+Sent by the user on 2026-10-19: a list of requests for Armory Studio, a bug
+report on transferred weights (dated 17/10, with a screenshot of a spearman
+whose shield bends away from his arm), and a suggestion from a player on
+Discord (diocletianexcubitor) for the Unit Editor. The user: "Add all these
+as immediate next step to our roadmap". It goes **before 99p and major II**.
+**The user's own words win over anything in this write-up**; they are quoted
+with each piece. The pieces are in build order: the faults first, then the
+Unit Editor, then the object panel, the layout, the import dialog, and the
+larger features (textures, UV editing, Optimize) last.
+
+**100a - Transferred weights tear shields and legs.** "Something is wrong
+when you transfer weight with shields" and "Same with some of the legs".
+The screenshot shows a shield whose rim stretches away from the arm, so its
+vertices took different bones. Read in the code before scheduling:
+`transfer_for` (`unittransfer/armory.py`) takes every other visible object
+with weights as the source, and `transfer_weights` gives each vertex the
+nearest face's two strongest bones, then five smoothing passes. A shield
+sits between the forearm, the torso and the thigh, so its far rim picks up
+the torso or a leg; a leg near the other leg or a skirt picks up the wrong
+side. Fix it so a rigid prop moves as one: a shield, a weapon and anything
+the kit calls equipment take the single bone most of its vertices would
+take (or the one the kit's rigs give that slot), and a body part takes its
+bones only from the same side and the same body part where the source's
+names say which. Check against Blender's own transfer (the kit's
+`medieval2toolkit.weight_transfer`) on the reported spearman and on a leg.
+
+**100b - Overwrite, and rig a whole mesh to chosen bones.** "Can you check
+if transfer weights overwrites the weights or not. A button to rig entire
+mesh to select bones. Put Head, Torso, Pelvis first followed by the R hand
+.. and L hand.. and only then the leg bones." The answer, read in the code:
+**it overwrites.** `transfer_for` clears the object's weights before it
+starts and stores the new ones in their place; nothing of the old weights
+is kept or blended, and Undo (99i) is the only way back. Say so in the
+button's tooltip. New: *Rig to bones*, which gives every vertex of the
+selected objects one or two bones picked from a list (weight 1.0, or split
+by a slider for two), the list in this order: head, torso, pelvis, then the
+right arm and hand bones, then the left, then the legs; the same order
+wherever the workbench lists bones.
+
+**100c - The Unit Editor shows each faction's own card.** From Discord:
+"Can unit cards change in the Unit Editor main section so they reflect
+their specific factions images? Say, the Colovia faction has different unit
+cards than the rest, can those appear here? I changed a ton of unit cards
+and this could help me see if I forgot some of them." The Unit Editor's
+main list groups units by faction, but every group shows the same card for
+a unit. Each tile takes the card from that faction's own folder
+(`ui/units/<faction>/#<unit>.tga`, through 98f's lookup of mod, game
+`data/` and packs), falling back as the game does, with a small mark on a
+tile whose card is the fallback rather than the faction's own, so a missed
+card shows at a glance. A filter for "only the fallbacks" makes the check a
+list.
+
+**100d - Shift-select in the object list.** "Being able to shift-select the
+object list." A click selects one, Ctrl+click adds or takes one,
+Shift+click selects the run from the last one clicked, across folds and
+collections in the order they are drawn.
+
+**100e - Several objects at once.** "Selecting multiple objects options:
+transfer weight, recolor(?), group name and mesh name." With more than one
+object selected, the panel offers what applies to all: Transfer weights
+(each in turn, one Undo step), Recolour (the same dye on each), the group
+name set for all, and the mesh name set for all (numbered where two would
+clash, as the kit's name rules do).
+
+**100f - Duplicate and Detail move beside the sliders.** "Move the
+duplicate, detail views from the top of the object list to the right beside
+the XYZ sliders, and below the statistics button." The two buttons leave
+the head of the object list and sit at the right of the X, Y, Z sliders,
+under Statistics.
+
+**100g - The sliders take the wheel.** "Xyz being scrollable." The wheel
+over an X, Y or Z slider (or its number) steps it, Shift for a finer step,
+Ctrl for a coarser one; one Undo step per run of turns.
+
+**100h - Loaded assets says what is used.** "On the 'loaded assets' show
+how many assets are selected from a model (so it's easy to close models
+that you don't need). A checkmark for only show enabled." Each model in
+Loaded assets shows how many of its parts are in the project ("3 of 12
+used"), and a checkbox at the top hides the parts not in it, remembered.
+
+**100i - A full view mode.** "A full view mode (no ui)." One key (editable
+as 95g's keys) and a button hide every panel, bar and strip and give the
+viewport the whole window; the same key or Esc brings them back, each panel
+as it was.
+
+**100j - The import dialog: filters, the gallery first, a closer look.**
+"Filter for 'import' factions, unit types, cultures", "3d view for all the
+import option similar to our gallery view of bmdb", "Make the gallery view
+default in the imported list tab", "Being able to have a closer look at the
+models in 'import'". The import dialog's lists take the Models Editor's
+filters (faction, unit type or class, culture); every list in it (a mod's
+units, its model entries, the library, a folder) draws as a 3D gallery as
+95a's BMDB gallery does; Gallery becomes the default (`armory_import_view`
+starts at gallery, a saved choice still wins); and a tile opens into a
+large view (orbit, zoom, its variations and animations, as the docked
+viewer has) before it is pulled in.
+
+**100k - Import from disk brings its textures.** "Import from disk: only
+able to import mesh, not texture." A `.obj`, `.glb` or `.dae` comes in with
+its sheets: the ones it names (the `.mtl`, the glTF's images, the Collada
+image library), else sheets beside it by name, else picked by hand; a
+`.glb`'s embedded images taken out of the file.
+
+**100l - A Textures tab.** "Would be good to be able to edit textures; for
+example, in detailed view, an option to look at the texture, then a button
+to edit -> open the image in a personal image editing program." and
+"Basically a texture tab where you can import and export textures, like if
+I wanted to change how the cloth look". A tab in the workbench listing every
+sheet the project uses, which objects use it, and its size; the detail view
+of an object shows its sheet with its UV islands over it. Import a sheet
+(any common format, `.dds` and `.tga` among them), export one, swap an
+object's sheet for another loaded one, and **Edit**, which writes the sheet
+to a working file, opens it in the program the user sets in Settings (else
+the OS's default for the type) and reloads it into the viewport whenever
+the file changes on disk.
+
+**100m - A UV edit mode.** "UV edit mode: Similar to blender you can select
+an object and change its UV. Add an option to view texture of the object
+being edited, change the objects texture to another loaded texture. or
+switch to m2 view which will then use the designated main and attach
+textures side by side like how we do." A UV editor beside the viewport, as
+Blender's: the selected object's UVs over its sheet, vertices, edges, faces
+and islands selected and moved, turned and scaled (G, R, S as 95g), snapped
+to texels; a sheet picker to show or swap in any loaded sheet; and an M2
+view that lays the main and attachment sheets side by side as the export's
+plan does (95i), each island drawn on the sheet it will land on.
+
+**100n - Optimize.** "'Optimize' button that runs the optimization ... from
+our quick mesh cleanup addon like the reset vectors, merge vertices as well
+as our check model for export button from our blenderkit and so on make it
+a configurable set of checkboxes." A button on the objects panel and a
+dialog of checkboxes, remembered: merge vertices by distance (threshold
+shown), reset vectors (recalculate normals, clear custom split normals),
+remove loose geometry and empty groups, clean UV layers and number suffixes
+(the kit's `qol_panel.py`), and the kit's export checks (95i) run last with
+their report. The whole run is one Undo step. **To find first**: the quick
+mesh cleanup addon is not under `C:\Users\projy\OneDrive\Coding\Blender` by
+any of those names (searched 2026-10-19); ask the user where it lives and
+take its exact list of steps from it.
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 
