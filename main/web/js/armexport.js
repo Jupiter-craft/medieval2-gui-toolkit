@@ -21,7 +21,7 @@ function armExp(){
   const p = armProj();
   return state.armExp = state.armExp || {step: 'check', scope: {mode: 'visible',
     collections: p.collections.filter(c => c.export).map(c => c.id)},
-    settings: {size: {both: 'auto'}, margin: 0.4, obj_sheet: {}, block_sheet: {}, scale: {}, dyes: true},
+    settings: {size: {both: 'auto'}, margin: 0.4, obj_sheet: {}, block_sheet: {}, scale: {}, dyes: true, rotate: 'quarter'},
     check: null, plan: null, busy: false, err: '', folder: '', stem: '', done: null};
 }
 function armExpBody(){ return {project: armProj(), scope: armExp().scope}; }
@@ -173,6 +173,7 @@ function armExpSet(key, v){
   const s = armExp().settings;
   if(key === 'margin') s.margin = Math.max(0, Math.min(5, +v || 0));
   else if(key === 'dyes') s.dyes = !!v;
+  else if(key === 'rotate') s.rotate = v ? 'free' : 'quarter';
   else if(key === 'size') s.size = {both: v === 'auto' ? 'auto' : +v};
   armExpReplan();
 }
@@ -233,8 +234,11 @@ function armExpUvHtml(){
   return `<div class="armexprow">${sizeSel}
       <label>${tt('armory.exp_margin')}<input type="number" class="armnum" min="0" max="5" step="0.1" value="${s.margin}"
         onchange="armExpSet('margin', this.value)" title="${esc(tt('armory.exp_margin_title'))}">%</label>
-      <label class="armcheck"><input type="checkbox"${s.dyes ? ' checked' : ''} onchange="armExpSet('dyes', this.checked)"> ${tt('armory.exp_apply_dyes')}</label></div>
+      <label class="armcheck"><input type="checkbox"${s.dyes ? ' checked' : ''} onchange="armExpSet('dyes', this.checked)"> ${tt('armory.exp_apply_dyes')}</label>
+      <label class="armcheck" title="${esc(tt('armory.exp_free_turn_title'))}"><input type="checkbox"${s.rotate === 'free' ? ' checked' : ''}
+        onchange="armExpSet('rotate', this.checked)"> ${tt('armory.exp_free_turn')}</label></div>
     <div class="count armnote">${tt('armory.exp_uv_summary', {islands: P.islands, blocks: P.blocks, folded: P.folded})}</div>
+    ${P.turned ? `<div class="count armnote">${tt('armory.exp_turned', {n: P.turned})}</div>` : ''}
     ${P.fits ? '' : armExpOverflowHtml()}
     ${P.auto ? `<div class="armissue warning">${P.auto.sheet ? tt('armory.exp_auto_done', {sheet: armExpLabel(P.auto.sheet), pct: Math.round(P.auto.scale * 100)})
                                                        : tt('armory.exp_auto_moved', {n: P.auto.moved})}</div>` : ''}

@@ -430,7 +430,7 @@ and their lettered pieces are commits. Build the majors in this order.
 
 | Major | Phase | Feature | Pieces | Line |
 |---|---|---|---|---|
-| **I c. Armory Studio, what is left** | 99p | SimpleBake's two ideas for the packer: holes and side pockets filled, free rotation as an opt-in | one | both |
+| **I c. Armory Studio, what is left** | 99p | SimpleBake's two ideas for the packer: holes and side pockets filled, free rotation as an opt-in. **Done 2026-10-20** | one | both |
 | **II. Campaign map** | 97 | The map viewer, 2D and 3D: editable and selectable in 3D, floating faction names by default, an icons toggle, agents and settlements as 3D models on their tiles | 97a-97d | beta |
 | | 96b-96d | Two layout faults (the green box, the bottom gap), ports and the capital by icon with one port per region, the garrison in the settlement editor | 96b, 96c, 96d | beta |
 | | 96e4 | A new region wizard; many towns at once with auto-garrison | one | beta |
@@ -1040,6 +1040,31 @@ texels), not 99l's column profile, which loses every hole under a block.
 (2) Free rotation as an opt-in in the UV step: any angle, said to cost a
 resample (the bake is a 1:1 texel copy otherwise), quarter turns staying
 the default. Measured on the four soldiers 99l was measured on, at 512.
+
+**Done 2026-10-20**, on the user's word ("start working on the next phase").
+* **Holes and side pockets.** `_Occupancy` in `armbake.py` keeps the sheet's
+  taken texels; every place a block's mask meets none of them is found at
+  once on a grid of a 256th of the sheet (the mask correlated with the grid
+  through an FFT, a cell taken if any texel is), and the place picked is
+  slid up and left texel by texel against the exact texels. 99l's column
+  profile stays as the first three ways, since it costs no FFT; three new
+  ones follow (top left by area, top left by height, most outline touching).
+  A grid of a 128th lost to 99l on three of the four soldiers.
+* **Measured at 512**, the scale each needed (99l, then 99p): the Dunedain
+  knights 0.542 and 0.548, Mordor's bodyguard 0.690 and 0.709, the peasants
+  0.844 and 0.843, the reference horse 0.968 and 1.000. The horse also fits
+  512 at a 1% margin now.
+* **Free rotation**, `rotate: "free"` and a checkbox in the export dialog: a
+  block may take the turn that boxes its convex hull smallest (when that is
+  over a degree from square and saves 2% or more), offered before its
+  quarter turns; such a block is resampled, bicubic, its UVs turned with it.
+  On the four soldiers it gained nothing (0.553, 0.699, 0.842, 1.000).
+* **Found on the way**: a block's art could reach the sheet's right edge, so
+  a vertex there had u = 1 (or 2), which the game reads on the next sheet;
+  art now stops a texel short of the right and bottom edges.
+* **Automatic is slower**: 39 s on the knights where 99l took 10 s (the
+  scale is found with 99l's ways first, then searched above it with every
+  way, a trial stopping at its first block that will not go).
 
 # What else is open
 

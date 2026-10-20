@@ -16,6 +16,11 @@ pointing at its source's sheets. Exporting it makes it a model of its own:
   UV triangles grown by the margin, a mask. Islands fold only where their
   texels truly overlap, and blocks are packed by their masks, so one slides
   into another's empty corner; only the masked texels are copied.
+  From 99p a block goes wherever its mask meets nothing yet on the sheet, a
+  hole under another block or a pocket at its side included, every place
+  weighed at once on a coarse grid and then slid tight at the exact texels;
+  and with ``rotate: "free"`` a block may also take the turn that boxes it
+  smallest, which resamples it.
   When a sheet runs out of room it says which blocks did not fit and what each
   would take, and ``auto`` picks a way out (said to cost quality).
 * :func:`bake` copies each block's source texels onto its sheet, the margin
@@ -24,7 +29,7 @@ pointing at its source's sheets. Exporting it makes it a model of its own:
 
 The dye arithmetic is ``armDyePixels`` in ``web/js/armobj.js`` in numpy, the
 same numbers, so what was previewed is what is baked. Nothing is resampled
-except a block the user scaled.
+except a block the user scaled or one given a free turn.
 """
 from __future__ import annotations
 
@@ -588,20 +593,25 @@ def _dye_key(o: dict, dyes: bool) -> str:
 def raster(polys, rect, scale: float, margin: int, w: int, h: int) -> np.ndarray:
     """``polys`` (triangles in source texels) drawn into a ``h + 2 margin``
     by ``w + 2 margin`` mask whose art corner is ``rect``'s, at ``scale``,
-    then grown by the margin. A texel a triangle touches at all is in it: the
-    edge is drawn as well as the inside, so the texel a vertex sits on is
-    kept, and the margin (at least one texel) keeps the one bilinear
-    filtering reads beside it. No triangles is the whole rectangle."""
+    then grown by the margin. No triangles is the whole rectangle."""
+    if not polys:
+        return np.ones((h + 2 * margin, w + 2 * margin), bool)
+    ox, oy = rect[0], rect[1]
+    return _draw([[((x - ox) * scale, (y - oy) * scale) for x, y in tri] for tri in polys], margin, w, h)
+
+
+def _draw(polys, margin: int, w: int, h: int) -> np.ndarray:
+    """``polys`` (triangles from the art corner, in texels of the sheet)
+    drawn into a ``h + 2 margin`` by ``w + 2 margin`` mask, then grown by the
+    margin. A texel a triangle touches at all is in it: the edge is drawn as
+    well as the inside, so the texel a vertex sits on is kept, and the margin
+    (at least one texel) keeps the one bilinear filtering reads beside it."""
     from PIL import ImageDraw
     W, H = w + 2 * margin, h + 2 * margin
-    if not polys:
-        return np.ones((H, W), bool)
     im = Image.new("L", (W, H), 0)
     dr = ImageDraw.Draw(im)
-    ox, oy = rect[0], rect[1]
     for tri in polys:
-        pts = [((x - ox) * scale + margin, (y - oy) * scale + margin) for x, y in tri]
-        dr.polygon(pts, fill=1, outline=1)
+        dr.polygon([(x + margin, y + margin) for x, y in tri], fill=1, outline=1)
     m = np.asarray(im, bool).copy()
     return grow(m, margin) if margin else m
 
@@ -636,7 +646,7 @@ def _masks_meet(a: "_Island", b: "_Island") -> bool:
 class Block:
     """Islands whose art overlaps in one source, packed and baked as one."""
     __slots__ = ("id", "islands", "src", "rect", "objs", "sheet", "scale", "w", "h",
-                 "x", "y", "rot", "placed", "dkey", "_shape")
+                 "x", "y", "rot", "angle", "placed", "dkey", "_shape", "_free")
 
     def __init__(self, islands, src, rect, dkey):
         self.islands, self.src, self.rect, self.dkey = islands, src, rect, dkey
@@ -645,19 +655,64 @@ class Block:
         self.sheet, self.scale = "main", 1.0
         self.w = self.h = self.x = self.y = 0
         self.rot = False
+        #: a free turn in degrees (99p), before the quarter turn; 0 is none
+        self.angle = 0.0
         self.placed = False
-        self._shape = None
+        self._shape = {}
+        self._free = None
+
+    def _polys(self):
+        """Its triangles from its art corner, at its scale; a block with none
+        is its rectangle."""
+        k, ox, oy = self.scale, self.rect[0], self.rect[1]
+        polys = [t for i in self.islands for t in i.polys]
+        if not polys:
+            w, h = self.src_w, self.src_h
+            polys = [((ox, oy), (ox + w, oy), (ox + w, oy + h)), ((ox, oy), (ox + w, oy + h), (ox, oy + h))]
+        return [[((x - ox) * k, (y - oy) * k) for x, y in tri] for tri in polys]
+
+    def frame(self) -> Tuple[int, int, float, float]:
+        """``(w, h, ox, oy)``: its size at its scale and free turn, and where
+        the turned art's corner falls."""
+        if not self.angle:
+            return (max(1, int(math.ceil(self.src_w * self.scale))),
+                    max(1, int(math.ceil(self.src_h * self.scale))), 0.0, 0.0)
+        pts = [_spin(p, self.angle) for tri in self._polys() for p in tri]
+        ox, oy = min(p[0] for p in pts), min(p[1] for p in pts)
+        return (max(1, int(math.ceil(max(p[0] for p in pts) - ox))),
+                max(1, int(math.ceil(max(p[1] for p in pts) - oy))), ox, oy)
+
+    def local(self, sx: float, sy: float) -> Tuple[float, float]:
+        """A point in its source's texels, on the block before its quarter turn."""
+        lx, ly = (sx - self.rect[0]) * self.scale, (sy - self.rect[1]) * self.scale
+        if self.angle:
+            _w, _h, ox, oy = self.frame()
+            lx, ly = _spin((lx, ly), self.angle)
+            lx, ly = lx - ox, ly - oy
+        return lx, ly
+
+    def free_angle(self) -> float:
+        """The turn that leaves its art in the smallest rectangle (99p), or 0
+        when that is near a quarter turn or saves little."""
+        if self._free is None:
+            self._free = _least_box_angle([p for tri in self._polys() for p in tri])
+        return self._free
 
     def shape(self, margin: int) -> np.ndarray:
         """Its mask on the sheet, the margin round it included, turned as it
         was placed: the texels it takes and the only ones baked (99l)."""
-        key = (self.scale, margin)
-        if self._shape is None or self._shape[0] != key:
-            w = max(1, int(math.ceil(self.src_w * self.scale)))
-            h = max(1, int(math.ceil(self.src_h * self.scale)))
-            polys = [t for i in self.islands for t in i.polys]
-            self._shape = (key, raster(polys, self.rect, self.scale, margin, w, h))
-        m = self._shape[1]
+        key = (self.scale, margin, self.angle)
+        if key not in self._shape:
+            w, h, ox, oy = self.frame()
+            if not self.angle and not any(i.polys for i in self.islands):
+                m = np.ones((h + 2 * margin, w + 2 * margin), bool)
+            else:
+                polys = self._polys()
+                if self.angle:
+                    polys = [[_spin(p, self.angle) for p in tri] for tri in polys]
+                m = _draw([[(x - ox, y - oy) for x, y in tri] for tri in polys], margin, w, h)
+            self._shape[key] = m
+        m = self._shape[key]
         return np.rot90(m, k=-1) if self.rot else m
 
     @property
@@ -667,6 +722,50 @@ class Block:
     @property
     def src_h(self):
         return self.rect[3] - self.rect[1]
+
+
+def _spin(p, deg: float) -> Tuple[float, float]:
+    c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+    return p[0] * c - p[1] * s, p[0] * s + p[1] * c
+
+
+def _least_box_angle(pts) -> float:
+    """The turn, in degrees in 0..90, that puts ``pts`` in the rectangle of
+    least area: one of its convex hull's edges lies along it."""
+    P = sorted(set((round(x, 4), round(y, 4)) for x, y in pts))
+    if len(P) < 3:
+        return 0.0
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lo, hi = [], []
+    for p in P:
+        while len(lo) >= 2 and cross(lo[-2], lo[-1], p) <= 0:
+            lo.pop()
+        lo.append(p)
+    for p in reversed(P):
+        while len(hi) >= 2 and cross(hi[-2], hi[-1], p) <= 0:
+            hi.pop()
+        hi.append(p)
+    hull = np.array(lo[:-1] + hi[:-1], float)
+    xs, ys = hull[:, 0], hull[:, 1]
+    base = (xs.max() - xs.min()) * (ys.max() - ys.min())
+    best, best_a = base, 0.0
+    for i in range(len(hull)):
+        dx, dy = hull[(i + 1) % len(hull)] - hull[i]
+        if not dx and not dy:
+            continue
+        a = -math.degrees(math.atan2(dy, dx)) % 90.0
+        c, s = math.cos(math.radians(a)), math.sin(math.radians(a))
+        rx, ry = xs * c - ys * s, xs * s + ys * c
+        area = (rx.max() - rx.min()) * (ry.max() - ry.min())
+        if area < best - 1e-9:
+            best, best_a = area, a
+    # a turn within a degree of square, or one that saves under 2 per cent
+    # of the rectangle, is not worth its resample
+    if best_a < 1.0 or best_a > 89.0 or best > base * 0.98:
+        return 0.0
+    return round(best_a, 3)
 
 
 def _overlap(a, b) -> bool:
@@ -715,7 +814,7 @@ def make_blocks(islands: List[_Island], dyes: bool = True, scales: Optional[dict
 
 
 # ---------------------------------------------------------------------------
-# packing: by shape (99l), quarter turns allowed
+# packing: by shape (99l), into every hole (99p), quarter turns allowed
 
 
 def margin_px(pct: float, size: int) -> int:
@@ -733,8 +832,22 @@ def _coarse(m: np.ndarray, cell: int) -> np.ndarray:
     return pad.reshape(H // cell, cell, W // cell, cell).any(axis=(1, 3))
 
 
+def _fast(n: int) -> int:
+    """The least length of at least ``n`` with no prime factor past 5: the
+    FFT's quick sizes."""
+    while True:
+        m = n
+        for p in (2, 3, 5):
+            while m % p == 0:
+                m //= p
+        if m == 1:
+            return n
+        n += 1
+
+
 class _Profile:
-    """The sheet as columns, each filled down to a depth (99l): a block's mask
+    """The sheet as columns, each filled down to a depth (99l), kept beside
+    :class:`_Occupancy` (99p) as the quick first try: a block's mask
     is set down from the top as far as each of its columns lets it, so a
     block's empty top corner takes another's bottom one. Masks never overlap;
     a hole left under a block is not used again.
@@ -786,31 +899,169 @@ class _Profile:
         return x, y, which
 
 
-def pack(blocks: List[Block], size: int, margin: int) -> List[Block]:
-    """Blocks placed on one sheet by their shapes (99l); the ones that did
-    not fit come back."""
-    for b in blocks:
-        b.w = max(1, int(math.ceil(b.src_w * b.scale)))
-        b.h = max(1, int(math.ceil(b.src_h * b.scale)))
-        b.placed = False
+class _Occupancy:
+    """The sheet as the texels taken (99p): a block may go wherever its mask
+    meets none of them, a hole under another block or a pocket at its side as
+    well as the open sheet. Every place is weighed at once on a coarse grid
+    (``cell`` texels, a cell taken if any texel of it is) by correlating the
+    block's mask with the grid through an FFT; the place chosen is then slid
+    up and left texel by texel against the exact texels, so it sits as close
+    as the art allows.
+
+    ``score`` is how a place is chosen: ``"contact"`` the share of the block's
+    outline that touches what is already there or the sheet's edge, ``"tl"``
+    the first place from the top left."""
+
+    def __init__(self, side: int, cell: int, score: str = "contact", kernels: Optional[dict] = None):
+        self.cell, self.score = cell, score
+        #: each mask's coarse grid, outline and their transforms, kept across
+        #: the ways :func:`pack` tries (the grid's size is the same for all)
+        self.kernels = {} if kernels is None else kernels
+        n = -(-side // cell)
+        self.n = n
+        # the coarse grid with a ring of taken cells round it, then taken
+        # padding up to a quick FFT size
+        self.N = _fast(n + 2)
+        # the exact texels, the ones past the sheet's own side taken (a mask
+        # whose last row or column is empty may hang over them)
+        self.E = np.ones((self.N * cell, self.N * cell), bool)
+        self.E[:side, :side] = False
+        self.G = np.ones((self.N, self.N), bool)
+        self.G[1:n + 1, 1:n + 1] = _coarse(self.E[:n * cell, :n * cell], cell)
+        self._F = None
+
+    def _corr(self, K: np.ndarray, h: int, w: int) -> np.ndarray:
+        """For every place of an ``h`` by ``w`` kernel's corner on the grid,
+        how many of its cells fall on taken ones; ``K`` is its transform."""
+        N = self.N
+        if self._F is None:
+            self._F = np.fft.rfft2(self.G.astype(np.float32))
+        r = np.fft.irfft2(self._F * K, s=(N, N))
+        return r[:N - h + 1, :N - w + 1]
+
+    def _kernel(self, m: np.ndarray):
+        got = self.kernels.get(id(m))
+        if got is None or got[0] is not m:
+            N, cell = self.N, self.cell
+            S = _coarse(m, cell)
+            pad = np.zeros((S.shape[0] + 2, S.shape[1] + 2), bool)
+            pad[1:-1, 1:-1] = S
+            ring = grow(pad, 1) & ~pad
+            KS = np.conj(np.fft.rfft2(S.astype(np.float32), s=(N, N)))
+            KR = np.conj(np.fft.rfft2(ring.astype(np.float32), s=(N, N))) if self.score == "contact" else None
+            got = (m, S.shape, KS, ring, KR)
+            self.kernels[id(m)] = got
+        if self.score == "contact" and got[4] is None:
+            got = got[:4] + (np.conj(np.fft.rfft2(got[3].astype(np.float32), s=(self.N, self.N))),)
+            self.kernels[id(m)] = got
+        return got
+
+    def place(self, shapes) -> Optional[Tuple[int, int, int]]:
+        """The best of ``shapes`` (exact masks, one per turn) and where it
+        goes, ``(x, y, which)`` in texels."""
+        N, cell = self.N, self.cell
+        best = None
+        for which, m in enumerate(shapes):
+            _m, (hs, ws), KS, ring, KR = self._kernel(m)
+            if hs > self.n or ws > self.n:
+                continue
+            ov = self._corr(KS, hs, ws)[1:N - hs, 1:N - ws]
+            free = ov < 0.5
+            if not free.any():
+                continue
+            if self.score == "contact":
+                ct = np.rint(self._corr(KR, hs + 2, ws + 2)[:N - hs - 1, :N - ws - 1]) / max(1, int(ring.sum()))
+                top = ct[free].max()
+                pick = free & (ct >= top - 1e-9)
+                key0 = -round(float(top), 4)
+            else:
+                pick, key0 = free, 0.0
+            i = int(pick.argmax())
+            gy, gx = divmod(i, pick.shape[1])
+            key = (key0, gy, gx)
+            if best is None or key < best[0]:
+                best = (key, gx * cell, gy * cell, which)
+        if best is None:
+            return None
+        _k, x, y, which = best
+        m = shapes[which]
+        h, w = m.shape
+        E = self.E
+
+        def clear(yy, xx):
+            return not (E[yy:yy + h, xx:xx + w] & m).any()
+        for _ in range(64):
+            moved = False
+            while y > 0 and clear(y - 1, x):
+                y -= 1
+                moved = True
+            while x > 0 and clear(y, x - 1):
+                x -= 1
+                moved = True
+            if not moved:
+                break
+        E[y:y + h, x:x + w] |= m
+        cy0, cx0 = y // cell, x // cell
+        cy1, cx1 = -(-(y + h) // cell), -(-(x + w) // cell)
+        self.G[1 + cy0:1 + cy1, 1 + cx0:1 + cx1] = _coarse(E[cy0 * cell:cy1 * cell, cx0 * cell:cx1 * cell], cell)
+        self._F = None
+        return x, y, which
+
+
+def pack(blocks: List[Block], size: int, margin: int, free: bool = False,
+         quick: bool = False, ways: Optional[tuple] = None) -> List[Block]:
+    """Blocks placed on one sheet by their shapes (99l), into any room their
+    masks fit (99p); the ones that did not fit come back. ``free`` lets a
+    block take its own turn as well as the quarter turns (99p), at the cost
+    of resampling it. ``quick`` is for a yes or no: a way stops at the
+    first block it cannot place. ``ways`` is :data:`_PACK_WAYS` unless said."""
     # the margin keeps blocks apart, and may run off the sheet's own edge,
     # where no bleed is ever sampled: a block as wide as the sheet still fits.
-    # A sheet past 1024 is packed on a grid of 2 or 4 texels, for time.
-    cell = max(1, size // 1024)
-    shapes = {}
+    # Its art stops a texel short of the right and bottom edges, though: a
+    # vertex on the edge itself has u = 1, which the game reads as the next
+    # sheet along (99p). The coarse grid is a 256th of the sheet, for time.
+    cell = max(1, size // int(_GRID))
+    opts = {}
     for b in blocks:
-        b.rot = False
-        flat = _coarse(b.shape(margin), cell)
-        shapes[id(b)] = [flat] + ([np.rot90(flat, k=-1)] if b.w != b.h else [])
-    # no one way of choosing wins on every model (measured on four soldiers
-    # at 512: each of these three was the best on one), so the next is tried
+        b.placed, b.rot = False, False
+        mine = []
+        # with free rotation the block's own turn is offered first, so it
+        # wins a tie: it is what the user asked for
+        for ang in ((b.free_angle(), 0.0) if free and b.free_angle() else (0.0,)):
+            b.angle = ang
+            w, h, _ox, _oy = b.frame()
+            m = b.shape(margin)
+            mine.append((ang, False, w, h, m))
+            mine.append((ang, True, w, h, np.rot90(m, k=-1)))
+        b.angle = 0.0
+        b.w, b.h = mine[-1][2], mine[-1][3]
+        opts[id(b)] = mine
+    # no one way of choosing wins on every model, so the next is tried
     # while blocks are left over, and the one leaving the least is kept
     best = None
-    for score, order in _PACK_WAYS:
-        prof = _Profile(size + 2 * margin, cell, score)
+    kernels: dict = {}
+    # 99l's column profile, on a grid of a 1024th of the sheet, goes first:
+    # it costs no FFT, and when it fits the rest is never run
+    pcell = max(1, size // 1024)
+    coarse = {}
+    for kind, score, order in (ways or _PACK_WAYS):
+        if kind == "profile":
+            occ = _Profile(size + 2 * margin - 1, pcell, score)
+        else:
+            occ = _Occupancy(size + 2 * margin - 1, cell, score, kernels)
         left, spots = [], {}
         for b in sorted(blocks, key=order):
-            got = prof.place(shapes[id(b)])
+            if quick and left:
+                left.append(b)
+                continue
+            if kind == "profile":
+                if id(b) not in coarse:
+                    coarse[id(b)] = [_coarse(o[4], pcell) for o in opts[id(b)]]
+                got = occ.place(coarse[id(b)])
+                if got is not None:
+                    got = (got[0] * pcell, got[1] * pcell, got[2])
+            else:
+                got = occ.place([o[4] for o in opts[id(b)]])
             if got is None:
                 left.append(b)
             else:
@@ -825,18 +1076,27 @@ def pack(blocks: List[Block], size: int, margin: int) -> List[Block]:
         got = spots.get(id(b))
         b.placed = got is not None
         if got is not None:
-            b.x, b.y, b.rot = got[0] * cell, got[1] * cell, got[2] == 1
-        else:
-            b.rot = False
+            ang, rot, w, h, _m = opts[id(b)][got[2]]
+            b.x, b.y, b.rot, b.angle, b.w, b.h = got[0], got[1], rot, ang, w, h
     return left
 
 
-#: How :func:`pack` chooses, in the order tried: a place's score, and the
-#: order the blocks are set down in.
+#: How :func:`pack` chooses, in the order tried: the placer, a place's
+#: score, and the order the blocks are set down in. 99l's three ways first,
+#: then the hole-filling ones (99p). Measured on four soldiers at 512, the
+#: scale each needed: 99l's ways alone, the Dunedain knights 0.542, Mordor's
+#: bodyguard 0.690, the peasants 0.844, the reference horse 0.968; each new
+#: way was the best on one of them (top left by area the knights' attachment
+#: sheet, by height the knights at 0.555 and the peasants at 0.848, contact
+#: the horse at 1.000), and contact by height or by width never was.
+_GRID = 256
 _PACK_WAYS = (
-    ("mix", lambda b: -b.w * b.h),
-    ("gap", lambda b: (-b.h, -b.w)),
-    ("end", lambda b: (-b.h, -b.w)),
+    ("profile", "mix", lambda b: -b.w * b.h),
+    ("profile", "gap", lambda b: (-b.h, -b.w)),
+    ("profile", "end", lambda b: (-b.h, -b.w)),
+    ("occupancy", "tl", lambda b: -b.w * b.h),
+    ("occupancy", "tl", lambda b: (-b.h, -b.w)),
+    ("occupancy", "contact", lambda b: -b.w * b.h),
 )
 
 
@@ -909,7 +1169,9 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
     ``settings``: ``size`` ``{main, attach}`` (a number or ``"auto"``),
     ``margin`` per cent, ``obj_sheet`` ``{id: main|attach}``, ``block_sheet``
     ``{block id: main|attach}``, ``scale`` ``{id: 0..1}``, ``dyes`` (true),
-    ``auto`` (true to find a way out of a full sheet on its own).
+    ``auto`` (true to find a way out of a full sheet on its own), ``rotate``
+    (``"quarter"``, the default, or ``"free"``: a block may also take the turn
+    that boxes it smallest, which resamples it, 99p).
     """
     settings = dict(settings or {})
     objs = in_scope(project, scope)
@@ -925,6 +1187,7 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
             isl.origin = "any"
     margin_pct = float(settings.get("margin", MARGIN_PCT))
     dyes = settings.get("dyes", True) is not False
+    free_turn = settings.get("rotate") == "free"
     auto_note = None
     scales = dict(settings.get("scale") or {})
     sizes_in = settings.get("size") or {}
@@ -932,10 +1195,10 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
     # both sheets are always one size (the game's skins are pairs of a size)
     one = sizes_in.get("both") or sizes_in.get("main") or "auto"
 
-    def fits(mine, size):
-        return not pack(mine, size, margin_px(margin_pct, size))
+    def fits(mine, size, ways=None):
+        return not pack(mine, size, margin_px(margin_pct, size), free_turn, True, ways)
 
-    def run(scales, block_sheet):
+    def run(scales, block_sheet, quick=False, ways=None):
         blocks = make_blocks(islands, dyes, scales)
         st = dict(settings, block_sheet=block_sheet)
         rooms = {"main": 0.0, "attach": 0.0}
@@ -943,8 +1206,8 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
         fixed = [b for b in order if {i.origin for i in b.islands} <= {"main", "attach"}
                  or (st.get("block_sheet") or {}).get(b.id)
                  or any(str(o) in (st.get("obj_sheet") or {}) for o in b.objs)]
-        free = [b for b in order if b not in fixed]
-        for b in fixed + free:
+        loose = [b for b in order if b not in fixed]
+        for b in fixed + loose:
             b.sheet = _sheet_of(b, st, rooms)
             rooms[b.sheet] += b.src_w * b.src_h * b.scale * b.scale
         out = {}
@@ -952,7 +1215,7 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
         if one == "auto":
             size = SIZES[-1]
             for cand in SIZES:
-                if all(fits(mines[s], cand) for s in SHEETS if mines[s]):
+                if all(fits(mines[s], cand, ways) for s in SHEETS if mines[s]):
                     size = cand
                     break
         else:
@@ -963,7 +1226,7 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
             if not mine:
                 out[s] = {"size": 0, "blocks": [], "left": [], "area": 0, "needs": 0}
                 continue
-            left = pack(mine, size, margin_px(margin_pct, size))
+            left = pack(mine, size, margin_px(margin_pct, size), free_turn, quick, ways)
             out[s] = {"size": size, "blocks": mine, "left": left, "area": area, "needs": _needs(area, margin_pct)}
         return blocks, out
 
@@ -986,15 +1249,32 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
             if not per[s]["left"]:
                 continue
             ids = {o for b in per[s]["blocks"] for o in b.objs}
+
+            def full(k, ways=None):
+                trial = dict(scales, **{str(o): round(float(scales.get(str(o), 1.0)) * k, 4) for o in ids})
+                return not run(trial, block_sheet, True, ways)[1][s]["left"]
+            # 99p: the hole-filling ways cost an FFT a block, so the scale is
+            # first found with 99l's profile alone, which is quick and always
+            # tried first; the full search then only looks above it, and a
+            # trial stops at the first block that will not go
             lo, hi = 0.05, 1.0
             for _ in range(9):
                 mid = (lo + hi) / 2
-                trial = dict(scales, **{str(o): round(float(scales.get(str(o), 1.0)) * mid, 4) for o in ids})
-                _b2, p2 = run(trial, block_sheet)
-                if p2[s]["left"]:
-                    hi = mid
-                else:
+                if full(mid, _PACK_WAYS[:3]):
                     lo = mid
+                else:
+                    hi = mid
+            top = min(1.0, lo * 1.12)
+            if full(top):
+                lo, hi = top, 1.0
+            else:
+                hi = top
+            while hi - lo > 0.003:
+                mid = (lo + hi) / 2
+                if full(mid):
+                    lo = mid
+                else:
+                    hi = mid
             scales = dict(scales, **{str(o): round(float(scales.get(str(o), 1.0)) * lo, 4) for o in ids})
             blocks, per = run(scales, block_sheet)
             auto_note = {"sheet": s, "scale": round(lo, 3), "moved": moved}
@@ -1028,7 +1308,7 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
             "margin_px": margin_px(margin_pct, size) if size else 0,
             "recommended_margin": round(SCALED_MARGIN_PX * 100.0 / size, 2) if size else 0,
             "blocks": [{"id": b.id, "objs": b.objs, "x": b.x, "y": b.y, "w": b.w, "h": b.h,
-                        "rot": b.rot, "placed": b.placed, "islands": len(b.islands),
+                        "rot": b.rot, "angle": b.angle, "placed": b.placed, "islands": len(b.islands),
                         "share": (b.w * b.h) / (size * size) if size else 0}
                        for b in p["blocks"]],
             "left": [b.id for b in p["left"]],
@@ -1039,7 +1319,9 @@ def plan(project: dict, mod_of, settings: Optional[dict] = None, image_of: Image
     folded = len(islands) - len(blocks)
     return {"objects": objects, "sheets": sheets_out, "islands": len(islands), "blocks": len(blocks),
             "folded": folded, "fits": not any(per[s]["left"] for s in SHEETS),
-            "settings": {"scale": scales, "block_sheet": block_sheet, "margin": margin_pct},
+            "settings": {"scale": scales, "block_sheet": block_sheet, "margin": margin_pct,
+                         "rotate": "free" if free_turn else "quarter"},
+            "turned": sum(1 for b in blocks if b.placed and b.angle),
             "auto": auto_note}
 
 
@@ -1220,20 +1502,24 @@ def _block_pixels(st: dict, b: Block, margin: int, image_of: ImageOf) -> np.ndar
     tw, th = b.w + 2 * margin, b.h + 2 * margin
     img = _processed(st, b, image_of)
     if img is None:
-        return np.broadcast_to(np.array(NO_ART, np.uint8), (th, tw, 4)).copy() if not b.rot \
-            else np.broadcast_to(np.array(NO_ART, np.uint8), (tw, th, 4)).copy()
+        return np.broadcast_to(np.array(NO_ART, np.uint8), (th, tw, 4)).copy() if not b.rot             else np.broadcast_to(np.array(NO_ART, np.uint8), (tw, th, 4)).copy()
     x0, y0 = b.rect[0], b.rect[1]
-    if b.scale == 1.0:
+    if b.scale == 1.0 and not b.angle:
         px = _crop_wrapped(img, x0 - margin, y0 - margin, tw, th)
     else:
-        # only a block the user scaled is resampled: its source with the
-        # margin round it, turned into its size on the sheet
-        pad = int(math.ceil(margin / b.scale)) + 2
-        src = _crop_wrapped(img, x0 - pad, y0 - pad, b.src_w + 2 * pad, b.src_h + 2 * pad)
+        # only a block the user scaled, or one given a free turn (99p), is
+        # resampled: its source with the margin round it, turned and scaled
+        # into its size on the sheet. A sheet texel (X, Y) is the source
+        # point the block's turn and scale undone, from the crop's corner.
         k = b.scale
-        off = pad - margin / k
-        im = Image.fromarray(src).transform((tw, th), Image.AFFINE,
-                                            (1 / k, 0, off, 0, 1 / k, off), resample=Image.BICUBIC)
+        pad = int(math.ceil(margin * (1.5 if b.angle else 1.0) / k)) + 2
+        src = _crop_wrapped(img, x0 - pad, y0 - pad, b.src_w + 2 * pad, b.src_h + 2 * pad)
+        _w, _h, ox, oy = b.frame()
+        c, s = math.cos(math.radians(b.angle)), math.sin(math.radians(b.angle))
+        u0, v0 = ox - margin, oy - margin
+        coeffs = (c / k, s / k, (c * u0 + s * v0) / k + pad,
+                  -s / k, c / k, (-s * u0 + c * v0) / k + pad)
+        im = Image.fromarray(src).transform((tw, th), Image.AFFINE, coeffs, resample=Image.BICUBIC)
         px = np.asarray(im)
     if b.rot:
         px = np.rot90(px, k=-1)
@@ -1241,10 +1527,9 @@ def _block_pixels(st: dict, b: Block, margin: int, image_of: ImageOf) -> np.ndar
 
 
 def _new_uv(b: Block, sx: float, sy: float, size: int, sheet: str) -> Tuple[float, float]:
-    lx, ly = (sx - b.rect[0]) * b.scale, (sy - b.rect[1]) * b.scale
-    hh = b.src_h * b.scale
+    lx, ly = b.local(sx, sy)
     if b.rot:
-        tx, ty = b.x + (hh - ly), b.y + lx
+        tx, ty = b.x + (b.h - ly), b.y + lx
     else:
         tx, ty = b.x + lx, b.y + ly
     return tx / size + (1.0 if sheet == "attach" else 0.0), ty / size

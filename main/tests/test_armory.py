@@ -564,13 +564,14 @@ if horse is not None:
     check("the dialog's picture of each sheet comes with the plan",
           all(S["picture"].startswith("data:image/png;base64,") for S in P["sheets"].values() if S["size"]))
 
-    small = armbake.plan(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.0}, image_of=im_of)
+    # a margin of 1.5%: since 99p fills holes, the horse fits 512 at 1%
+    small = armbake.plan(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.5}, image_of=im_of)
     check(f"a sheet too small says what did not fit ({len(small['sheets']['main']['left'])} on the main sheet)",
           not small["fits"] and small["sheets"]["main"]["left"])
-    auto = armbake.plan(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.0, "auto": True}, image_of=im_of)
+    auto = armbake.plan(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.5, "auto": True}, image_of=im_of)
     check(f"and the automatic way out fits it, saying what it cost ({auto['auto']})", auto["fits"] and auto["auto"])
     try:
-        armbake.bake(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.0}, str(tmp / "no"), "x", image_of=im_of)
+        armbake.bake(hproj, None, {"size": {"main": 512, "attach": 512}, "margin": 1.5}, str(tmp / "no"), "x", image_of=im_of)
         refused = False
     except armbake.BakeError:
         refused = True
@@ -603,6 +604,30 @@ if horse is not None:
     whole = armbake.Block([], ("s", None, 0, 1.0, {}), [0, 0, 1019, 1019], "")
     check("a block nearly the sheet's width fits it: the margin may run off the edge",
           not armbake.pack([whole], 1024, 5) and whole.x == 0)
+    # 99p: a block goes into a hole under another, which a column profile
+    # never reaches. A frame 500 texels square round a 300 hole, and a block
+    # of 200 that has nowhere else to go on a 512 sheet
+    class _O(dict):
+        pass
+
+    def _isl(oid, rects, rect):
+        polys = [tri for x0, y0, x1, y1 in rects
+                 for tri in (((x0, y0), (x1, y0), (x1, y1)), ((x0, y0), (x1, y1), (x0, y1)))]
+        return armbake._Island({"id": oid}, [], ("s", None, 0, 1.0, {}), rect, 0, "main", polys)
+    frame = armbake.Block([_isl(1, [(0, 0, 500, 100), (0, 400, 500, 500), (0, 100, 100, 400), (400, 100, 500, 400)],
+                                [0, 0, 500, 500])], ("s", None, 0, 1.0, {}), [0, 0, 500, 500], "")
+    inner = armbake.Block([_isl(2, [(0, 0, 200, 200)], [0, 0, 200, 200])], ("t", None, 0, 1.0, {}), [0, 0, 200, 200], "")
+    left99 = armbake.pack([frame, inner], 512, 2)
+    check(f"a block is packed into the hole of another (at {inner.x}, {inner.y})",
+          not left99 and 100 <= inner.x - frame.x and inner.x - frame.x + 200 <= 400
+          and 100 <= inner.y - frame.y and inner.y - frame.y + 200 <= 400)
+    strip = armbake.Block([_isl(3, [], [0, 0, 300, 300])], ("u", None, 0, 1.0, {}), [0, 0, 300, 300], "")
+    strip.islands[0].polys = [((0, 20), (20, 0), (300, 280)), ((0, 20), (300, 280), (280, 300))]
+    check(f"a strip lying across its box is offered the turn that boxes it smallest ({strip.free_angle()} degrees)",
+          abs(strip.free_angle() - 45) < 0.5)
+    armbake.pack([strip], 512, 2, free=True)
+    check(f"and with free rotation it is packed lying straight ({strip.w} by {strip.h})",
+          strip.angle and min(strip.w, strip.h) <= 32)
     from unittransfer import sprites
     dds = sprites.texture_to_dds((tmp / "out" / "horse_95i.texture").read_bytes())
     check("its sheet is a .texture the game reads (DXT5 inside)", dds[:4] == b"DDS " and dds[84:88] == b"DXT5")
@@ -628,6 +653,37 @@ if horse is not None:
                 miss += 1
         start += old.vertices
     check(f"each vertex reads the texel it read before, copied not resampled ({n - miss} of {n})", miss == 0)
+
+    # 99p: free rotation, opt in. A block turned to its own angle is
+    # resampled, so each vertex reads near the texel it read, not on it
+    st_f = {}
+    pf = armbake.plan(hproj, None, {"rotate": "free"}, image_of=im_of, _state=st_f)
+    check(f"free rotation turns the blocks it boxes smaller ({pf['turned']} of {pf['blocks']}), and is off by default",
+          pf["turned"] > 0 and P.get("turned", 0) == 0 and P["settings"]["rotate"] == "quarter")
+    armbake.bake(hproj, None, {"rotate": "free"}, str(tmp / "out_free"), "hf", image_of=im_of)
+    backf = mesh.read_mesh(tmp / "out_free" / "hf.mesh")
+    fsheets = {"main": np.asarray(Image.open(tmp / "out_free" / "hf.png").convert("RGBA"))}
+    if (tmp / "out_free" / "hf_attach.png").is_file():
+        fsheets["attach"] = np.asarray(Image.open(tmp / "out_free" / "hf_attach.png").convert("RGBA"))
+    turned = {o for b in st_f["blocks"] if b.angle for o in b.objs}
+    fmiss = fn = start = 0
+    for o in hproj["objects"]:
+        old = armory.object_mesh(o, assets, None)
+        for v in range(old.vertices):
+            if o["id"] in turned:
+                u0, v0 = old.uvs[v * 2], old.uvs[v * 2 + 1]
+                u1, v1 = backf.uvs[(start + v) * 2], backf.uvs[(start + v) * 2 + 1]
+                sheet = fsheets["attach" if u1 >= 1 else "main"]
+                S_ = sheet.shape[0]
+                want = grad[int((v0 % 1) * W) % W, int((u0 % 1) * W) % W, :3].astype(int)
+                ty, tx = int(v1 * S_), int((u1 % 1) * S_)
+                near = sheet[max(0, ty - 1):ty + 2, max(0, tx - 1):tx + 2, :3].astype(int)
+                fn += 1
+                if np.abs(near - want).max(-1).min() > 6:
+                    fmiss += 1
+        start += old.vertices
+    check(f"a turned block's vertices read the art they read, resampled ({fn - fmiss} of {fn} within 6 of 255)",
+          fn > 0 and fmiss <= fn // 50)
 
 # ---------------------------------------------------------------------------
 print("\nNormal maps (95j)")
