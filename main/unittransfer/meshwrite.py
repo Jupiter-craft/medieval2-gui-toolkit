@@ -289,6 +289,7 @@ def read_layout(data: bytes, source: str = "") -> Tuple[MeshLayout, dict]:
         bones.append(a.text())
         links.append(a.take("<I"))
 
+    trailer_start = a.p
     a.new(3)
     a.ref(4, model)
     a.inline()
@@ -311,11 +312,11 @@ def read_layout(data: bytes, source: str = "") -> Tuple[MeshLayout, dict]:
     lay.end_sphere = a.blob(16)
     groups_out = groups
     parts = {"groups": groups_out, "streams": streams, "verts": verts,
-             "bones": bones, "links": links}
+             "bones": bones, "links": links, "trailer_start": trailer_start}
     return lay, parts
 
 
-def attach_layout(m: MeshFile, data: bytes) -> bool:
+def attach_layout(m: MeshFile, data: bytes, parsed=None) -> bool:
     """Give a model read by ``mesh.read_mesh`` what writing it back needs.
 
     Fills :attr:`MeshFile.layout`, each group's :attr:`MeshGroup.byte`, the
@@ -323,7 +324,7 @@ def attach_layout(m: MeshFile, data: bytes) -> bool:
     reason on ``m.notes``, for a file this writer could not account for.
     """
     try:
-        lay, parts = read_layout(data, m.source)
+        lay, parts = parsed if parsed is not None else read_layout(data, m.source)
     except MeshError as e:
         m.notes.append(_i18n.msg("eng.meshwrite.not_writable_exactly", "not writable exactly: {e}", e=e))
         return False
@@ -520,7 +521,17 @@ def write_mesh(m: MeshFile, path=None) -> bytes:
     n = m.vertices
     if n > 0xFFFF + 1:
         raise MeshError(_i18n.msg("eng.meshwrite.n_vertices_a_mesh_indexes_at", "{n:,} vertices: a .mesh indexes at most 65,536", n=n))
+    if len(m.positions) != n * 3:
+        raise MeshError("position stream must contain three values per vertex")
+    for name, stride in (("normals", 3), ("uvs", 2), ("weights", 2), ("bone_ids", 4)):
+        values = getattr(m, name)
+        if values and len(values) != n * stride:
+            raise MeshError(f"{name} stream must contain {stride} values per vertex")
+    if m.bone_links and len(m.bone_links) != len(m.bones):
+        raise MeshError("bone links must contain one entry per bone")
     for g in m.groups:
+        if len(g.indices) % 3:
+            raise MeshError(f"group {g.name}/{g.texture_group} has incomplete triangles")
         if g.indices and max(g.indices) >= n:
             raise MeshError(_i18n.msg("eng.meshwrite.group_indexes_past_the_vertex_pool", "group {name}/{texture_group} indexes past the vertex pool", name=g.name, texture_group=g.texture_group))
     lay = m.layout or MeshLayout()
