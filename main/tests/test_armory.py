@@ -41,6 +41,7 @@ def check(label, cond):
 tmp = Path(_tmp.mkdtemp("ut_armory_"))
 armory.ARMORY_DIR = tmp / "armory"
 armory.PROJECT = armory.ARMORY_DIR / "project.json"
+armory.SHEETS_DIR = armory.ARMORY_DIR / "sheets"
 
 REFERENCE = (ROOT / "Reference" / "TWCenter" / "--- TOOLS n RESOURCES ---" /
              "TEMPLATE - Barded-Mailed Horses" / "Barded-Mailed Horses")
@@ -209,6 +210,27 @@ if horse is not None:
     want = {i: ("horse_att.png" if g.sheets == "attach" else "horse_main.png") for i, g in enumerate(em.groups)}
     check(f"a .mesh from disk takes the sheets beside it, main or attachment by object ({len(etex)})",
           all(Path(etex[i]).name == want[i] for i in want) and armory.texture_allowed(etex[0]))
+
+    # 100l: a sheet out to edit, written in other formats, and worn by one
+    # object in the bake
+    src_png = ext / "textures" / "horse_main.png"
+    work = armory.sheet_copy(src_png)
+    check("a sheet to edit is a PNG copy under the workbench's own folder, allowed to be served",
+          work.parent == armory.SHEETS_DIR and work.suffix == ".png" and armory.texture_allowed(str(work)))
+    check("and a second Edit opens the same copy", armory.sheet_copy(work) == work and armory.sheet_copy(src_png) == work)
+    check("its stamp moves when it is saved", armory.sheet_stamp(str(work)) > 0 and armory.sheet_stamp(str(tmp / "nope.png")) == 0)
+    outs = {}
+    for suf in (".tga", ".png", ".jpg", ".dds", ".texture"):
+        try:
+            outs[suf] = armory.export_sheet(work, tmp / "out" / ("s" + suf)).stat().st_size > 0
+        except armory.ArmoryError as e:
+            outs[suf] = str(e)
+    check(f"a sheet written as TGA, PNG, JPG, DDS and .texture ({outs})", all(v is True for v in outs.values()))
+    from unittransfer import armbake
+    shs = armbake._Sheets(assets, None, armbake.default_image_of)
+    worn = shs.paths({"asset": key, "group": 0, "sheet": str(work)})
+    check("an object's own sheet stands for both halves of the game's layout in the bake",
+          worn == (str(work), str(work)) and shs.paths({"asset": key, "group": 0})[0] != str(work))
 
     # 100b: rig a whole object to chosen bones
     rig = armory.rig_to_bones(project, [head_i + 1], ["bone_head"], 1.0, None)[str(head_i + 1)]

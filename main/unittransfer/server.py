@@ -2735,6 +2735,27 @@ class Handler(BaseHTTPRequestHandler):
                         body.get("mode") or "face", self.registry.get))
                 except (armory.ArmoryError, mesh.MeshError, KeyError) as e:
                     return self._err(400, str(e))
+            if u.path in ("/api/armory/sheet/edit", "/api/armory/sheet/copy", "/api/armory/sheet/export"):
+                # 100l: a sheet out to edit (a PNG copy, opened in the user's
+                # program), a copy to wear, or written in another format
+                try:
+                    if body.get("mod"):
+                        src = factions.read_path(self.registry.get(body["mod"]), body.get("rel") or "")
+                    else:
+                        src = Path((body.get("path") or "").strip().strip('"'))
+                        if not armory.texture_allowed(str(src)):
+                            return self._err(403, "not an image this workbench was given")
+                    if src is None or not Path(src).is_file():
+                        return self._err(404, "no such sheet")
+                    if u.path.endswith("/export"):
+                        out = armory.export_sheet(Path(src), Path((body.get("to") or "").strip().strip('"')))
+                        return self._json({"path": str(out)})
+                    out = armory.sheet_copy(Path(src))
+                    if u.path.endswith("/edit"):
+                        armory.open_in_editor(out, str(config.load_settings().get("image_editor") or ""))
+                    return self._json({"path": str(out)})
+                except (armory.ArmoryError, OSError, ValueError) as e:
+                    return self._err(400, str(e))
             if u.path == "/api/armory/rig_bones":
                 # 100b: every vertex of the chosen objects on one or two bones
                 try:
@@ -5724,6 +5745,8 @@ class Handler(BaseHTTPRequestHandler):
             if hit is None:
                 return self._err(404, "that file is no longer open; import it again")
             return self._send(200, mesh.geometry_payload(hit[0]), "application/octet-stream")
+        if path == "/api/armory/sheet/stamp":
+            return self._json({"stamp": armory.sheet_stamp(arg("path"))})
         if path == "/api/armory/texture":
             want = arg("path")
             if not armory.texture_allowed(want):

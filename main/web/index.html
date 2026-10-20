@@ -3427,6 +3427,18 @@
   .armanimwin input[type=range]{flex:1}
   .armsliders{display:flex;flex-direction:column;gap:3px;font-size:12px}
   .armslwrap{display:flex;gap:14px;align-items:flex-start}
+  /* 100l: the Textures tab */
+  .armtexctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .armtexctl input{width:260px}
+  .armtexrows{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}
+  .armtexrow{display:flex;gap:10px;align-items:center;border:1px solid var(--edge);border-radius:6px;padding:6px}
+  .armtexthumb{width:72px;height:72px;object-fit:contain;background:#111;border-radius:4px}
+  .armtexthumb.bad{opacity:.3}
+  .armtexmeta{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+  .armtexmeta b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .armtexbtns{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:300px}
+  .armtexpeek{position:absolute;right:8px;top:44px;z-index:5;background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:6px}
+  .armtexpeekhead{display:flex;gap:6px;align-items:center;margin-bottom:4px;font-size:12px}
   .armimpfilt{flex-wrap:wrap;margin-top:4px}
   .armimpfilt select{max-width:190px}
   .armimptile{position:relative}
@@ -3747,6 +3759,7 @@
 <script src="js/armexport.js"></script>
 <script src="js/armlib.js"></script>
 <script src="js/armsess.js"></script>
+<script src="js/armtex.js"></script>
 <script src="js/cardgen.js"></script>
 <script src="js/cgrig.js"></script>
 <!-- 55b: after viewer3d.js, whose v3 state and tick it hooks into. -->

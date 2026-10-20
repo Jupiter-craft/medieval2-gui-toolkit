@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import io
 import json
 import math
 import os
@@ -738,6 +739,8 @@ def external_by_id(ext: str) -> Optional[Tuple[mesh.MeshFile, dict]]:
 def texture_allowed(path_text: str) -> bool:
     """Only an image an external asset found, or the user picked for one, is served."""
     want = str(Path(path_text)).lower()
+    if want.startswith(str(SHEETS_DIR).lower()) and Path(path_text).is_file():
+        return True
     with _EXT_LOCK:
         if any(want == str(Path(t)).lower() for _s, _m, tx in _EXTERNAL.values() for t in tx.values() if t):
             return True
@@ -745,6 +748,84 @@ def texture_allowed(path_text: str) -> bool:
 
 
 _PICKED: set = set()
+
+# ---------------------------------------------------------------------------
+# the Textures tab (100l): a working copy to edit, opened in the user's own
+# program, and a sheet written out in the format asked for
+
+#: where a sheet taken out to edit is kept, as a PNG any editor opens
+SHEETS_DIR = ARMORY_DIR / "sheets"
+
+
+def sheet_copy(src: Path) -> Path:
+    """A PNG copy of ``src`` under :data:`SHEETS_DIR` to edit; one per source,
+    kept, so a second Edit opens the same file with the edits so far."""
+    from . import icons
+    src = Path(src)
+    if str(src).lower().startswith(str(SHEETS_DIR).lower()):
+        return src                                   # already a working copy
+    tag = hashlib.blake2b(str(src).lower().encode("utf-8"), digest_size=4).hexdigest()
+    stem = re.sub(r"[^A-Za-z0-9_\-]", "_", src.name.split(".")[0])[:40] or "sheet"
+    out = SHEETS_DIR / f"{stem}_{tag}.png"
+    if not out.is_file():
+        data = icons._decode_to_png(src, 0)
+        if data is None:
+            raise ArmoryError(_i18n.msg("eng.armory.sheet_unreadable", "{name} will not decode", name=src.name))
+        SHEETS_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = out.with_suffix(".tmp")
+        tmp.write_bytes(data)
+        tmp.replace(out)
+    return out
+
+
+def open_in_editor(path: Path, program: str = "") -> None:
+    """``path`` in the program the user set, else the system's own for PNG."""
+    import subprocess
+    program = (program or "").strip().strip('"')
+    if program:
+        if not Path(program).is_file():
+            raise ArmoryError(_i18n.msg("eng.armory.no_such_program", "{path} is not a program", path=program))
+        subprocess.Popen([program, str(path)])
+    elif hasattr(os, "startfile"):
+        os.startfile(str(path))                       # noqa: S606 - the user's own file
+    else:
+        subprocess.Popen(["xdg-open", str(path)])
+
+
+def sheet_stamp(path_text: str) -> int:
+    """When the sheet last changed on disk, so the page reloads it after an edit."""
+    try:
+        return Path(path_text).stat().st_mtime_ns
+    except OSError:
+        return 0
+
+
+def export_sheet(src: Path, to: Path) -> Path:
+    """``src`` written to ``to`` in the format its suffix names: PNG, TGA,
+    JPG, BMP, DDS, or the game's ``.texture`` (a DDS with its header)."""
+    from PIL import Image
+    from . import icons
+    data = icons._decode_to_png(Path(src), 0)
+    if data is None:
+        raise ArmoryError(_i18n.msg("eng.armory.sheet_unreadable", "{name} will not decode", name=Path(src).name))
+    img = Image.open(io.BytesIO(data)).convert("RGBA")
+    suffix = to.suffix.lower()
+    to.parent.mkdir(parents=True, exist_ok=True)
+    if suffix in (".png", ".tga", ".bmp"):
+        img.save(to)
+    elif suffix in (".jpg", ".jpeg"):
+        img.convert("RGB").save(to, quality=95)
+    elif suffix in (".dds", ".texture"):
+        # as the export bakes a sheet: DXT5 with its whole mipmap chain
+        from . import armbake, sprites
+        try:
+            raw = armbake.dds_with_mipmaps(img)
+        except (OSError, ValueError, KeyError) as e:
+            raise ArmoryError(_i18n.msg("eng.armory.no_dds_writer", "this Python cannot write DDS: {e}", e=e)) from e
+        to.write_bytes(sprites.dds_to_texture(raw) if suffix == ".texture" else raw)
+    else:
+        raise ArmoryError(_i18n.msg("eng.armory.sheet_format", "{name}: write .png, .tga, .jpg, .bmp, .dds or .texture", name=to.name))
+    return to
 
 
 def allow_texture(path_text: str) -> bool:

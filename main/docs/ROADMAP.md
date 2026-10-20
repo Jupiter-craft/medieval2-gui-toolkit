@@ -2794,6 +2794,24 @@ own, https://github.com/ProJ-Yeet/Quick-Cleanup-Blender-Addon-.
   att), each object the sheet it is drawn on (`_mesh_sheets`). An `.mtl`
   file name may hold spaces. A 🎨 on a disk import's head picks a main and
   an attachment sheet for all its objects at once. `tests/test_armory` (+2).
+* **100l** (2026-10-20): *Textures* on the bar (`armtex.js`) lists every
+  sheet the model wears (a mod's, a file's, a working copy, an import),
+  which objects wear it and its size. **Edit** takes a PNG copy into
+  `config/armory/sheets/` (`sheet_copy`, one per source, so a second Edit
+  reopens it), opens it in the program set in the dialog (setting
+  `image_editor`) or Windows' own for PNG, and polls its stamp every 1.5 s,
+  reloading the viewport on each save there. The model then wears the copy:
+  an entry's main or attachment sheet through `a.over`, a disk file's object
+  through `a.textures`, one object through `o.sheet`; a mod is never
+  written. *Put on selected* (a mod's sheet through a copy), *Put back*,
+  *Import a sheet* (`project.sheets`) and *Export* to PNG, TGA, JPG, BMP,
+  DDS or `.texture` (DXT5 with mipmaps, the bake's own writer). The bake
+  honours all three overrides, so an edited sheet reaches the export. The
+  detail view's *Sheet* shows the object's sheet with its UV islands over
+  it. A sheet picked by hand is allowed again before it is fetched, so it
+  survives a server restart (it did not before). `tests/test_armory` (+5);
+  checked in the running app on the user's project (the shield put on
+  Arnor's sheet, a save from outside picked up), its project put back after.
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 

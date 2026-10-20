@@ -253,7 +253,9 @@ def _entry_sheets(asset: dict, mod_of) -> Tuple[str, str]:
     att = None
     if skin.get("attach") and skin.get("attach_exists"):
         att = factions.read_path(mod, skin["attach"])
-    return (str(main) if main else ""), (str(att) if att else "")
+    # 100l: a sheet edited or swapped in the Textures tab stands in for the mod's
+    over = asset.get("over") or {}
+    return (over.get("main") or (str(main) if main else "")), (over.get("attach") or (str(att) if att else ""))
 
 
 class _Sheets:
@@ -266,10 +268,14 @@ class _Sheets:
 
     def paths(self, pc: dict) -> Tuple[str, str]:
         """``(main, attachment)`` for a piece; an external piece has one."""
-        key = (pc.get("asset"), int(pc.get("group") or 0))
+        key = (pc.get("asset"), int(pc.get("group") or 0), pc.get("sheet") or "")
         if key not in self._paths:
             a = self.assets.get(key[0]) or {}
-            if a.get("kind") == "external":
+            if key[2]:
+                # 100l: the object wears a sheet of its own, the one image
+                # standing for both halves of the game's layout
+                self._paths[key] = (key[2], "" if self.external(pc) else key[2])
+            elif a.get("kind") == "external":
                 p = _external_texture(a, key[1])
                 self._paths[key] = (p, "")
             else:
@@ -546,6 +552,8 @@ def gather(project: dict, objs: List[dict], mod_of, sheets: _Sheets):
         uvs = om.uvs
         ix = om.groups[0].indices if om.groups else array("H")
         for start, n, pc in parts:
+            if o.get("sheet"):
+                pc = dict(pc, sheet=o["sheet"])
             for tris in _islands(ix, start, start + n):
                 verts = sorted({ix[t * 3 + k] for t in tris for k in range(3)})
                 us = [uvs[v * 2] for v in verts]

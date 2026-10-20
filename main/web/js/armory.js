@@ -250,6 +250,7 @@ function armPaintBar(){
     <button class="mini" id="armUndoBtn" onclick="armUndo(false)" title="${esc(tt('armory.undo_title'))}"${ARM.undo && ARM.undo.past.length ? '' : ' disabled'}>↶</button>
     <button class="mini" id="armRedoBtn" onclick="armUndo(true)" title="${esc(tt('armory.redo_title'))}"${ARM.undo && ARM.undo.future.length ? '' : ' disabled'}>↷</button>
     <button class="mini" onclick="armFullView()" title="${esc(tt('armory.full_view_title'))}">⛶ ${tt('armory.full_view')}</button>
+    <button class="mini" onclick="armTexOpen()" title="${esc(tt('armory.textures_title'))}">🖼 ${tt('armory.textures')}</button>
     <button class="mini" onclick="armFrameAll()" title="${esc(tt('armory.frame_all_title'))}">${tt('armory.frame_all')}</button>
     <button class="mini" onclick="armSessOpen()" title="${esc(tt('armory.sess_button_title'))}">${tt('armory.sess_button')}</button>
     <button class="mini" onclick="armLibOpen()" title="${esc(tt('armory.lib_open_title'))}">${tt('armory.lib_open')}</button>
@@ -638,7 +639,8 @@ async function armLoadSkin(a, live){
       const file = armObjTexture(a, ob.index);
       if(!file){ live.objTex[ob.index] = null; continue; }
       try{
-        const img = await armImage('/api/armory/texture?path=' + enc(file));
+        await armAllow(file);
+        const img = await armImage(armSheetUrl(file));
         live.objTex[ob.index] = armTexture(img, 1);
         (live.objImg = live.objImg || {})[ob.index] = img;
       }catch(e){ live.objTex[ob.index] = null; }
@@ -646,11 +648,16 @@ async function armLoadSkin(a, live){
     armFrame(); armThumbsPaint(true);
     return;
   }
-  const skin = (live.view.skins || [])[a.skin || 0];
+  const mine = (live.view.skins || [])[a.skin || 0];
   live.tex = null; live.uScale = 0.5;
-  if(!skin || !skin.exists){ armFrame(); return; }
-  const url = rel => `/model_texture?mod=${enc(a.mod)}&rel=${enc(rel)}`;
+  // 100l: a sheet edited or swapped in the Textures tab stands in for the mod's
+  const over = a.over || {};
+  const skin = Object.assign({}, mine || {}, over.main ? {rel: over.main, exists: true} : {},
+    over.attach ? {attach: over.attach, attach_exists: true} : {});
+  if(!skin.exists){ armFrame(); return; }
+  const url = rel => (rel === over.main || rel === over.attach) ? armSheetUrl(rel) : `/model_texture?mod=${enc(a.mod)}&rel=${enc(rel)}`;
   try{
+    await armAllow(over.main); await armAllow(over.attach);
     const main = await armImage(url(skin.rel));
     const same = skin.attach && skin.attach.toLowerCase() === skin.rel.toLowerCase();
     let img = main;
@@ -888,9 +895,11 @@ function armRender(objs, w, h, cam, opts){
   const bindTex = (live, pc, ob) => {
     // a dyed object draws from its own crop of the sheet (armobj.js)
     const dyed = typeof armDyedTexture === 'function' ? armDyedTexture(ob, pc) : null;
-    const tex = dyed ? dyed.tex : live.objTex ? live.objTex[pc.group] : live.tex;
+    // 100l: an object wearing a sheet of its own (armtex.js)
+    const own = !dyed && ob.sheet && typeof armSheetTex === 'function' ? armSheetTex(ob.sheet) : null;
+    const tex = dyed ? dyed.tex : own ? own : live.objTex ? live.objTex[pc.group] : live.tex;
     gl.uniform1f(L.uHasTex, tex ? 1 : 0);
-    gl.uniform1f(L.uUScale, live.objTex ? 1.0 : (live.uScale || 0.5));
+    gl.uniform1f(L.uUScale, own || live.objTex ? 1.0 : (live.uScale || 0.5));
     gl.uniform4fv(L.uCrop, dyed ? dyed.crop : [0, 0, 1, 1]);
     if(tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(L.uTex, 0); }
     const nTex = dyed && dyed.nTex && (!o.plain || o.card) ? dyed.nTex : null;

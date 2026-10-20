@@ -1060,6 +1060,7 @@ function armDetailOpen(){
   ARM.detail = {id: o.id, selT: new Set(), selV: new Set()};
   ARM.xray = false;
   armPaintDetailBar();
+  if(typeof armTexPeekPaint === 'function') armTexPeekPaint();
   const b = armBounds([o]);
   if(b){
     const [lo, hi] = b;
@@ -1071,6 +1072,7 @@ function armDetailOpen(){
 function armDetailClose(){
   ARM.detail = null; ARM.xray = false;
   armPaintDetailBar(); armFrame();
+  if(typeof armTexPeekPaint === 'function') armTexPeekPaint();
 }
 function armPaintDetailBar(){
   const el = document.getElementById('armDetailBar');
@@ -1084,6 +1086,7 @@ function armPaintDetailBar(){
     <button class="mini" onclick="armDetailConnected()" title="${esc(tt('armory.select_connected_title'))}">${tt('armory.select_connected')}</button>
     <button class="mini${ARM.xray ? ' on' : ''}" onclick="armXray()" title="${esc(tt('armory.xray_title'))}">${tt('armory.xray')}</button>
     <button class="mini" onclick="armDetailClear()">${tt('armory.clear_selection')}</button>
+    <button class="mini${ARM.texPeek ? ' on' : ''}" onclick="armTexPeek()" title="${esc(tt('armory.tex_peek_title'))}">${tt('armory.tex_peek')}</button>
     <span class="count">${ttN('armory.n_tris_selected', nT)}</span>
     <button class="mini primary" onclick="armSplit()"${nT ? '' : ' disabled'}>${tt('armory.split_off')}</button>
     <button class="mini" onclick="armDetailClose()">${tt('armory.leave_detail')}</button>`;
