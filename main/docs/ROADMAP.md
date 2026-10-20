@@ -2812,6 +2812,23 @@ own, https://github.com/ProJ-Yeet/Quick-Cleanup-Blender-Addon-.
   survives a server restart (it did not before). `tests/test_armory` (+5);
   checked in the running app on the user's project (the shield put on
   Arnor's sheet, a save from outside picked up), its project put back after.
+* **100m** (2026-10-20): *UV edit* on the bar (`armuv.js`) opens a panel
+  over the viewport with the selected object's UVs over its sheet: vertex
+  or island picking (islands by shared vertices, the asset splitting its
+  vertices on every seam), Shift adds, a box on a drag over nothing, a drag
+  on the selection moves it; G, R and S with X or Y for an axis (R turns in
+  texels, so a non-square sheet turns true), click or Enter keeps, Esc or
+  the right button puts back; A all; the wheel zooms about the pointer, the
+  middle button or Alt pans; snap to texels. *Its sheet* shows the one
+  sheet the object is on, *M2 view* an entry's main and attachment side by
+  side; any loaded sheet can be shown behind and *Worn* (100l's `o.sheet`);
+  *Put back* restores the source's UVs. An edit is `pc.uv`, {asset vertex:
+  [u, v]} on the piece, copied before it changes; the viewport draws it
+  through a per-piece UV buffer (`armUvBuffer`), the animation pose takes it,
+  and `armory.object_mesh` carries it into the bake and the export. One Undo
+  step per drag or G/R/S, and Undo redraws the panel. `tests/test_armory`
+  (+1); checked in the running app on the user's shield (an island of 58 of
+  174 vertices moved and turned, both undone), its project put back after.
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 

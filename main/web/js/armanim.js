@@ -193,7 +193,9 @@ function armAnimGeo(o){
         const l = Math.hypot(q[0], q[1], q[2]) || 1;
         nrm.push(q[0]/l, q[1]/l, q[2]/l);
       }else nrm.push(0, 1, 0);
-      uv.push(U ? U[v*2] : 0, U ? U[v*2+1] : 0);
+      // 100m: UVs moved in the UV editor
+      const mv = pc.uv && pc.uv[v];
+      uv.push(mv ? mv[0] : U ? U[v*2] : 0, mv ? mv[1] : U ? U[v*2+1] : 0);
       if(geo.weights && geo.joints){
         W.push(geo.weights[v*2], geo.weights[v*2+1]);
         J.push(boneOf((geo.bones || [])[geo.joints[v*2]] || ''), boneOf((geo.bones || [])[geo.joints[v*2+1]] || ''));

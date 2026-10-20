@@ -177,6 +177,8 @@ function armUndoApply(next){
   if(typeof armPaintDetailBar === 'function') armPaintDetailBar();
   armUndoButtons();
   armFrame();
+  // the UV editor redraws the step's UVs (100m)
+  if(ARM.uvEd){ if(armObj(ARM.uvEd.id)){ ARM.uvEd.sel.clear(); armUvBuild(); armUvPanel(); } else armUvClose(); }
 }
 /* A project opened or started afresh starts its own history. */
 function armUndoReset(){ ARM.undo = {past: [], future: [], last: null}; armUndoNote(); }
@@ -235,6 +237,7 @@ async function renderArmory(){
   armPaintFoot();
   if(typeof armAnimPaint === 'function') armAnimPaint();
   armFrame();
+  if(ARM.uvEd && armObj(ARM.uvEd.id)){ armUvBuild(); armUvPanel(); } else ARM.uvEd = null;
 }
 
 function armPaintBar(){
@@ -251,6 +254,7 @@ function armPaintBar(){
     <button class="mini" id="armRedoBtn" onclick="armUndo(true)" title="${esc(tt('armory.redo_title'))}"${ARM.undo && ARM.undo.future.length ? '' : ' disabled'}>↷</button>
     <button class="mini" onclick="armFullView()" title="${esc(tt('armory.full_view_title'))}">⛶ ${tt('armory.full_view')}</button>
     <button class="mini" onclick="armTexOpen()" title="${esc(tt('armory.textures_title'))}">🖼 ${tt('armory.textures')}</button>
+    <button class="mini" onclick="armUvOpen()" title="${esc(tt('armory.uv_edit_title'))}">${tt('armory.uv_edit')}</button>
     <button class="mini" onclick="armFrameAll()" title="${esc(tt('armory.frame_all_title'))}">${tt('armory.frame_all')}</button>
     <button class="mini" onclick="armSessOpen()" title="${esc(tt('armory.sess_button_title'))}">${tt('armory.sess_button')}</button>
     <button class="mini" onclick="armLibOpen()" title="${esc(tt('armory.lib_open_title'))}">${tt('armory.lib_open')}</button>
@@ -949,7 +953,7 @@ function armRender(objs, w, h, cam, opts){
       gl.enableVertexAttribArray(L.aPos); gl.vertexAttribPointer(L.aPos, 3, gl.FLOAT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.nrm);
       gl.enableVertexAttribArray(L.aNormal); gl.vertexAttribPointer(L.aNormal, 3, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.uv);
+      gl.bindBuffer(gl.ARRAY_BUFFER, pc.uv && typeof armUvBuffer === 'function' ? armUvBuffer(live, pc) : live.buf.uv);
       gl.enableVertexAttribArray(L.aUv); gl.vertexAttribPointer(L.aUv, 2, gl.FLOAT, false, 0, 0);
       if(pc.tris){
         const sub = armPieceBuffer(live, pc);

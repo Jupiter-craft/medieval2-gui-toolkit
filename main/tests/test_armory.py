@@ -177,6 +177,12 @@ if horse is not None:
     half = dict(whole, src=[{"asset": key, "group": 1, "tris": list(range(0, g.triangles, 2))}])
     check("a split piece holds only its triangles",
           armory.object_mesh(half, assets, None).triangles == len(range(0, g.triangles, 2)))
+    # 100m: UVs moved in the UV editor ride on the piece, by asset vertex
+    first_v = sorted(set(g.indices))[0]
+    moved_uv = dict(whole, src=[{"asset": key, "group": 1, "uv": {str(first_v): [0.25, 0.75]}}])
+    mu = armory.object_mesh(moved_uv, assets, None)
+    check("a moved UV reaches the object as the export reads it, the rest as they were",
+          (mu.uvs[0], mu.uvs[1]) == (0.25, 0.75) and list(mu.uvs[2:]) == list(om.uvs[2:]))
     xf = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 2, 0, 1]
     up = dict(whole, src=[{"asset": key, "group": 1, "xf": xf}])
     cu = armory.object_mesh(up, assets, None).bounds()

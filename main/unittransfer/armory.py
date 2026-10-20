@@ -1198,13 +1198,17 @@ def object_mesh(obj: dict, assets: Dict[str, dict], mod_of) -> mesh.MeshFile:
         remap = {old: new + len(pts) for new, old in enumerate(used)}
         xf = piece.get("xf")
         skinned = bool(m.weights) and len(m.bone_ids) == m.vertices * 4
+        # 100m: UVs moved in the UV editor, by the asset's vertex
+        moved = piece.get("uv") or {}
         for v in used:
             pts.append(_xf((m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]), xf))
             n = (m.normals[v * 3], m.normals[v * 3 + 1], m.normals[v * 3 + 2]) if m.normals else (0.0, 1.0, 0.0)
             if xf:
                 n = _xf(n, list(xf[:12]) + [0, 0, 0, 1])
             nrms.append(n)
-            out.uvs.extend((m.uvs[v * 2], m.uvs[v * 2 + 1]) if m.uvs else (0.0, 0.0))
+            mv = moved.get(str(v)) if moved else None
+            out.uvs.extend((float(mv[0]), float(mv[1])) if mv else
+                           (m.uvs[v * 2], m.uvs[v * 2 + 1]) if m.uvs else (0.0, 0.0))
             if skinned:
                 b = m.bone_ids[v * 4:v * 4 + 4]
                 pair = []
