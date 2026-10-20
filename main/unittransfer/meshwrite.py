@@ -522,16 +522,16 @@ def write_mesh(m: MeshFile, path=None) -> bytes:
     if n > 0xFFFF + 1:
         raise MeshError(_i18n.msg("eng.meshwrite.n_vertices_a_mesh_indexes_at", "{n:,} vertices: a .mesh indexes at most 65,536", n=n))
     if len(m.positions) != n * 3:
-        raise MeshError("position stream must contain three values per vertex")
+        raise MeshError(_i18n.msg("eng.meshwrite.position_stream_three", "position stream must contain three values per vertex"))
     for name, stride in (("normals", 3), ("uvs", 2), ("weights", 2), ("bone_ids", 4)):
         values = getattr(m, name)
         if values and len(values) != n * stride:
-            raise MeshError(f"{name} stream must contain {stride} values per vertex")
+            raise MeshError(_i18n.msg("eng.meshwrite.stream_values_per_vertex", "{name} stream must contain {stride} values per vertex", name=name, stride=stride))
     if m.bone_links and len(m.bone_links) != len(m.bones):
-        raise MeshError("bone links must contain one entry per bone")
+        raise MeshError(_i18n.msg("eng.meshwrite.bone_links_per_bone", "bone links must contain one entry per bone"))
     for g in m.groups:
         if len(g.indices) % 3:
-            raise MeshError(f"group {g.name}/{g.texture_group} has incomplete triangles")
+            raise MeshError(_i18n.msg("eng.meshwrite.group_incomplete_triangles", "group {name}/{texture_group} has incomplete triangles", name=g.name, texture_group=g.texture_group))
         if g.indices and max(g.indices) >= n:
             raise MeshError(_i18n.msg("eng.meshwrite.group_indexes_past_the_vertex_pool", "group {name}/{texture_group} indexes past the vertex pool", name=g.name, texture_group=g.texture_group))
     lay = m.layout or MeshLayout()
