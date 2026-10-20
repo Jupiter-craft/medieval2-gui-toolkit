@@ -10866,6 +10866,12 @@
  "core.card_borrowed": "prestada",
  "core.card_borrowed_title": "{fac} no tiene carta propia para esta unidad en su carpeta; esta es la carta a la que recurre",
  "core.no_borrowed_cards": "Cada facción tiene su propia carta para cada unidad mostrada.",
+ "armory.multi_mixed": "mixto",
+ "armory.multi_mesh_title": "Cada objeto seleccionado toma este nombre de malla, numerado _01, _02 y así sucesivamente para que no coincidan dos",
+ "armory.multi_weights_done": {
+   "one": "Pesos transferidos para {count} objeto",
+   "other": "Pesos transferidos para {count} objetos"
+ },
  "armory.rig_bones": "Enlazar a huesos",
  "armory.rig_bones_title": "Poner cada vértice de los objetos seleccionados (o de este) sobre el hueso elegido, o sobre dos, tomando el primero la proporción fijada; sus pesos anteriores se sustituyen, Deshacer los recupera",
  "armory.rig_first": "El hueso al que enlazar",

@@ -10392,6 +10392,12 @@
  "core.card_borrowed": "geliehen",
  "core.card_borrowed_title": "{fac} hat in seinem Ordner keine eigene Karte für diese Einheit; das ist die Karte, auf die es zurückfällt",
  "core.no_borrowed_cards": "Jede Fraktion hat für jede gezeigte Einheit ihre eigene Karte.",
+ "armory.multi_mixed": "gemischt",
+ "armory.multi_mesh_title": "Jedes ausgewählte Objekt erhält diesen Mesh-Namen, nummeriert _01, _02 und so weiter, damit keine zwei gleich heißen",
+ "armory.multi_weights_done": {
+   "one": "Knochengewichte für {count} Objekt übertragen",
+   "other": "Knochengewichte für {count} Objekte übertragen"
+ },
  "armory.rig_bones": "An Knochen binden",
  "armory.rig_bones_title": "Jeden Vertex der ausgewählten Objekte (oder dieses einen) an den gewählten Knochen binden oder an zwei, wobei der erste den eingestellten Anteil nimmt; ihre alten Knochengewichte werden ersetzt, Rückgängig stellt sie wieder her",
  "armory.rig_first": "Der Knochen, an den gebunden wird",

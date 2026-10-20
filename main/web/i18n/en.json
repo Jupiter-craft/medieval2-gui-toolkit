@@ -550,6 +550,12 @@
 "core.card_borrowed": "borrowed",
 "core.card_borrowed_title": "{fac} has no card of its own for this unit in its folder; this is the card it falls back to",
 "core.no_borrowed_cards": "Every faction has its own card for every unit shown.",
+"armory.multi_mixed": "mixed",
+"armory.multi_mesh_title": "Every selected object takes this mesh name, numbered _01, _02 and on so no two clash",
+"armory.multi_weights_done": {
+  "one": "Weights transferred for {count} object",
+  "other": "Weights transferred for {count} objects"
+},
 "armory.rig_bones": "Rig to bones",
 "armory.rig_bones_title": "Put every vertex of the selected objects (or this one) on the bone chosen, or on two, the first taking the share set; their old weights are replaced, Undo puts them back",
 "armory.rig_first": "The bone to rig to",

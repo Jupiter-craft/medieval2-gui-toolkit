@@ -85,15 +85,21 @@ function armPaintObjects(){
       <button class="mini" onclick="armNewCollection()" title="${esc(tt('armory.new_collection_title'))}">${tt('armory.new_collection')}</button>
     </div>
     <div class="armtools">
-      <button class="mini" onclick="armDuplicate()"${sel.length ? '' : ' disabled'}>${tt('armory.duplicate_object')}</button>
       <button class="mini" onclick="armMerge()"${sel.length > 1 ? '' : ' disabled'} title="${esc(tt('armory.merge_title'))}">${tt('armory.merge')}</button>
-      <button class="mini" onclick="armDetailOpen()"${sel.length === 1 ? '' : ' disabled'} title="${esc(tt('armory.detail_title'))}">${tt('armory.detail')}</button>
     </div>
     ${p.objects.length ? '' : `<div class="empty armempty">${tt('armory.no_objects_yet')}</div>`}
     ${[...groups].map(([name, objs]) => armFoldHtml('g:' + name, name, objs, null)).join('')}
     ${p.collections.map(c => armFoldHtml('c:' + c.id, c.name, p.objects.filter(o => o.coll === c.id), c)).join('')}
-    <div id="armProps">${sel.length === 1 ? armPropsHtml(sel[0]) : sel.length ? `<div class="count armnote">${ttN('armory.n_selected', sel.length)}</div>` : ''}</div>
+    <div id="armProps">${sel.length === 1 ? armPropsHtml(sel[0]) : sel.length ? armMultiHtml(sel) : ''}</div>
     ${p.objects.length && typeof armNormalsHtml === 'function' ? `<div class="armnorms">${armNormalsHtml()}</div>` : ''}`; });
+  const tools = document.getElementById('armSelTools');
+  if(tools) tools.innerHTML = armSelToolsHtml();
+}
+// 100f: Duplicate and Detail sit beside the sliders, under Statistics
+function armSelToolsHtml(){
+  const n = armSelected().length;
+  return `<button class="mini" onclick="armDuplicate()"${n ? '' : ' disabled'}>${tt('armory.duplicate_object')}</button>
+    <button class="mini" onclick="armDetailOpen()"${n === 1 ? '' : ' disabled'} title="${esc(tt('armory.detail_title'))}">${tt('armory.detail')}</button>`;
 }
 
 function armFoldHtml(key, name, objs, coll){
@@ -414,6 +420,10 @@ const ARM_BONES = ['bone_head', 'bone_torso', 'bone_abs', 'bone_pelvis',
   'bone_lhand', 'bone_lelbow', 'bone_lupperarm', 'bone_lclavical',
   'bone_rthigh', 'bone_rlowerleg', 'bone_rfoot', 'bone_lthigh', 'bone_llowerleg', 'bone_lfoot',
   'bone_jaw', 'bone_eyebrow'];
+const armRigRowsHtml = id => `<div class="armpropsrow"><select id="armRigA" title="${esc(tt('armory.rig_first'))}">${ARM_BONES.map(b => `<option>${b}</option>`).join('')}</select>
+      <select id="armRigB" title="${esc(tt('armory.rig_second_title'))}"><option value="">${tt('armory.rig_second')}</option>${ARM_BONES.map(b => `<option>${b}</option>`).join('')}</select></div>
+    <div class="armpropsrow"><label class="armrange" title="${esc(tt('armory.rig_share_title'))}">${tt('armory.rig_share')}<input type="range" id="armRigShare" min="50" max="100" value="100"></label>
+      <button class="mini" onclick="armRigBones(${id})" title="${esc(tt('armory.rig_bones_title'))}">${tt('armory.rig_bones')}</button></div>`;
 async function armRigBones(id){
   const ids = ARM.sel.size ? [...ARM.sel] : [id];
   const val = k => (document.getElementById(k) || {}).value || '';
@@ -488,12 +498,82 @@ function armPropsHtml(o){
     <div class="armpropsrow"><select id="armWMode">${['face', 'vertex', 'edge'].map(m => `<option value="${m}">${esc(armWModeLabel(m))}</option>`).join('')}</select>
       <button class="mini" id="armWGo" onclick="armTransferWeights(${o.id})" title="${esc(tt('armory.transfer_weights_title'))}">${tt('armory.transfer_weights')}</button>
       ${o.weights ? `<button class="mini" onclick="armClearWeights(${o.id})">${tt('armory.clear_weights')}</button>` : ''}</div>
-    <div class="armpropsrow"><select id="armRigA" title="${esc(tt('armory.rig_first'))}">${ARM_BONES.map(b => `<option>${b}</option>`).join('')}</select>
-      <select id="armRigB" title="${esc(tt('armory.rig_second_title'))}"><option value="">${tt('armory.rig_second')}</option>${ARM_BONES.map(b => `<option>${b}</option>`).join('')}</select></div>
-    <div class="armpropsrow"><label class="armrange" title="${esc(tt('armory.rig_share_title'))}">${tt('armory.rig_share')}<input type="range" id="armRigShare" min="50" max="100" value="100"></label>
-      <button class="mini" onclick="armRigBones(${o.id})" title="${esc(tt('armory.rig_bones_title'))}">${tt('armory.rig_bones')}</button></div>
+    ${armRigRowsHtml(o.id)}
     <div class="count armnote">${tt('armory.object_facts', {tris: armObjTris(o).toLocaleString(), pieces: (o.src || []).length})}</div>
   </div>`;
+}
+
+/* --- several objects at once (100e) ----------------------------------------- */
+
+function armMultiHtml(sel){
+  const presets = ARM_PRESETS.map(x => `<option value="g:${x.id}">${esc(armPresetLabel(x.id))}</option>`).join('')
+    + (ARM.userPresets || []).map((x, i) => `<option value="u:${i}">${esc(x.name)}</option>`).join('');
+  const same = k => sel.every(o => o[k] === sel[0][k]) ? sel[0][k] : '';
+  return `<div class="armprops">
+    <div class="count armnote">${ttN('armory.n_selected', sel.length)}</div>
+    <div class="armpropsrow"><label>${tt('armory.group_type')}<input value="${esc(same('name'))}" placeholder="${esc(tt('armory.multi_mixed'))}" onchange="armMultiName('name', this.value)"></label>
+      <label title="${esc(tt('armory.multi_mesh_title'))}">${tt('armory.mesh_name')}<input value="${esc(same('mesh'))}" placeholder="${esc(tt('armory.multi_mixed'))}" onchange="armMultiName('mesh', this.value)"></label></div>
+    <div class="armsect">${tt('armory.recolour')}</div>
+    <div class="armpropsrow"><select onchange="armMultiDye('preset', this.value)"><option value="">${tt('armory.preset')}</option>${presets}</select>
+      <input type="color" value="#962020" onchange="armMultiDye('color', this.value)" title="${esc(tt('armory.dye_colour'))}">
+      <button class="mini" onclick="armMultiDye('clear')">${tt('armory.clear_dye')}</button></div>
+    <div class="armsect">${tt('armory.weights')}</div>
+    <div class="armpropsrow"><select id="armWMode">${['face', 'vertex', 'edge'].map(m => `<option value="${m}">${esc(armWModeLabel(m))}</option>`).join('')}</select>
+      <button class="mini" id="armWGo" onclick="armMultiTransfer()" title="${esc(tt('armory.transfer_weights_title'))}">${tt('armory.transfer_weights')}</button></div>
+    ${armRigRowsHtml(sel[0].id)}
+  </div>`;
+}
+// One name for all: the group type as given, the mesh name numbered where
+// two would clash (helmet_01, helmet_02), as the mods number their meshes
+function armMultiName(part, v){
+  v = (v || '').trim();
+  const sel = armSelected();
+  if(!v || !sel.length) return armPaintObjects();
+  if(part === 'mesh' && sel.length > 1){
+    const base = v.replace(/\.\d{3}$/, '').replace(/__opt$/i, '').replace(/__+/g, '_').replace(/_?\d+$/, '') || v;
+    const taken = new Set(armProj().objects.filter(o => !ARM.sel.has(o.id)).map(o => o.mesh));
+    let n = 1;
+    for(const o of sel){
+      let name;
+      do{ name = `${base}_${String(n++).padStart(2, '0')}`; }while(taken.has(name));
+      o.mesh = name;
+    }
+  }else sel.forEach(o => o[part] = v);
+  armRepaint();
+}
+function armMultiDye(kind, v){
+  const sel = armSelected();
+  for(const o of sel){
+    if(kind === 'clear'){ o.dye = null; armDyeChanged(o); continue; }
+    if(kind === 'preset'){
+      const pr = !v ? null : v.startsWith('g:') ? ARM_PRESETS.find(x => x.id === v.slice(2)) : (ARM.userPresets || [])[+v.slice(2)];
+      if(!pr) return;
+      const d = armDye(o);
+      Object.assign(d, {color: pr.color.slice(), blend: pr.blend || 'keepshade', metal: !!pr.metal,
+                        desat: pr.desat || 0, strength: pr.strength == null ? 1 : pr.strength});
+      if(pr.channels) d.channels = JSON.parse(JSON.stringify(pr.channels));
+    }else{
+      const d = armDye(o); d.color = armHexRgb(v); if(!d.strength) d.strength = 1;
+    }
+    armDyeChanged(o);
+  }
+  armRepaint();
+}
+// Each in turn, from the model as it stands, then one save: one Undo step
+async function armMultiTransfer(){
+  const mode = (document.getElementById('armWMode') || {}).value || 'face';
+  const btn = document.getElementById('armWGo');
+  if(btn){ btn.disabled = true; btn.textContent = tt('armory.working'); }
+  let done = 0;
+  for(const o of armSelected()){
+    try{
+      const r = await api.post('/api/armory/transfer_weights', {project: armProj(), id: o.id, mode});
+      if(r.error) throw new Error(r.error);
+      o.weights = r; done++;
+    }catch(e){ toast(`${o.mesh}: ${errText(e)}`, 6000); }
+  }
+  toast(ttN('armory.multi_weights_done', done));
+  armRepaint();
 }
 
 /* --- recolour ------------------------------------------------------------------ */

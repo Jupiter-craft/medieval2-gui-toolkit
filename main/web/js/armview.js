@@ -329,8 +329,8 @@ function armPaintSliders(){
   const o = sel[0];
   const row = (kind, label, vals, step) => `<div class="armslrow"><b>${label}</b>${[0, 1, 2].map(i =>
     `<label>${'XYZ'[i]}<input type="number" step="${step}" value="${o ? armRound(vals[i], 1000) : ''}"${o ? '' : ' disabled'}
-      onchange="armSlider('${kind}', ${i}, this.value)"></label>`).join('')}</div>`;
-  el.innerHTML = `<div class="armsliders">
+      onchange="armSlider('${kind}', ${i}, this.value)" onwheel="armSliderWheel(event, '${kind}', ${i}, ${step})"></label>`).join('')}</div>`;
+  el.innerHTML = `<div class="armslwrap"><div class="armsliders">
       ${row('t', tt('armory.move'), o ? o.t : [], 0.01)}
       ${row('r', tt('armory.rotate'), o ? o.r : [], 1)}
       ${row('s', tt('armory.scale'), o ? o.s : [], 0.01)}
@@ -338,9 +338,12 @@ function armPaintSliders(){
         onchange="ARM.uniform=this.checked"> ${tt('armory.uniform_scale')}</label>
         <span class="count">${o ? ttN('armory.n_selected', sel.length) : tt('armory.nothing_selected')}</span></div>
     </div>
+    <div class="armslside">
+      <label class="armcheck"><input type="checkbox"${ARM.stats ? ' checked' : ''} onchange="armToggle('stats')"> ${tt('armory.statistics')}</label>
+      <span id="armSelTools">${typeof armSelToolsHtml === 'function' ? armSelToolsHtml() : ''}</span>
+    </div></div>
     <div class="armtoggles">
       <label class="armcheck"><input type="checkbox"${ARM.faceOrient ? ' checked' : ''} onchange="armToggle('faceOrient')"> ${tt('armory.face_orientation')}</label>
-      <label class="armcheck"><input type="checkbox"${ARM.stats ? ' checked' : ''} onchange="armToggle('stats')"> ${tt('armory.statistics')}</label>
       <label class="armcheck" title="${esc(tt('armory.head_as_one_title'))}"><input type="checkbox"${ARM.headLink ? ' checked' : ''} onchange="armToggle('headLink')"> ${tt('armory.head_as_one')}</label>
       <button class="mini${ARM.cam.ortho ? ' on' : ''}" onclick="armToggleOrtho()">${tt('armory.ortho')}</button>
       <button class="mini" onclick="armShortcutsOpen()">${tt('armory.shortcuts')}</button>
@@ -374,7 +377,24 @@ function armSlider(kind, axis, value){
     if(objs.length === 1) o.s = o.s.map((x, i) => x * f[i]);
     else armGroupApply(snap, c, 'scale', f);
   }
-  armSave(); armPaintSliders(); armPaintBar(); armFrame();
+  if(!ARM.wheeling) armSave();
+  armPaintSliders(); armPaintBar(); armFrame();
+}
+
+/* 100g: the wheel over a number steps it, Shift a tenth of a step, Ctrl ten;
+   the run of turns is saved once when it stops, so it is one Undo step */
+function armSliderWheel(ev, kind, axis, step){
+  if(!armSelected().length) return;
+  ev.preventDefault();
+  const k = ev.shiftKey ? 0.1 : ev.ctrlKey ? 10 : 1;
+  const cur = +ev.target.value || 0;
+  const next = Math.round((cur + (ev.deltaY < 0 ? 1 : -1) * step * k) * 10000) / 10000;
+  if(kind === 's' && next <= 0) return;
+  ARM.wheeling = true;
+  armSlider(kind, axis, next);
+  ARM.wheeling = false;
+  clearTimeout(ARM.wheelTimer);
+  ARM.wheelTimer = setTimeout(armSave, 400);
 }
 
 /* --- the statistics overlay ------------------------------------------------------ */

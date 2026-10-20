@@ -2752,6 +2752,19 @@ own, https://github.com/ProJ-Yeet/Quick-Cleanup-Blender-Addon-.
   the run); a folded group's rows are not drawn, so not in a run. The
   viewport keeps Blender's Shift-adds. `armSelectRow` in `armobj.js`;
   checked in the running app.
+* **100e** (2026-10-20): with more than one object selected the panel
+  offers the group type and the mesh name for all (a mesh name numbered
+  `_01`, `_02` past any name another object holds), a dye preset, colour or
+  clear for all, Transfer weights on each in turn with one save, and Rig to
+  bones (`armMultiHtml`). Each is one Undo step.
+* **100f** (2026-10-20): Duplicate and Detail left the head of the object
+  list for a column beside the X, Y, Z sliders, under Statistics, which
+  moved there from the toggles row (`armSelToolsHtml`, kept current by the
+  object panel's repaint). Merge stays on the list.
+* **100g** (2026-10-20): the wheel over any of the nine numbers steps it by
+  its step, Shift a tenth, Ctrl ten; the run is saved once 400 ms after it
+  stops, so one Undo step (`armSliderWheel`). All three checked in the
+  running app on the user's project, its objects put back after.
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 
