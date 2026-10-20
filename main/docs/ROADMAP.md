@@ -2776,6 +2776,24 @@ own, https://github.com/ProJ-Yeet/Quick-Cleanup-Blender-Addon-.
   left bring every panel back as it was (`armFullView`, body class
   `armfull`). Space is now named `space` in a shortcut. Checked in the
   running app.
+* **100j** (2026-10-20): the import dialog's mod lists take four filters,
+  faction, category, class and culture, out of the catalogue's units (which
+  now carry `factions` and `cultures`); an entry passes when a unit that
+  passes uses it. The gallery is the default, under a new setting
+  (`armory_import_view2`) so the List saved while List was the default no
+  longer holds it. Every tile, chip and entry row has a 🔍 that opens the
+  Models Editor's viewer over the dialog (orbit, zoom, skins, variations,
+  animations); closing it repaints the dialog live (`v3Back.after`, new).
+  On Divide and Conquer, Russia leaves 62 of 300 units. Checked in the
+  running app.
+* **100k** (2026-10-20): an `.obj` already brought its `.mtl` sheets and a
+  `.glb` its embedded ones; what came in bare was a battle `.mesh`, which
+  names no texture. It now takes the sheets the Models Editor's folder view
+  finds (its `_bmdb.txt`, else the main and attachment sheets beside it),
+  and where that finds none, any image beside it by the same naming (main,
+  att), each object the sheet it is drawn on (`_mesh_sheets`). An `.mtl`
+  file name may hold spaces. A 🎨 on a disk import's head picks a main and
+  an attachment sheet for all its objects at once. `tests/test_armory` (+2).
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 

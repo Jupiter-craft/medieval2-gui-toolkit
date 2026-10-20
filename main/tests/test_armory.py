@@ -197,6 +197,19 @@ if horse is not None:
     agree = sum(a.lower() == b.lower() for a, b in zip(first, was)) / len(was)
     check(f"and the head's strongest bone comes back as it was on {agree:.0%} of them", agree > 0.7)
 
+    # 100k: a battle .mesh from disk names no texture; its sheets come out of
+    # its folder as the Models Editor's folder view finds them
+    from PIL import Image as _Img
+    ext = tmp / "ext100k"
+    (ext / "textures").mkdir(parents=True, exist_ok=True)
+    shutil.copy(horse_path, ext / "horse.mesh")
+    _Img.new("RGB", (8, 8), (200, 10, 10)).save(ext / "textures" / "horse_main.png")
+    _Img.new("RGB", (8, 8), (10, 10, 200)).save(ext / "textures" / "horse_att.png")
+    _id, em, etex = armory.read_external(str(ext / "horse.mesh"))
+    want = {i: ("horse_att.png" if g.sheets == "attach" else "horse_main.png") for i, g in enumerate(em.groups)}
+    check(f"a .mesh from disk takes the sheets beside it, main or attachment by object ({len(etex)})",
+          all(Path(etex[i]).name == want[i] for i in want) and armory.texture_allowed(etex[0]))
+
     # 100b: rig a whole object to chosen bones
     rig = armory.rig_to_bones(project, [head_i + 1], ["bone_head"], 1.0, None)[str(head_i + 1)]
     project["objects"][head_i]["weights"] = rig
@@ -906,6 +919,10 @@ if mods:
           cat["entries"] and cat["units"])
     unit = next(u for u in cat["units"] if not u["models"][0]["missing"])
     check("a unit's soldier is listed first", unit["models"][0]["role"] == "soldier")
+    cul = sum(1 for u in cat["units"] if u["cultures"])
+    check(f"each unit carries its factions and their cultures, for the filters (100j; {cul} with a culture)",
+          all(u["factions"] is not None for u in cat["units"]) and cul > 0
+          and all(set(u["cultures"]) <= set(mod.faction_cultures.values()) for u in cat["units"]))
     asset = armory.asset_view(mod, unit["models"][0]["name"])
     check(f"its soldier as an asset: {len(asset['objects'])} objects, {asset['triangles']} triangles",
           asset["objects"] and sum(o["triangles"] for o in asset["objects"]) == asset["triangles"])

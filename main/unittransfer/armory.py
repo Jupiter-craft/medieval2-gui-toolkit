@@ -145,6 +145,11 @@ def catalogue(mod) -> dict:
                         "mesh": (e.lods[0][0] if e.lods else "").replace("\\", "/"),
                         "skeletons": e.skeletons()[:2]})
     known = {e["name"].lower() for e in entries}
+    # 100j: the import dialog filters by faction and culture
+    try:
+        cultures = mod.faction_cultures or {}
+    except Exception:
+        cultures = {}
     units = []
     for u in mod.edu.units:
         if not u.soldier_model:
@@ -158,7 +163,9 @@ def catalogue(mod) -> dict:
             row["missing"] = row["name"] not in known
         units.append({"type": u.type, "category": (u.category or "").lower(),
                       "class": (getattr(u, "class_type", "") or "").lower(),
-                      "mount": u.mount or "", "models": models})
+                      "mount": u.mount or "", "models": models,
+                      "factions": list(u.ownership),
+                      "cultures": sorted({cultures[f] for f in u.ownership if cultures.get(f)})})
     return {"mod": mod.name, "entries": entries, "units": units}
 
 
@@ -338,7 +345,9 @@ def _read_obj(path: Path) -> mesh.MeshFile:
                     if bits[0] == "newmtl":
                         name = " ".join(bits[1:])
                     elif bits[0].lower() == "map_kd" and name:
-                        materials[name] = bits[-1]
+                        # a file name may hold spaces; options (-s 1 1 1) come first
+                        rest = line.strip().split(None, 1)[1] if len(bits) > 1 else ""
+                        materials[name] = rest if rest and not rest.startswith("-") else bits[-1]
         elif tag == "f":
             if cur is None:
                 start(path.stem)
@@ -671,8 +680,15 @@ def read_external(path_text: str) -> Tuple[str, mesh.MeshFile, dict]:
         for name, raw in packed.items():
             (unpacked / Path(name).name).write_bytes(raw)
     textures = {}
+    sheets = _mesh_sheets(path) if suffix == ".mesh" else None
     for i, g in enumerate(m.groups):
         found = None
+        if sheets:
+            # a battle .mesh names no texture: the export's own _bmdb.txt, or
+            # the main and attachment sheets beside it, as the Models Editor's
+            # folder view finds them (100k)
+            pick = sheets[1] if g.sheets == "attach" and sheets[1] else sheets[0]
+            found = pick
         if g.texture and packed and (unpacked / Path(g.texture).name).is_file():
             found = unpacked / Path(g.texture).name
         if found is None:
@@ -681,6 +697,34 @@ def read_external(path_text: str) -> Tuple[str, mesh.MeshFile, dict]:
     with _EXT_LOCK:
         _EXTERNAL[key] = (stamp, m, textures)
     return external_id(path), m, textures
+
+
+def _mesh_sheets(path: Path) -> Optional[Tuple[Optional[Path], Optional[Path]]]:
+    """``(main, attachment)`` for a loose ``.mesh``, out of its folder."""
+    try:
+        from . import meshfolder
+        fs = meshfolder.open_folder(str(path.parent))
+        skins = fs.view(path.name).get("skins") or []
+    except Exception:
+        return None
+    if not skins:
+        # the folder view knows the game's sheet types; a .png or .jpg beside
+        # the model goes by the same names (main, att)
+        from . import loosemesh
+        imgs = sorted((p for sub in (path.parent / "textures", path.parent) if sub.is_dir()
+                       for p in sub.iterdir() if p.suffix.lower() in IMAGE_SUFFIXES
+                       and not re.search(r"(^|[_\-])(n|nrm|norm|normal)([_\-.]|$)", p.stem, re.I)),
+                      key=lambda p: p.name.lower())
+        att = [p for p in imgs if loosemesh._ATTACH.search(p.stem)]
+        main = [p for p in imgs if p not in att]
+        main.sort(key=lambda p: (not meshfolder._MAIN.search(p.stem), p.name.lower()))
+        if not main:
+            return None
+        return main[0], (att[0] if att else None)
+    first = skins[0]
+    main = fs.root / first["rel"] if first.get("rel") else None
+    att = fs.root / first["attach"] if first.get("attach") else None
+    return (main if main and main.is_file() else None, att if att and att.is_file() else None)
 
 
 def external_by_id(ext: str) -> Optional[Tuple[mesh.MeshFile, dict]]:

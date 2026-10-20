@@ -368,6 +368,7 @@ function armAssetHtml(a){
       ${isBase ? `<span class="pill">${tt('armory.base')}</span>` : ''}
       <span class="count">${v ? ttN('armory.asset_sub', v.objects.length, {where: sub}) : sub}</span>
       ${v ? `<span class="pill${used ? '' : ' warn'}" title="${esc(tt('armory.asset_used_title'))}">${tt('armory.asset_used', {used, n: v.objects.length})}</span>` : ''}
+      ${a.kind === 'external' ? `<button class="mini" onclick="event.stopPropagation();armPickSheetsAll('${esc(key)}')" title="${esc(tt('armory.sheets_all_title'))}">🎨</button>` : ''}
       <button class="mini" onclick="event.stopPropagation();armLibAddAsset('${esc(key)}')" title="${esc(tt('armory.lib_add_title'))}">${tt('armory.lib_add')}</button>
       <button class="mini armx" onclick="event.stopPropagation();armRemoveAsset('${esc(key)}')" title="${esc(tt('armory.remove_asset'))}">✕</button>
     </div>${body}</div>`;
@@ -573,6 +574,31 @@ function armObjTexture(a, group){
   return ob ? ob.texture_file || '' : '';
 }
 
+/* 100k: a main sheet, then an attachment sheet if wanted, for every object
+   of a file from disk at once, each object taking the one it is drawn on */
+async function armPickSheetsAll(key){
+  const a = armProj().assets.find(x => armAssetKey(x) === key);
+  const live = ARM.assets.get(key);
+  if(!a || !live || !live.view) return;
+  const pick = async title => {
+    let r;
+    try{ r = await api.post('/api/browse_file', {title, filter: 'Images|*.png;*.tga;*.dds;*.jpg;*.jpeg;*.texture;*.bmp'}); }
+    catch(e){ toast(errText(e)); return ''; }
+    if(!r || !r.path) return '';
+    const ok = await api.post('/api/armory/allow_texture', {path: r.path}).catch(() => ({}));
+    if(!ok.ok){ toast(tt('armory.not_an_image')); return ''; }
+    return r.path;
+  };
+  const main = await pick(tt('armory.sheets_all_main'));
+  if(!main) return;
+  const objs = live.view.objects;
+  const att = objs.some(o => o.sheets === 'attach') ? await pick(tt('armory.sheets_all_attach')) : '';
+  a.textures = a.textures || {};
+  for(const o of objs) a.textures[o.index] = o.sheets === 'attach' && att ? att : main;
+  armSave();
+  armLoadSkin(a, live);
+  armPaintAssets(); armFrame();
+}
 async function armPickTexture(key, group){
   const a = armProj().assets.find(x => armAssetKey(x) === key);
   if(!a) return;
@@ -1086,17 +1112,28 @@ function armImportTab(t){ state.armImp.tab = t; armImportPaint(); if(t === 'mod'
 /* 99g: the dialog's lists as a List or a Gallery, as the Model entries tab
    has them: the gallery's tiles are 95a's (gallery.js), one WebGL context and
    only the tiles on screen fetched. A click on a tile picks it. Remembered. */
-const armImpGallery = () => (state.settings || {}).armory_import_view === 'gallery';
+// 100j: the gallery is the default, under a new key so a List saved while
+// List was the default does not hold it; a choice made since is kept
+const armImpGallery = () => (state.settings || {}).armory_import_view2 !== 'list';
 function armImportView(v){
-  state.settings.armory_import_view = v;
-  api.post('/api/settings', {armory_import_view: v}).catch(() => {});
+  state.settings.armory_import_view2 = v;
+  api.post('/api/settings', {armory_import_view2: v}).catch(() => {});
   armImportPaint();
   if(state.armImp.tab === 'mod') armImportRows();
 }
 function armImpTileHtml(k, mod, name, label, on, missing){
   if(missing) return `<div class="gtile gmissing" title="${esc(tt('armory.model_missing'))}"><canvas></canvas><span class="gname">${label}</span></div>`;
   return `<div class="gtile armimptile${on ? ' picked' : ''}" data-name="${esc(name)}" data-mod="${esc(mod)}" data-k="${esc(k)}" title="${esc(name)}">
-    <canvas></canvas><span class="gname">${label}</span><span class="armimptick">✓</span></div>`;
+    <canvas></canvas><span class="gname">${label}</span><span class="armimptick">✓</span>
+    <button class="mini armimplook" onclick="event.stopPropagation();armImpLook('${esc(mod)}','${esc(name)}')" title="${esc(tt('armory.look_closer_title'))}">🔍</button></div>`;
+}
+/* 100j: a closer look before it is pulled in: the Models Editor's viewer over
+   the dialog (orbit, zoom, skins, variations, animations), the dialog back
+   live when it closes */
+async function armImpLook(mod, name){
+  const go = v3Open(mod, name);
+  if(v3Back) v3Back.after = () => { armImportPaint(); if(state.armImp.tab === 'mod') armImportRows(); };
+  await go;
 }
 function armImpTilePick(t, set, after){
   const k = t.dataset.k, on = !set.has(k);
@@ -1133,6 +1170,7 @@ function armImportBodyHtml(){
       <button class="mini${imp.by === 'entries' ? ' on' : ''}" onclick="state.armImp.by='entries';armImportRows()">${tt('armory.model_entries')}</button>
       <input id="armImpQ" placeholder="${esc(tt('armory.find'))}" value="${esc(imp.q)}" oninput="state.armImp.q=this.value;armImportRows()">
     </div>
+    <div class="armimpctl armimpfilt" id="armImpFilt">${armImpFiltHtml()}</div>
     <div class="armimprows" id="armImpRows"><div class="count">${tt('armory.reading')}</div></div>`;
 }
 
@@ -1143,8 +1181,35 @@ async function armImportCatalogue(){
     try{ ARM.catalogue[mod] = await api.get('/api/armory/catalogue?mod=' + enc(mod)); }
     catch(e){ const el = document.getElementById('armImpRows'); if(el) el.innerHTML = `<div class="w-bad">${esc(errText(e))}</div>`; return; }
   }
-  if(state.armImp.mod === mod) armImportRows();
+  if(state.armImp.mod !== mod) return;
+  const f = document.getElementById('armImpFilt');
+  if(f) f.innerHTML = armImpFiltHtml();
+  armImportRows();
 }
+
+/* 100j: faction, category, class and culture, out of the units in the
+   catalogue; an entry passes when a unit that passes uses it */
+const ARM_IMP_FILTERS = [['fac', 'factions', 'armory.filter_faction'], ['cat', 'category', 'armory.filter_category'],
+  ['cls', 'class', 'armory.filter_class'], ['cul', 'cultures', 'armory.filter_culture']];
+function armImpFiltHtml(){
+  const imp = state.armImp, cat = ARM.catalogue[imp.mod];
+  imp.filt = imp.filt || {};
+  if(!cat) return '';
+  return ARM_IMP_FILTERS.map(([k, field, label]) => {
+    const vals = new Set();
+    for(const u of cat.units) [].concat(u[field] || []).forEach(v => v && vals.add(v));
+    if(imp.filt[k] && !vals.has(imp.filt[k])) imp.filt[k] = '';
+    const name = v => k === 'fac' && typeof facLabel === 'function' ? facLabel(v) : v;
+    return `<select title="${esc(tt(label))}" onchange="state.armImp.filt.${k}=this.value;armImportRows()">
+      <option value="">${tt(label)}: ${tt('armory.filter_any')}</option>${[...vals].sort((a, b) => name(a).localeCompare(name(b))).map(v =>
+      `<option value="${esc(v)}"${imp.filt[k] === v ? ' selected' : ''}>${esc(name(v))}</option>`).join('')}</select>`;
+  }).join('') + `<button class="mini" onclick="state.armImp.filt={};document.getElementById('armImpFilt').innerHTML=armImpFiltHtml();armImportRows()">${tt('armory.filter_clear')}</button>`;
+}
+function armImpUnitOk(u){
+  const f = state.armImp.filt || {};
+  return ARM_IMP_FILTERS.every(([k, field]) => !f[k] || [].concat(u[field] || []).includes(f[k]));
+}
+function armImpFiltering(){ const f = state.armImp.filt || {}; return ARM_IMP_FILTERS.some(([k]) => f[k]); }
 
 /* Repaints the rows under the Find box only, never the box (memory: never
    repaint the box being typed in). */
@@ -1156,6 +1221,13 @@ function armImportRows(){
   document.querySelectorAll('.armimpctl .mini').forEach((b, i) => b.classList.toggle('on', (i === 0) === (imp.by === 'units')));
   const q = imp.q.trim().toLowerCase();
   const CAP = 300;
+  const filtering = armImpFiltering();
+  let usedBy = null;
+  if(filtering){
+    usedBy = new Set();
+    for(const u of cat.units) if(armImpUnitOk(u)) u.models.forEach(m => usedBy.add(m.name));
+  }
+  const lookBtn = name => `<button class="mini armimplook" onclick="event.preventDefault();event.stopPropagation();armImpLook('${esc(imp.mod)}','${esc(name)}')" title="${esc(tt('armory.look_closer_title'))}">🔍</button>`;
   let html = '', shown = 0, total = 0;
   const tiles = armImpGallery();
   const roleOf = (m) => m.role === 'soldier' ? tt('armory.role_soldier') : m.role === 'officer'
@@ -1163,6 +1235,7 @@ function armImportRows(){
   if(tiles && imp.by === 'units'){
     for(const u of cat.units){
       if(q && !u.type.toLowerCase().includes(q) && !u.models.some(m => m.name.includes(q))) continue;
+      if(filtering && !armImpUnitOk(u)) continue;
       total++;
       if(shown >= CAP) continue;
       shown++;
@@ -1175,6 +1248,7 @@ function armImportRows(){
     let row = '';
     for(const e of cat.entries){
       if(q && !e.name.toLowerCase().includes(q) && !e.mesh.toLowerCase().includes(q)) continue;
+      if(usedBy && !usedBy.has(e.name.toLowerCase())) continue;
       total++;
       if(shown >= CAP) continue;
       shown++;
@@ -1185,6 +1259,7 @@ function armImportRows(){
   }else if(imp.by === 'units'){
     for(const u of cat.units){
       if(q && !u.type.toLowerCase().includes(q) && !u.models.some(m => m.name.includes(q))) continue;
+      if(filtering && !armImpUnitOk(u)) continue;
       total++;
       if(shown >= CAP) continue;
       shown++;
@@ -1196,19 +1271,20 @@ function armImportRows(){
             ? tt('armory.role_officer', {n: m.n}) : tt('armory.role_upgrade', {n: m.n});
           return m.missing ? `<span class="armchip off" title="${esc(tt('armory.model_missing'))}">${esc(role)}: ${esc(m.name)}</span>`
             : `<label class="armchip${imp.picked.has(k) ? ' on' : ''}"><input type="checkbox"${imp.picked.has(k) ? ' checked' : ''}
-                onchange="armImportPick('${esc(k)}', this.checked, this)"> ${esc(role)}: ${esc(m.name)}</label>`;
+                onchange="armImportPick('${esc(k)}', this.checked, this)"> ${esc(role)}: ${esc(m.name)}</label>${lookBtn(m.name)}`;
         }).join('')}</span></div>`;
     }
   }else{
     for(const e of cat.entries){
       if(q && !e.name.toLowerCase().includes(q) && !e.mesh.toLowerCase().includes(q)) continue;
+      if(usedBy && !usedBy.has(e.name.toLowerCase())) continue;
       total++;
       if(shown >= CAP) continue;
       shown++;
       const k = `${imp.mod}|${e.name}|`;
       html += `<label class="armimprow"><input type="checkbox"${imp.picked.has(k) ? ' checked' : ''}
           onchange="armImportPick('${esc(k)}', this.checked)">
-        <b>${esc(e.name)}</b> <span class="count">${esc(e.mesh)} · ${esc(e.skeletons.join(', '))}</span></label>`;
+        <b>${esc(e.name)}</b> <span class="count">${esc(e.mesh)} · ${esc(e.skeletons.join(', '))}</span>${lookBtn(e.name)}</label>`;
     }
   }
   if(total > shown) html += `<div class="count">${ttN('armory.more_rows', total - shown)}</div>`;

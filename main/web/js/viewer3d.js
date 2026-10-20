@@ -469,6 +469,8 @@ function v3Close(){
     // the live preview column, taken out above, goes back where it belongs
     if(typeof edPrevAttach === 'function' && state.ed) edPrevAttach();
     if(typeof cmpPrevAttach === 'function' && !state.ed) cmpPrevAttach();
+    // a dialog that opened the viewer over itself repaints itself live (100j)
+    if(v3Back.after) v3Back.after();
   }else{
     document.getElementById('overlay').classList.remove('open');
     modal.className = 'modal'; modal.innerHTML = '';
