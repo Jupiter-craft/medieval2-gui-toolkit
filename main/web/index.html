@@ -3352,6 +3352,14 @@
   .armgrid{display:grid;grid-template-columns:minmax(240px,300px) 1fr minmax(240px,300px);gap:10px;
     height:calc(100vh - 150px);min-height:420px;margin-top:8px}
   body.topshut .armgrid{height:calc(100vh - 14px);margin-top:4px}
+  /* 100i: full view */
+  .armfullexit{display:none}
+  body.armfull .armgrid{position:fixed;inset:0;z-index:900;height:100vh;margin:0;grid-template-columns:1fr;background:var(--bg)}
+  body.armfull #armLeft,body.armfull #armRight,body.armfull #armBar,body.armfull #armFoot{display:none}
+  body.armfull .armmid{height:100vh}
+  body.armfull .armview{height:100vh;min-height:0;flex:1}
+  body.armfull .armfullexit{display:block;position:fixed;top:8px;left:8px;z-index:901;opacity:.55}
+  body.armfull .armfullexit:hover{opacity:1}
   .armleft,.armright{overflow:auto;overflow-anchor:none;background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:8px}
   /* 99d: a side folded to a strip, the viewport taking its room */
   .armgrid.lshut{grid-template-columns:34px 1fr minmax(240px,300px)}

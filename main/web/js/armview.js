@@ -30,6 +30,8 @@ const ARM_KEY_DEFAULTS = {
   faceOrient: '', stats: '', detail: 'numpad/',
   // 99i and 99j
   undo: 'ctrl+z', redo: 'ctrl+shift+z', redoAlt: 'ctrl+y', tpose: '',
+  // 100i, Blender's own key for a maximised area
+  fullView: 'ctrl+space',
 };
 const armKeyLabel = k => ({grab: tt('armory.key_grab'), rotate: tt('armory.key_rotate'), scale: tt('armory.key_scale'),
   hide: tt('armory.key_hide'), unhideAll: tt('armory.key_unhide_all'), selectAll: tt('armory.key_select_all'),
@@ -38,7 +40,8 @@ const armKeyLabel = k => ({grab: tt('armory.key_grab'), rotate: tt('armory.key_r
   viewRight: tt('armory.key_view_right'), viewLeft: tt('armory.key_view_left'), viewTop: tt('armory.key_view_top'),
   viewBottom: tt('armory.key_view_bottom'), ortho: tt('armory.key_ortho'), selectConnected: tt('armory.select_connected'),
   faceOrient: tt('armory.face_orientation'), stats: tt('armory.statistics'), detail: tt('armory.detail'),
-  undo: tt('armory.key_undo'), redo: tt('armory.key_redo'), redoAlt: tt('armory.key_redo_alt'), tpose: tt('armory.tpose')})[k] || k;
+  undo: tt('armory.key_undo'), redo: tt('armory.key_redo'), redoAlt: tt('armory.key_redo_alt'), tpose: tt('armory.tpose'),
+  fullView: tt('armory.full_view')})[k] || k;
 
 function armKeys(){ return Object.assign({}, ARM_KEY_DEFAULTS, ARM.keys || {}); }
 async function armLoadKeys(){
@@ -52,7 +55,7 @@ function armKeyName(e){
   if(e.code && e.code.startsWith('Numpad')){
     const rest = e.code.slice(6);
     k = 'numpad' + ({Decimal: '.', Divide: '/', Multiply: '*', Add: '+', Subtract: '-', Enter: 'enter'}[rest] || rest.toLowerCase());
-  }else k = (e.key || '').toLowerCase();
+  }else k = e.key === ' ' ? 'space' : (e.key || '').toLowerCase();
   if(['control', 'shift', 'alt', 'meta'].includes(k)) return '';
   // Shift is written for a named key, and for a letter with Ctrl or Alt
   // (Ctrl+Shift+Z is not Ctrl+Z); a lone Shift+letter stays the letter
@@ -72,9 +75,9 @@ function armWireKeys(){
     const t = e.target, tag = t && t.tagName;
     if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
     if(overlay.classList.contains('open')) return;
-    // undo and redo work anywhere in the workbench, the rest over the view
+    // undo, redo and full view work anywhere in the workbench, the rest over the view
     const keys = armKeys(), name = armKeyName(e);
-    const anywhere = name && ['undo', 'redo', 'redoAlt'].some(k => keys[k] === name);
+    const anywhere = name && ['undo', 'redo', 'redoAlt', 'fullView'].some(k => keys[k] === name);
     if(!ARM.overView && !anywhere) return;
     armKey(e);
   });
@@ -121,7 +124,22 @@ function armKey(e){
     case 'undo': armUndo(false); break;
     case 'redo': case 'redoAlt': armUndo(true); break;
     case 'tpose': armTpose(); break;
+    case 'fullView': armFullView(); break;
   }
+}
+/* 100i: the viewport alone in the window, every panel and bar hidden; the
+   same key, the corner button or Esc brings them back as they were */
+function armFullView(on){
+  const b = document.body.classList;
+  on = on == null ? !b.contains('armfull') : on;
+  b.toggle('armfull', on);
+  if(on && !ARM.fullEsc){
+    ARM.fullEsc = e => {
+      if(e.key === 'Escape' && !ARM.xform && document.body.classList.contains('armfull')){ e.stopPropagation(); armFullView(false); }
+    };
+    document.addEventListener('keydown', ARM.fullEsc, true);
+  }
+  armFrame();
 }
 function armView(yaw, pitch){ ARM.cam.yaw = yaw; ARM.cam.pitch = pitch; armFrame(); }
 function armFrameObjects(objs){

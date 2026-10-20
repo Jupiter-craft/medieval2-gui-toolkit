@@ -225,7 +225,9 @@ async function renderArmory(){
       <div class="armfoot" id="armFoot"></div>
     </section>
     <aside class="armright" id="armRight"></aside>
-  </div>`;
+  </div>
+  <button class="armfullexit" onclick="armFullView(false)" title="${esc(tt('armory.full_view_exit_title'))}">✕ ${tt('armory.full_view_exit')}</button>`;
+  document.body.classList.remove('armfull');
   armMountView();
   armPaintAssets();
   armPaintObjects();
@@ -247,6 +249,7 @@ function armPaintBar(){
     <span style="flex:1"></span>
     <button class="mini" id="armUndoBtn" onclick="armUndo(false)" title="${esc(tt('armory.undo_title'))}"${ARM.undo && ARM.undo.past.length ? '' : ' disabled'}>↶</button>
     <button class="mini" id="armRedoBtn" onclick="armUndo(true)" title="${esc(tt('armory.redo_title'))}"${ARM.undo && ARM.undo.future.length ? '' : ' disabled'}>↷</button>
+    <button class="mini" onclick="armFullView()" title="${esc(tt('armory.full_view_title'))}">⛶ ${tt('armory.full_view')}</button>
     <button class="mini" onclick="armFrameAll()" title="${esc(tt('armory.frame_all_title'))}">${tt('armory.frame_all')}</button>
     <button class="mini" onclick="armSessOpen()" title="${esc(tt('armory.sess_button_title'))}">${tt('armory.sess_button')}</button>
     <button class="mini" onclick="armLibOpen()" title="${esc(tt('armory.lib_open_title'))}">${tt('armory.lib_open')}</button>
@@ -292,6 +295,8 @@ function armPaintAssets(){
         <span style="flex:1"></span>
         <button class="mini primary" onclick="armImportOpen()">${tt('armory.import')}</button>
       </div>
+      ${p.assets.length ? `<label class="armcheck armonlyused" title="${esc(tt('armory.only_used_title'))}"><input type="checkbox"${armOnlyUsed() ? ' checked' : ''}
+        onchange="armSetOnlyUsed(this.checked)"> ${tt('armory.only_used')}</label>` : ''}
       ${p.assets.length ? p.assets.map(armAssetHtml).join('')
         : `<div class="empty armempty">${tt('armory.no_assets_yet')}</div>`}`;
   });
@@ -324,9 +329,17 @@ function armStripHtml(side, label, n){
     <span>${side === 'left' ? '▸' : '◂'}</span><span class="armstriptext">${esc(label)}</span><span class="count">${n}</span></button>`;
 }
 
+// 100h: "only the parts in the model", a setting like the panels' folds
+const armOnlyUsed = () => !!(state.settings || {}).armory_only_used;
+function armSetOnlyUsed(v){
+  state.settings.armory_only_used = v;
+  api.post('/api/settings', {armory_only_used: v}).catch(() => {});
+  armPaintAssets();
+}
 function armAssetHtml(a){
   const key = armAssetKey(a), live = ARM.assets.get(key) || {};
   const v = live.view;
+  const used = v ? v.objects.filter(ob => armProj().objects.some(o => armUses(o, key, ob.index))).length : 0;
   const open = !!a.open;
   const mode = a.show || 'list';
   let body = '';
@@ -334,7 +347,8 @@ function armAssetHtml(a){
     if(live.err) body = `<div class="w-bad armnote">${esc(live.err)}</div>`;
     else if(!v) body = `<div class="count armnote">${tt('armory.reading')}</div>`;
     else{
-      const objs = v.objects.map(o => armAssetObjHtml(a, key, o, mode)).join('');
+      const objs = v.objects.filter(ob => !armOnlyUsed() || armProj().objects.some(o => armUses(o, key, ob.index)))
+        .map(o => armAssetObjHtml(a, key, o, mode)).join('');
       body = `<div class="armobjtools">
           <button class="mini${mode === 'list' ? ' on' : ''}" onclick="armAssetShow('${esc(key)}','list')">${tt('armory.as_list')}</button>
           <button class="mini${mode === 'gallery' ? ' on' : ''}" onclick="armAssetShow('${esc(key)}','gallery')">${tt('armory.as_gallery')}</button>
@@ -353,6 +367,7 @@ function armAssetHtml(a){
       <span class="armname" title="${esc(a.kind === 'external' ? a.path : a.mesh || '')}">${esc(armAssetLabel(a))}</span>
       ${isBase ? `<span class="pill">${tt('armory.base')}</span>` : ''}
       <span class="count">${v ? ttN('armory.asset_sub', v.objects.length, {where: sub}) : sub}</span>
+      ${v ? `<span class="pill${used ? '' : ' warn'}" title="${esc(tt('armory.asset_used_title'))}">${tt('armory.asset_used', {used, n: v.objects.length})}</span>` : ''}
       <button class="mini" onclick="event.stopPropagation();armLibAddAsset('${esc(key)}')" title="${esc(tt('armory.lib_add_title'))}">${tt('armory.lib_add')}</button>
       <button class="mini armx" onclick="event.stopPropagation();armRemoveAsset('${esc(key)}')" title="${esc(tt('armory.remove_asset'))}">✕</button>
     </div>${body}</div>`;

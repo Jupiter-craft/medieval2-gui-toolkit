@@ -2765,6 +2765,17 @@ own, https://github.com/ProJ-Yeet/Quick-Cleanup-Blender-Addon-.
   its step, Shift a tenth, Ctrl ten; the run is saved once 400 ms after it
   stops, so one Undo step (`armSliderWheel`). All three checked in the
   running app on the user's project, its objects put back after.
+* **100h** (2026-10-20): each loaded model's head says how many of its
+  parts are in the model ("2 of 35 used", amber at none), and *Only parts in
+  the model* at the top of Loaded assets hides the rest (setting
+  `armory_only_used`). On the user's project one of the five has none used.
+* **100i** (2026-10-20): *Full view* on the bar, and Ctrl+Space (Blender's
+  key for a maximised area, editable under Shortcuts, working anywhere in
+  the workbench as Undo does) give the viewport the whole window; the same
+  key, Esc (not while a move is under way) or *Leave full view* at the top
+  left bring every panel back as it was (`armFullView`, body class
+  `armfull`). Space is now named `space` in a shortcut. Checked in the
+  running app.
 
 # Phase 99 - Armory Studio after its first use, scheduled 2026-10-15, first in the schedule
 
