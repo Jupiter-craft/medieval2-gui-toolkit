@@ -1156,13 +1156,30 @@ def rotation(rx: float, ry: float, rz: float) -> List[List[float]]:
 
 
 def piece_indices(m: mesh.MeshFile, piece: dict) -> List[int]:
-    """A piece's triangles as vertex indices into its source model."""
+    """A piece's triangles as vertex indices into its source model.
+
+    Optimize (100n) leaves a piece ``weld`` ({vertex: the one it merged
+    into}) and ``flip`` (triangles turned to face outward), honoured here."""
     g = m.groups[int(piece.get("group", 0))]
     tris = piece.get("tris")
-    if tris is None:
-        return list(g.indices)
+    weld, flip = piece.get("weld") or {}, piece.get("flip") or ()
     ix = g.indices
-    return [ix[t * 3 + k] for t in tris if t * 3 + 2 < len(ix) for k in range(3)]
+    if not weld and not flip:
+        if tris is None:
+            return list(ix)
+        return [ix[t * 3 + k] for t in tris if t * 3 + 2 < len(ix) for k in range(3)]
+    flip = set(flip)
+    out: List[int] = []
+    for t in (range(len(ix) // 3) if tris is None else tris):
+        if t * 3 + 2 >= len(ix):
+            continue
+        a, b, c = ix[t * 3], ix[t * 3 + 1], ix[t * 3 + 2]
+        if t in flip:
+            b, c = c, b
+        if weld:
+            a, b, c = (int(weld.get(str(v), v)) for v in (a, b, c))
+        out += (a, b, c)
+    return out
 
 
 def _xf(p, xf):
@@ -1200,9 +1217,13 @@ def object_mesh(obj: dict, assets: Dict[str, dict], mod_of) -> mesh.MeshFile:
         skinned = bool(m.weights) and len(m.bone_ids) == m.vertices * 4
         # 100m: UVs moved in the UV editor, by the asset's vertex
         moved = piece.get("uv") or {}
+        # 100n: normals Optimize worked out again
+        renorm = piece.get("nrm") or {}
         for v in used:
             pts.append(_xf((m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]), xf))
-            n = (m.normals[v * 3], m.normals[v * 3 + 1], m.normals[v * 3 + 2]) if m.normals else (0.0, 1.0, 0.0)
+            rn = renorm.get(str(v)) if renorm else None
+            n = (tuple(float(x) for x in rn) if rn else
+                 (m.normals[v * 3], m.normals[v * 3 + 1], m.normals[v * 3 + 2]) if m.normals else (0.0, 1.0, 0.0))
             if xf:
                 n = _xf(n, list(xf[:12]) + [0, 0, 0, 1])
             nrms.append(n)
@@ -1523,6 +1544,232 @@ def transfer_weights(target: mesh.MeshFile, sources: Sequence[mesh.MeshFile],
         weights.extend((top[0][1] / tot, top[1][1] / tot))
         ids += bytes((0, top[1][0], top[0][0], 0))
     return weights, bytes(ids), bones
+
+
+# ---------------------------------------------------------------------------
+# Optimize (100n): the user's Quick Cleanup addon, the steps a game mesh can
+# take. Its tris-to-quads and triangulate have nothing to do on a mesh that is
+# triangles already; fill holes and fix non-manifold change what the model is
+# and are left to Blender. Each step's result rides on the piece - ``tris``
+# kept, ``weld``, ``flip``, ``nrm`` - so the sheet, the UVs and the weights
+# stay the asset's.
+
+OPTIMIZE_STEPS = ("merge", "degenerate", "outside", "reset_normals", "checks")
+
+
+def _optimize_piece(m: mesh.MeshFile, piece: dict, opts: dict) -> Tuple[dict, dict]:
+    """``(changes, counts)`` for one piece, from its asset as it stands."""
+    g = m.groups[int(piece.get("group", 0))]
+    ix = g.indices
+    tris = list(range(len(ix) // 3)) if piece.get("tris") is None else list(piece["tris"])
+    P, U = m.positions, m.uvs
+    weld = {int(k): int(v) for k, v in (piece.get("weld") or {}).items()}
+    flip = set(piece.get("flip") or ())
+    counts = {"merged": 0, "degenerate": 0, "flipped": 0, "normals": 0, "loose": 0}
+    corner = lambda t: [ix[t * 3], ix[t * 3 + 1], ix[t * 3 + 2]]
+    used = sorted({v for t in tris for v in corner(t)})
+    if opts.get("merge"):
+        dist = max(1e-7, float(opts.get("merge_distance") or 0.0001))
+        cells: Dict[tuple, List[int]] = {}
+        for v in used:
+            if v in weld:
+                continue
+            key = tuple(int(math.floor(P[v * 3 + k] / dist)) for k in range(3))
+            uv = (round(U[v * 2], 5), round(U[v * 2 + 1], 5)) if U else (0, 0)
+            hit = None
+            # the cell and its neighbours, so two points either side of a
+            # cell wall still meet; a seam (another UV) is never merged
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for dz in (-1, 0, 1):
+                        for w in cells.get((key[0] + dx, key[1] + dy, key[2] + dz), ()):
+                            if hit is None and (round(U[w * 2], 5), round(U[w * 2 + 1], 5)) == uv \
+                                    and sum((P[v * 3 + k] - P[w * 3 + k]) ** 2 for k in range(3)) <= dist * dist:
+                                hit = w
+            if hit is None:
+                cells.setdefault(key, []).append(v)
+            else:
+                weld[v] = hit
+                counts["merged"] += 1
+    W = lambda v: weld.get(v, v)
+    if opts.get("degenerate") or opts.get("merge"):
+        keep = []
+        eps = (float(opts.get("merge_distance") or 0.0001)) ** 2
+        for t in tris:
+            a, b, c = (W(v) for v in corner(t))
+            if a == b or b == c or a == c:
+                counts["degenerate"] += 1
+                continue
+            if opts.get("degenerate"):
+                pa, pb, pc_ = ([P[v * 3 + k] for k in range(3)] for v in (a, b, c))
+                e1 = [pb[k] - pa[k] for k in range(3)]
+                e2 = [pc_[k] - pa[k] for k in range(3)]
+                cr = (e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0])
+                if cr[0] ** 2 + cr[1] ** 2 + cr[2] ** 2 <= eps * eps:
+                    counts["degenerate"] += 1
+                    continue
+            keep.append(t)
+        counts["loose"] = len({W(v) for v in used}) - len({W(v) for t in keep for v in corner(t)})
+        tris = keep
+
+    def tri(t):
+        a, b, c = (W(v) for v in corner(t))
+        return (a, c, b) if t in flip else (a, b, c)
+
+    if opts.get("outside") and tris:
+        # winding made consistent across each connected part, then each part
+        # turned to the side the asset as a whole faces (the game's own
+        # convention, read from the model rather than assumed)
+        by_edge: Dict[tuple, List[int]] = {}
+        for t in tris:
+            a, b, c = tri(t)
+            for e in ((a, b), (b, c), (c, a)):
+                by_edge.setdefault((min(e), max(e)), []).append(t)
+        seen: Dict[int, bool] = {}
+        parts: List[List[int]] = []
+        for t0 in tris:
+            if t0 in seen:
+                continue
+            seen[t0] = False
+            part, todo = [t0], [t0]
+            while todo:
+                t = todo.pop()
+                a, b, c = tri(t)
+                if seen[t]:
+                    a, b, c = a, c, b
+                for x, y in ((a, b), (b, c), (c, a)):
+                    for u in by_edge[(min(x, y), max(x, y))]:
+                        if u == t or u in seen:
+                            continue
+                        p, q, r = tri(u)
+                        same = (x, y) in ((p, q), (q, r), (r, p))
+                        # a neighbour sharing an edge runs it the other way
+                        seen[u] = same
+                        part.append(u)
+                        todo.append(u)
+            parts.append(part)
+
+        def outward(ts, turned):
+            # how far the faces point away from the middle of what they
+            # make, weighted by area: no origin in it, so a corner at 0,0,0
+            # counts as any other
+            vs = {v for t in ts for v in tri(t)}
+            C = [sum(P[v * 3 + k] for v in vs) / len(vs) for k in range(3)]
+            s = 0.0
+            for t in ts:
+                a, b, c = tri(t)
+                if turned.get(t):
+                    b, c = c, b
+                pa, pb, pc_ = ([P[v * 3 + k] for k in range(3)] for v in (a, b, c))
+                e1 = [pb[k] - pa[k] for k in range(3)]
+                e2 = [pc_[k] - pa[k] for k in range(3)]
+                cr = (e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0])
+                mid = [(pa[k] + pb[k] + pc_[k]) / 3 - C[k] for k in range(3)]
+                s += cr[0] * mid[0] + cr[1] * mid[1] + cr[2] * mid[2]
+            return s
+        ref = outward(tris, {})
+        sign = 1.0 if ref >= 0 else -1.0
+
+        def area(t):
+            a, b, c = tri(t)
+            pa, pb, pc_ = ([P[v * 3 + k] for k in range(3)] for v in (a, b, c))
+            e1 = [pb[k] - pa[k] for k in range(3)]
+            e2 = [pc_[k] - pa[k] for k in range(3)]
+            return math.sqrt((e1[1] * e2[2] - e1[2] * e2[1]) ** 2 + (e1[2] * e2[0] - e1[0] * e2[2]) ** 2
+                             + (e1[0] * e2[1] - e1[1] * e2[0]) ** 2)
+        for part in parts:
+            turned = {t: seen[t] for t in part}
+            edges_of: Dict[tuple, int] = {}
+            for t in part:
+                a, b, c = tri(t)
+                for e in ((a, b), (b, c), (c, a)):
+                    k_ = (min(e), max(e))
+                    edges_of[k_] = edges_of.get(k_, 0) + 1
+            closed = all(n_ == 2 for n_ in edges_of.values())
+            if closed:
+                # a closed part faces out as the model does
+                wrong = outward(part, turned) * sign < 0
+            else:
+                # an open one (a cloak, a doubled cape) keeps the way most of
+                # it already faces, by area: which side is "out" is the
+                # modeller's call, and a back-to-back layer faces in on purpose
+                wrong = sum(area(t) for t in part if turned[t]) > sum(area(t) for t in part if not turned[t])
+            if wrong:
+                turned = {t: not v for t, v in turned.items()}
+            for t, v in turned.items():
+                if v:
+                    flip ^= {t}
+                    counts["flipped"] += 1
+    nrm: Dict[str, list] = dict(piece.get("nrm") or {})
+    if opts.get("reset_normals") and tris:
+        acc: Dict[int, List[float]] = {}
+        for t in tris:
+            a, b, c = tri(t)
+            pa, pb, pc_ = ([P[v * 3 + k] for k in range(3)] for v in (a, b, c))
+            e1 = [pb[k] - pa[k] for k in range(3)]
+            e2 = [pc_[k] - pa[k] for k in range(3)]
+            cr = (e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0])
+            for v in (a, b, c):
+                s = acc.setdefault(v, [0.0, 0.0, 0.0])
+                for k in range(3):
+                    s[k] += cr[k]
+        # the cross product's side against the normals the file had, so the
+        # new ones point the way the game's do
+        agree = sum(acc[v][0] * m.normals[v * 3] + acc[v][1] * m.normals[v * 3 + 1] + acc[v][2] * m.normals[v * 3 + 2]
+                    for v in acc) if m.normals else 1.0
+        sgn = 1.0 if agree >= 0 else -1.0
+        for v, s in acc.items():
+            ln = math.sqrt(s[0] ** 2 + s[1] ** 2 + s[2] ** 2) or 1.0
+            nrm[str(v)] = [round(sgn * s[k] / ln, 6) for k in range(3)]
+        counts["normals"] = len(acc)
+    changes = {"tris": tris if (len(tris) != len(ix) // 3 or piece.get("tris") is not None) else None,
+               "weld": {str(k): v for k, v in weld.items()} or None,
+               "flip": sorted(flip) or None, "nrm": nrm or None}
+    return changes, counts
+
+
+def optimize(project: dict, obj_ids: Sequence[int], opts: dict, mod_of) -> dict:
+    """The page's *Optimize* (100n) on each object: per piece what changes,
+    the counts, and the Blender kit's export checks on what it comes to."""
+    assets = project_assets(project)
+    out: Dict[str, dict] = {}
+    total = {"merged": 0, "degenerate": 0, "flipped": 0, "normals": 0, "loose": 0}
+    ids = [int(i) for i in obj_ids]
+    for o in project.get("objects") or []:
+        if o.get("id") not in ids:
+            continue
+        pieces = []
+        for piece in o.get("src") or []:
+            asset = assets.get(piece.get("asset"))
+            if asset is None:
+                pieces.append(None)
+                continue
+            m = asset_mesh(asset, mod_of)
+            ch, n = _optimize_piece(m, piece, opts)
+            pieces.append(ch)
+            for k in total:
+                total[k] += n[k]
+        out[str(o["id"])] = {"pieces": pieces}
+    checks = None
+    if opts.get("checks"):
+        from . import armbake
+        trial = json.loads(json.dumps(project))
+        for o in trial.get("objects") or []:
+            got = out.get(str(o.get("id")))
+            if not got:
+                continue
+            for piece, ch in zip(o.get("src") or [], got["pieces"]):
+                if ch:
+                    for k, v in ch.items():
+                        if v is None:
+                            piece.pop(k, None)
+                        else:
+                            piece[k] = v
+        try:
+            checks = armbake.check_model(trial, mod_of)
+        except Exception as e:                                    # a check never stops the run
+            checks = {"issues": [], "error": str(e)}
+    return {"objects": out, "counts": total, "checks": checks}
 
 
 def project_assets(project: dict) -> Dict[str, dict]:

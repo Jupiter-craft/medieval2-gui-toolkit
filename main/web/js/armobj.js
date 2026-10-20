@@ -86,6 +86,7 @@ function armPaintObjects(){
     </div>
     <div class="armtools">
       <button class="mini" onclick="armMerge()"${sel.length > 1 ? '' : ' disabled'} title="${esc(tt('armory.merge_title'))}">${tt('armory.merge')}</button>
+      <button class="mini" onclick="armOptOpen()"${p.objects.length ? '' : ' disabled'} title="${esc(tt('armory.optimize_title'))}">${tt('armory.optimize')}</button>
     </div>
     ${p.objects.length ? '' : `<div class="empty armempty">${tt('armory.no_objects_yet')}</div>`}
     ${[...groups].map(([name, objs]) => armFoldHtml('g:' + name, name, objs, null)).join('')}

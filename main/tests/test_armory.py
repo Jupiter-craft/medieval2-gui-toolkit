@@ -319,6 +319,47 @@ hand = strip([0.0, 0.01], lambda x: "bone_lhand")
 got = tops(armory.transfer_weights(hand, [strip([0.0, 0.01], lambda x: "bone_lelbow", y=0.001)],
                                    own=[{"bone_lhand": 1.0}] * hand.vertices, smooth=0))
 check(f"a bone no source carries is kept ({set(got)})", set(got) == {"bone_lhand"})
+# 100n: Optimize, on a tetrahedron with a face wound the wrong way, a
+# duplicate corner and the triangle that duplicate makes degenerate
+print("\nOptimize (100n)")
+tet = tmp / "tet100n.obj"
+tet.write_text("\n".join([
+    "v 0 0 0", "v 1 0 0", "v 0 1 0", "v 0 0 1", "v 0 0 0",
+    "f 1 3 2", "f 1 2 4", "f 5 4 3", "f 2 4 3", "f 1 5 2"]) + "\n", encoding="utf-8")
+ta = {"kind": "external", "path": str(tet)}
+tkey = armory.asset_key(ta)
+tproj = {"assets": [ta], "objects": [{"id": 1, "name": "Body", "mesh": "tet", "src": [{"asset": tkey, "group": 0}],
+                                      "t": [0, 0, 0], "r": [0, 0, 0], "s": [1, 1, 1]}]}
+res = armory.optimize(tproj, [1], {"merge": True, "merge_distance": 0.0001, "degenerate": True,
+                                   "outside": True, "reset_normals": True}, None)
+cnt = res["counts"]
+check(f"a duplicate corner merged, the triangle it collapses dropped, the backward face turned ({cnt})",
+      cnt["merged"] == 1 and cnt["degenerate"] == 1 and cnt["flipped"] == 1 and cnt["normals"] == 4)
+ch = res["objects"]["1"]["pieces"][0]
+tproj["objects"][0]["src"][0].update({k: v for k, v in ch.items() if v is not None})
+tm = armory.object_mesh(tproj["objects"][0], armory.project_assets(tproj), None)
+ix = list(tm.groups[0].indices)
+faces = [tuple(ix[i:i + 3]) for i in range(0, len(ix), 3)]
+edges = {}
+for a, b, c in faces:
+    for e in ((a, b), (b, c), (c, a)):
+        edges[e] = edges.get(e, 0) + 1
+check(f"what it comes to is a closed shape of four faces, every edge run once each way ({len(faces)}, {tm.vertices} vertices)",
+      len(faces) == 4 and tm.vertices == 4 and all(edges.get((b, a)) == 1 for (a, b) in edges))
+again = armory.optimize(tproj, [1], {"merge": True, "degenerate": True, "outside": True}, None)["counts"]
+check(f"and a second run finds nothing more to do ({again})", again["merged"] == 0 and again["degenerate"] == 0 and again["flipped"] == 0 and again["loose"] == 0)
+
+cape = tmp / "cape100n.obj"
+cape.write_text("\n".join([
+    "v 0 0 0", "v 1 0 0", "v 1 1 0", "v 0 1 0",
+    "v 0 0 0.01", "v 1 0 0.01", "v 1 1 0.01", "v 0 1 0.01",
+    "f 1 2 3", "f 1 3 4", "f 5 7 6", "f 5 8 7"]) + "\n", encoding="utf-8")
+ca = {"kind": "external", "path": str(cape)}
+cproj = {"assets": [ca], "objects": [{"id": 1, "name": "Cape", "mesh": "cape", "src": [{"asset": armory.asset_key(ca), "group": 0}],
+                                      "t": [0, 0, 0], "r": [0, 0, 0], "s": [1, 1, 1]}]}
+cc = armory.optimize(cproj, [1], {"outside": True}, None)["counts"]
+check(f"a doubled cape, its two layers facing apart on purpose, is left as it is ({cc['flipped']} turned)", cc["flipped"] == 0)
+
 import re as _re
 _js = (ROOT / "web" / "js" / "armobj.js").read_text(encoding="utf-8")
 _page = _re.findall(r"'(bone_\w+)'", _js[_js.index("const ARM_BONES"):_js.index("];", _js.index("const ARM_BONES"))])

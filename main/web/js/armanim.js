@@ -187,8 +187,9 @@ function armAnimGeo(o){
     for(const v of used){
       const x = P[v*3], y = P[v*3+1], z = P[v*3+2];
       pos.push(m[0]*x + m[4]*y + m[8]*z + m[12], m[1]*x + m[5]*y + m[9]*z + m[13], m[2]*x + m[6]*y + m[10]*z + m[14]);
-      if(N){
-        const nx = N[v*3], ny = N[v*3+1], nz = N[v*3+2];
+      const rn = pc.nrm && pc.nrm[v];        // 100n: normals Optimize worked out
+      if(rn || N){
+        const nx = rn ? rn[0] : N[v*3], ny = rn ? rn[1] : N[v*3+1], nz = rn ? rn[2] : N[v*3+2];
         const q = [m[0]*nx + m[4]*ny + m[8]*nz, m[1]*nx + m[5]*ny + m[9]*nz, m[2]*nx + m[6]*ny + m[10]*nz];
         const l = Math.hypot(q[0], q[1], q[2]) || 1;
         nrm.push(q[0]/l, q[1]/l, q[2]/l);

@@ -527,6 +527,18 @@ function armPieceEach(live, pc, fn, step){
   const g = live.geo.groups[pc.group];
   if(!g) return;
   const I = live.geo.indices, k = step || 1;
+  if(pc.weld || pc.flip){
+    // 100n: Optimize's merges and outward turns, as armory.piece_indices reads them
+    const W = pc.weld || {}, F = armFlipSet(pc);
+    const n = pc.tris ? pc.tris.length : g.count / 3;
+    for(let i = 0; i < n; i++){
+      const t = pc.tris ? pc.tris[i] : i;
+      let c3 = [I[g.start + t*3], I[g.start + t*3 + 1], I[g.start + t*3 + 2]];
+      if(F.has(t)) c3 = [c3[0], c3[2], c3[1]];
+      for(let c = 0; c < 3; c += k){ const v = c3[c]; fn(W[v] != null ? W[v] : v); }
+    }
+    return;
+  }
   if(pc.tris){
     for(const t of pc.tris) for(let c = 0; c < 3; c += k) fn(I[g.start + t*3 + c]);
   }else for(let i = g.start; i < g.start + g.count; i += k) fn(I[i]);
@@ -555,18 +567,24 @@ function armPivot(o){
 }
 /* A split piece's own index buffer, made once per triangle list. */
 const ARM_SUB = new WeakMap();
+const ARM_FLIP = new WeakMap();
+function armFlipSet(pc){
+  let hit = ARM_FLIP.get(pc);
+  if(!hit || hit.flip !== pc.flip){ hit = {flip: pc.flip, set: new Set(pc.flip || [])}; ARM_FLIP.set(pc, hit); }
+  return hit.set;
+}
 function armPieceBuffer(live, pc){
   let hit = ARM_SUB.get(pc);
-  if(hit && hit.tris === pc.tris) return hit;
+  if(hit && hit.tris === pc.tris && hit.weld === pc.weld && hit.flip === pc.flip) return hit;
   const gl = armGl();
-  const g = live.geo.groups[pc.group], I = live.geo.indices;
-  const idx = new Uint16Array(pc.tris.length * 3);
-  pc.tris.forEach((t, i) => { idx[i*3] = I[g.start + t*3]; idx[i*3+1] = I[g.start + t*3+1]; idx[i*3+2] = I[g.start + t*3+2]; });
+  const flat = [];
+  armPieceEach(live, pc, v => flat.push(v));
+  const idx = new Uint16Array(flat);
   if(hit && hit.buf) gl.deleteBuffer(hit.buf);
   const buf = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
-  hit = {buf, count: idx.length, tris: pc.tris};
+  hit = {buf, count: idx.length, tris: pc.tris, weld: pc.weld, flip: pc.flip};
   ARM_SUB.set(pc, hit);
   return hit;
 }
@@ -951,11 +969,11 @@ function armRender(objs, w, h, cam, opts){
       gl.uniform1f(L.uXray, !o.plain && ARM.xray ? 1 : 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.pos);
       gl.enableVertexAttribArray(L.aPos); gl.vertexAttribPointer(L.aPos, 3, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, live.buf.nrm);
+      gl.bindBuffer(gl.ARRAY_BUFFER, pc.nrm ? armNrmBuffer(live, pc) : live.buf.nrm);
       gl.enableVertexAttribArray(L.aNormal); gl.vertexAttribPointer(L.aNormal, 3, gl.FLOAT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, pc.uv && typeof armUvBuffer === 'function' ? armUvBuffer(live, pc) : live.buf.uv);
       gl.enableVertexAttribArray(L.aUv); gl.vertexAttribPointer(L.aUv, 2, gl.FLOAT, false, 0, 0);
-      if(pc.tris){
+      if(pc.tris || pc.weld || pc.flip){
         const sub = armPieceBuffer(live, pc);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sub.buf);
         gl.drawElements(gl.TRIANGLES, sub.count, gl.UNSIGNED_SHORT, 0);

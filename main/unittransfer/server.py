@@ -2756,6 +2756,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"path": str(out)})
                 except (armory.ArmoryError, OSError, ValueError) as e:
                     return self._err(400, str(e))
+            if u.path == "/api/armory/optimize":
+                # 100n: the Quick Cleanup addon's steps, per piece
+                try:
+                    return self._json(armory.optimize(
+                        body.get("project") or {}, body.get("ids") or [],
+                        body.get("opts") or {}, self.registry.get))
+                except (armory.ArmoryError, mesh.MeshError, KeyError, ValueError) as e:
+                    return self._err(400, str(e))
             if u.path == "/api/armory/rig_bones":
                 # 100b: every vertex of the chosen objects on one or two bones
                 try:
